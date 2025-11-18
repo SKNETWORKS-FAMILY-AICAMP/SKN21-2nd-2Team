@@ -1,5 +1,5 @@
 """
-main.py (플랫폼 메인 화면)
+login.py (플랫폼 Login 화면)
 Auth: 박수빈
 Date: 2025-11-18
 Description
