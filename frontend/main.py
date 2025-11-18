@@ -101,22 +101,22 @@ def show_profile_page():
             st.error(f"수정 실패: {res}")
 
 # ----------------------------------------------------------
-# 사용자 검색 함수
+# 사용자 조회 함수
 # ----------------------------------------------------------
 def search_user():
-    st.subheader("🔍 사용자 검색")
+    st.subheader("🔍 사용자 조회")
 
-    # 검색 필드 UI
-    st.markdown("### 검색 조건")
+    # 조회 필드 UI
+    st.markdown("### 조회 조건")
     col1, col2 = st.columns(2)
     col3, col4 = st.columns(2)
 
     with col1:
-        search_name = st.text_input("이름 검색")
+        search_name = st.text_input("이름 조회")
     with col2:
         search_user_id = st.text_input("User ID")
     with col3:
-        search_music = st.text_input("좋아하는 음악 검색")
+        search_music = st.text_input("좋아하는 음악 조회")
     with col4:
         search_grade = st.text_input("등급 (예: 01, 99)")
 
@@ -129,8 +129,8 @@ def search_user():
 
     page = st.session_state.user_page
 
-    # 검색 버튼
-    if st.button("🔍 검색 실행"):
+    # 조회 버튼
+    if st.button("🔍 조회 실행"):
         st.session_state.user_page = 1  # 첫 페이지로 리셋
         st.rerun()
 
@@ -146,7 +146,7 @@ def search_user():
     ok, res = call_api(api_url)
 
     if not ok or not res.get("success"):
-        st.error("검색 중 오류가 발생하였습니다.")
+        st.error("조회 중 오류가 발생하였습니다.")
         st.write(res)
         return
 
@@ -163,7 +163,7 @@ def search_user():
         df = df[desired_order]
         st.table(df)
     else:
-        st.info("검색 결과가 없습니다.")
+        st.info("조회 결과가 없습니다.")
         return
 
     # 페이징 버튼 UI
