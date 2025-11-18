@@ -9,6 +9,7 @@ Description:
 
 import sys
 import os
+import bcrypt
 
 # -------------------------------------------------------------
 # 프로젝트 루트를 Python 경로에 추가 (utils import 가능)
@@ -18,9 +19,9 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 from flask import Flask, jsonify, request
 from utils.constants import get_connection
 from utils.user_insert import load_users_from_csv
+from pymysql.cursors import DictCursor
 
 app = Flask(__name__)
-
 
 # -------------------------------------------------------------
 # 0) 초기 테이블 생성
@@ -175,6 +176,38 @@ def delete_user(user_id):
 
     return jsonify({"message": "User deleted"})
 
+#########################################
+# LOGIN (bcrypt 적용)
+#########################################
+@app.route("/api/login", methods=["POST"])
+def login_user():
+    data = request.json
+
+    conn = get_connection()
+    cursor = conn.cursor(DictCursor)
+
+    cursor.execute("""
+        SELECT user_id, name, favorite_music, password, join_date, modify_date, grade
+        FROM users
+        WHERE user_id = %s
+    """, (data['user_id'],))
+    
+    row = cursor.fetchone()
+    cursor.close()
+    conn.close()
+
+    if not row:
+        return jsonify({"success": False, "message": "아이디 없음"}), 401
+
+    if bcrypt.checkpw(data['password'].encode("utf-8"), row['password'].encode("utf-8")):
+        return jsonify({
+            "success": True,
+            "user_id": row['user_id'],
+            "name": row['name'],
+            "grade": row['grade']
+        })
+
+    return jsonify({"success": False, "message": "비밀번호 틀림"}), 401
 
 # -------------------------------------------------------------
 # Flask 실행

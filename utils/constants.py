@@ -10,10 +10,11 @@ Description
 import pymysql
 
 # DB SET VALUE
+# Local에서 사용 시, 개인적으로 CONFIG 수정 필요.
 DB_CONFIG = {
     "host": "localhost",
     "user": "root",
-    "password": "test123",
+    "password": "test1234",
     "db": "skn21_2nd_team",
     "charset": "utf8mb4"
 }
