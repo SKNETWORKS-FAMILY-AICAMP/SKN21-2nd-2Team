@@ -15,7 +15,7 @@ API_URL = "http://localhost:5000/api"
 st.title("User Data Management")
 
 def safe_request(url):
-    """안정적으로 요청하고 JSON/텍스트를 모두 처리하는 함수"""
+    """요청하고 JSON/텍스트를 모두 처리하는 함수"""
     try:
         res = requests.get(url)
 
