@@ -3,7 +3,10 @@ main.py (플랫폼 Main 화면)
 Auth: 박수빈
 Date: 2025-11-18
 Description
-- 기능 추가 예정
+- 홈 화면
+- 내 정보 수정
+- Admin 사용자 데이터 관리
+- Admin 사용자 조회
 """
 
 import streamlit as st
@@ -226,7 +229,7 @@ def show_main_page():
     grade = user.get("grade")
     
     # ---------------------------
-    # 🔵 사용자 정보를 사이드바로 이동
+    # 사용자 정보 사이드바 출력
     # ---------------------------
     with st.sidebar:
         st.markdown("### 👤 로그인 정보")
@@ -247,7 +250,7 @@ def show_main_page():
     
     # grade = 99 → 관리자
     if grade == "99":
-        menu_items.extend(["사용자 데이터 관리", "유저 조회"])
+        menu_items.extend(["사용자 데이터 관리", "사용자 조회"])
 
     menu = st.sidebar.radio("메뉴 선택", menu_items)
 
@@ -255,7 +258,7 @@ def show_main_page():
         show_home_page()
     elif menu == "내 정보":
         show_profile_page()
-    elif menu == "유저 조회":
+    elif menu == "사용자 조회":
         if grade == "99":
             search_user()
         else:
