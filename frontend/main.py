@@ -49,9 +49,7 @@ def show_profile_page():
 
     user = st.session_state.user_info
     grade = user.get("grade")
-
-    st.markdown("#### 현재 정보")
-
+    
     # 현재 값 가지기
     current_name = user["name"]
     current_fav_music = user.get("favorite_music", "")
@@ -60,8 +58,6 @@ def show_profile_page():
     # ------------------------------
     # 입력 폼
     # ------------------------------
-    st.markdown("### ✏ 정보 수정")
-
     new_name = st.text_input("이름", value=current_name)
     new_music = st.text_input("좋아하는 음악", value=current_fav_music)
 
@@ -84,7 +80,7 @@ def show_profile_page():
             "grade": new_grade,
         }
 
-        ok, res = call_api_post("update_user", payload)
+        ok, res = call_api_post("update_user_data", payload)
 
         if ok and res.get("success"):
             st.success("정보가 성공적으로 수정되었습니다.")

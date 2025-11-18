@@ -293,10 +293,10 @@ def update_user(user_id):
     return jsonify({"message": "User updated"})
 
 # -------------------------------------------------------------
-# UPDATE_USER
+# UPDATE_USER_DATA
 # -------------------------------------------------------------  
-@app.route("/api/update_user", methods=["POST"])
-def update_user():
+@app.route("/api/update_user_data", methods=["POST"])
+def update_user_data():
     try:
         data = request.json
 
