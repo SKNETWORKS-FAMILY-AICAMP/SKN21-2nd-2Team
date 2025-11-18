@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # import numpy as np
 # import pandas as pd
 
@@ -52,3 +53,23 @@ for col, cond in outlier_conditions.items():
 # 전체 이상치 개수 출력
 total_outliers = sum(cond.sum() for cond in outlier_conditions.values())
 print("전체 이상치 개수:", total_outliers)
+=======
+"""
+app.py (Spotify 이용자 이탈 분석)
+Auth: 박수빈
+Date: 2025-11-18
+Description
+- Spotify 이용자 이탈 분석 확인 페이지
+- 추가 기능 필요?
+"""
+
+# -------------------------------------------------------------
+# Main Functions
+# -------------------------------------------------------------
+def test (str):
+    """ Test 함수"""
+    
+    # 2025-11-18 박수빈 : 임시 주석 수정.
+    # return false
+    pass
+>>>>>>> f784a6119fef694e345578216d891e6774a08959
