@@ -69,7 +69,9 @@ def import_users_from_csv():
 # 2) USER CRUD REST API
 # -------------------------------------------------------------
 
+# -------------------------------------------------------------
 # READ ALL
+# -------------------------------------------------------------
 @app.route("/api/users", methods=["GET"])
 def get_all_users():
     conn = get_connection()
@@ -83,8 +85,9 @@ def get_all_users():
 
     return jsonify(rows)
 
-
+# -------------------------------------------------------------
 # READ ONE
+# -------------------------------------------------------------
 @app.route("/api/users/<int:user_id>", methods=["GET"])
 def get_user(user_id):
     conn = get_connection()
@@ -98,8 +101,134 @@ def get_user(user_id):
 
     return jsonify(row)
 
+# -------------------------------------------------------------
+# USER PAGING 조회 API (신규 추가)
+# -------------------------------------------------------------
+@app.route("/api/users_paged", methods=["GET"])
+def get_users_paged():
+    try:
+        page = int(request.args.get("page", 1))
+        page_size = int(request.args.get("page_size", 20))
+        offset = (page - 1) * page_size
 
+        conn = get_connection()
+        cursor = conn.cursor(DictCursor)
+
+        # 전체 개수 조회
+        cursor.execute("SELECT COUNT(*) AS cnt FROM users")
+        total_rows = cursor.fetchone()["cnt"]
+
+        # 페이징 데이터 조회
+        cursor.execute("""
+            SELECT user_id, name, favorite_music, grade, join_date
+            FROM users
+            ORDER BY user_id ASC
+            LIMIT %s OFFSET %s
+        """, (page_size, offset))
+
+        rows = cursor.fetchall()
+
+        cursor.close()
+        conn.close()
+
+        return jsonify({
+            "success": True,
+            "page": page,
+            "page_size": page_size,
+            "total_rows": total_rows,
+            "total_pages": (total_rows + page_size - 1) // page_size,
+            "rows": rows
+        })
+
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+    
+# -------------------------------------------------------------
+# USER 조건 검색
+# -------------------------------------------------------------  
+@app.route("/api/users_search", methods=["GET"])
+def users_search():
+    try:
+        # 검색 파라미터
+        name = request.args.get("name", "").strip()
+        user_id = request.args.get("user_id", "").strip()
+        favorite_music = request.args.get("favorite_music", "").strip()
+        grade = request.args.get("grade", "").strip()
+
+        # 페이징 파라미터
+        page = int(request.args.get("page", 1))
+        page_size = int(request.args.get("page_size", 20))
+        offset = (page - 1) * page_size
+
+        conn = get_connection()
+        cursor = conn.cursor(DictCursor)
+
+        # ----------------------------
+        # 동적 WHERE 조건 생성
+        # ----------------------------
+        conditions = []
+        params = []
+
+        if name:
+            conditions.append("name LIKE %s")
+            params.append(f"%{name}%")
+
+        if user_id.isdigit():
+            conditions.append("user_id = %s")
+            params.append(int(user_id))
+
+        if favorite_music:
+            conditions.append("favorite_music LIKE %s")
+            params.append(f"%{favorite_music}%")
+
+        if grade:
+            conditions.append("grade = %s")
+            params.append(grade)
+
+        where_clause = " AND ".join(conditions)
+        if where_clause:
+            where_clause = "WHERE " + where_clause
+
+        # ----------------------------
+        # 전체 개수 조회
+        # ----------------------------
+        count_sql = f"SELECT COUNT(*) AS cnt FROM users {where_clause}"
+        cursor.execute(count_sql, tuple(params))
+        total_rows = cursor.fetchone()["cnt"]
+
+        # ----------------------------
+        # 페이징된 데이터 조회
+        # ----------------------------
+        query_sql = f"""
+            SELECT user_id, name, favorite_music, join_date, grade
+            FROM users
+            {where_clause}
+            ORDER BY user_id
+            LIMIT %s OFFSET %s
+        """
+
+        cursor.execute(query_sql, tuple(params) + (page_size, offset))
+        rows = cursor.fetchall()
+
+        cursor.close()
+        conn.close()
+
+        return jsonify({
+            "success": True,
+            "page": page,
+            "page_size": page_size,
+            "total_rows": total_rows,
+            "total_pages": (total_rows + page_size - 1) // page_size,
+            "rows": rows
+        })
+
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
+
+# -------------------------------------------------------------
 # CREATE
+# -------------------------------------------------------------  
 @app.route("/api/users", methods=["POST"])
 def create_user():
     data = request.json
@@ -131,7 +260,9 @@ def create_user():
     return jsonify({"message": "User created", "user_id": new_id})
 
 
+# -------------------------------------------------------------
 # UPDATE
+# -------------------------------------------------------------  
 @app.route("/api/users/<int:user_id>", methods=["PUT"])
 def update_user(user_id):
     data = request.json
@@ -161,8 +292,47 @@ def update_user(user_id):
 
     return jsonify({"message": "User updated"})
 
+# -------------------------------------------------------------
+# UPDATE_USER
+# -------------------------------------------------------------  
+@app.route("/api/update_user", methods=["POST"])
+def update_user():
+    try:
+        data = request.json
 
+        user_id = data.get("user_id")
+        name = data.get("name")
+        favorite_music = data.get("favorite_music")
+        grade = data.get("grade")
+
+        if not user_id:
+            return jsonify({"success": False, "error": "user_id가 필요합니다."})
+
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        sql = """
+            UPDATE users
+            SET name = %s,
+                favorite_music = %s,
+                grade = %s
+            WHERE user_id = %s
+        """
+
+        cursor.execute(sql, (name, favorite_music, grade, user_id))
+        conn.commit()
+
+        cursor.close()
+        conn.close()
+
+        return jsonify({"success": True, "message": "사용자 정보가 수정되었습니다."})
+
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
+# -------------------------------------------------------------
 # DELETE
+# -------------------------------------------------------------  
 @app.route("/api/users/<int:user_id>", methods=["DELETE"])
 def delete_user(user_id):
     conn = get_connection()
@@ -176,9 +346,10 @@ def delete_user(user_id):
 
     return jsonify({"message": "User deleted"})
 
-#########################################
+
+# -------------------------------------------------------------
 # LOGIN (bcrypt 적용)
-#########################################
+# -------------------------------------------------------------  
 @app.route("/api/login", methods=["POST"])
 def login_user():
     data = request.json

@@ -12,6 +12,24 @@ import requests
 
 API_URL = "http://localhost:5000/api"
 
+# ------------------------------
+# 임시 로그인 계정 목록 (관리자/유저)
+# ------------------------------
+temp_accounts = {
+    "test1": {  # 관리자 계정
+        "password": "1234",
+        "user_id": 99,
+        "name": "Test Admin",
+        "grade": "99"
+    },
+    "test2": {  # 일반 유저 계정
+        "password": "1234",
+        "user_id": 1,
+        "name": "Test User",
+        "grade": "01"
+    }
+}
+
 def show_login_page():
     """
     로그인 화면 페이지
@@ -30,45 +48,30 @@ def show_login_page():
     st.subheader("로그인 정보를 입력해 주세요.")
 
     # 입력
-    user_id_input = st.text_input("아이디 (user_id)", placeholder="예: 1 또는 test")
+    user_id_input = st.text_input("아이디 (user_id)", placeholder="ID를 입력해주세요")
     password = st.text_input("비밀번호", type="password")
 
     if st.button("로그인"):
         # st.write("➡ 버튼 클릭 감지됨")
 
         # ------------------------------
-        # 관리자 임시 로그인 로직 (ID: test1 / PW: 1234 / grade:99)
+        # 임시 로그인 공통 처리
         # ------------------------------
-        if user_id_input.strip() == "test1" and password.strip() == "1234":
-            st.success("임시 계정으로 로그인되었습니다.")
+        if user_id_input.strip() in temp_accounts:
+            acc = temp_accounts[user_id_input.strip()]
 
-            # 메인 페이지에서 기대하는 형태와 동일하게 세션 데이터 구성
-            st.session_state.logged_in = True
-            st.session_state.user_info = {
-                "user_id": 99,
-                "name": "Test Admin",
-                "grade": "99",
-            }
+            if password.strip() == acc["password"]:
+                st.success("임시 계정으로 로그인되었습니다.")
 
-            st.rerun()
-            return  # 아래 실제 로그인 로직으로 내려가지 않도록 종료
-        
-        # ------------------------------
-        # 유저 임시 로그인 로직 (ID: test2 / PW: 1234 / grade:01)
-        # ------------------------------
-        if user_id_input.strip() == "test2" and password.strip() == "1234":
-            st.success("임시 계정으로 로그인되었습니다.")
+                st.session_state.logged_in = True
+                st.session_state.user_info = {
+                    "user_id": acc["user_id"],
+                    "name": acc["name"],
+                    "grade": acc["grade"],
+                }
 
-            # 메인 페이지에서 기대하는 형태와 동일하게 세션 데이터 구성
-            st.session_state.logged_in = True
-            st.session_state.user_info = {
-                "user_id": 00,
-                "name": "Test User",
-                "grade": "01",
-            }
-
-            st.rerun()
-            return  # 아래 실제 로그인 로직으로 내려가지 않도록 종료
+                st.rerun()
+                return
 
         # ------------------------------
         # 실제 API 로그인 로직 (숫자 user_id 전용)
