@@ -38,7 +38,7 @@ if ENV == "LOCAL":
 else:
     # 팀원 외부 접속 환경
     DB_CONFIG = {
-        "host": os.getenv("DB_HOST", "222.112.208.72"),
+        "host": os.getenv("DB_HOST", "192.168.0.152"),
         "port": int(os.getenv("DB_PORT", 3306)),
         "user": os.getenv("DB_USER", "team_user1"),
         "password": os.getenv("DB_PASSWORD", "test1234"),
