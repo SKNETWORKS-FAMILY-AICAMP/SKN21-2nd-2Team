@@ -1,0 +1,29 @@
+{
+  "listening_time_median": 154.0,
+  "listening_time_max": 299.0,
+  "listening_time_q99": 297.0,
+  "songs_played_per_day_median": 50.0,
+  "songs_played_per_day_max": 99.0,
+  "songs_played_per_day_q99": 98.0,
+  "skip_rate_median": 0.305,
+  "skip_rate_max": 4.980194893630863,
+  "skip_rate_q99": 3.1209042144663313,
+  "country_top5": [
+    "AU",
+    "US",
+    "DE",
+    "IN",
+    "PK"
+  ],
+  "subscription_type_unique": [
+    "Free",
+    "Family",
+    "Premium",
+    "Student"
+  ],
+  "device_type_unique": [
+    "Desktop",
+    "Web",
+    "Mobile"
+  ]
+}
