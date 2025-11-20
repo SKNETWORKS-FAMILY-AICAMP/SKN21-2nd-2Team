@@ -1,4 +1,11 @@
-# signup.py
+"""
+signup.py (플랫폼 회원가입 화면)
+Auth: 박수빈
+Date: 2025-11-18
+Description
+- 회원가입
+"""
+
 import streamlit as st
 import requests
 
