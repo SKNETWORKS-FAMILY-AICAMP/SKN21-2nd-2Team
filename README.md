@@ -249,28 +249,39 @@ SKN21-2ND-2TEAM/
 
 ### 🔹 주요 테이블 구조
 
-#### 1) `users` — 사용자 정보 테이블
-| 컬럼명 | 타입 | 설명 |
-|--------|--------|--------|
-| `id` | INT (PK) | 사용자 고유 ID |
-| `username` | VARCHAR | 로그인 아이디 |
-| `password_hash` | VARCHAR | bcrypt로 해싱된 비밀번호 |
-| `created_at` | DATETIME | 가입 시간 |
+#### 1) `Original Dataset` — 원본 피처 테이
+| 컬럼명                   | 타입        | 설명               | 비고                   |
+| --------------------- | --------- | ---------------- | -------------------- |
+| user_id               | INT       | 사용자 고유 ID        | PK                   |
+| gender                | VARCHAR   | 성별 (Male/Female) | 범주형                  |
+| age                   | INT       | 사용자 나이           | 수치형                  |
+| country               | VARCHAR   | 접속 국가            | 이후 Top5 + Others 그룹화 |
+| subscription_type     | VARCHAR   | 요금제 종류           | One-hot 인코딩          |
+| listening_time        | FLOAT     | 하루 음악 청취 시간(분)   | 결측 → 중앙값             |
+| songs_played_per_day  | FLOAT     | 하루 재생 곡수         | 결측 → 중앙값             |
+| skip_rate             | FLOAT     | 스킵률              | 0~1.5 이상치 cap        |
+| device_type           | VARCHAR   | 기기 종류            | One-hot 인코딩          |
+| ads_listened_per_week | INT       | 주간 광고 시청 수       | 상위 1% cap            |
+| offline_listening     | INT (0/1) | 오프라인 재생 기능 여부    | binary               |
+| is_churned            | INT(0/1)  | 이탈 여부            | Target               |
 
 <br>
 
-#### 2) `predictions` — 예측 결과 저장
-| 컬럼명 | 타입 | 설명 |
-|---------|--------|--------|
-| `id` | INT (PK) | 예측 기록 ID |
-| `user_id` | INT (FK) | 예측 요청한 사용자 |
-| `listening_time` | FLOAT | 입력된 청취 시간 |
-| `skip_rate` | FLOAT | 입력된 스킵률 |
-| `engagement_score` | FLOAT | 입력된 참여도 지수 |
-| `ads_pressure` | FLOAT | 입력된 광고 노출 정도 |
-| `prediction` | FLOAT | 예측된 이탈 확률 |
-| `created_at` | DATETIME | 예측 수행 시간 |
+#### 2) `Feature Engineering` — 파생 변수 테이블
+| 컬럼명                | 타입      | 설명                                |
+| ------------------ | ------- | --------------------------------- |
+| engagement_score   | FLOAT   | 청취시간 + 재생곡수 기반 참여도 지표             |
+| listening_time_bin | VARCHAR | very_low ~ high 구간화               |
+| skip_intensity     | FLOAT   | skip_rate × songs_played_per_day  |
+| skip_index         | FLOAT   | songs_played / (skip_rate + 1e-5) |
 
+
+<br>
+
+#### 3) `Target Variable` 
+| 컬럼명        | 타입       | 설명              |
+| ---------- | -------- | --------------- |
+| is_churned | INT(0/1) | 1 = 이탈 / 0 = 유지 |
 
 
 <br><br><br>
