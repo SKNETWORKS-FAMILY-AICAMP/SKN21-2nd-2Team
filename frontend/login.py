@@ -9,6 +9,7 @@ Description
 
 import streamlit as st
 import requests
+from signup import show_signup_page
 
 API_URL = "http://localhost:5000/api"
 
@@ -118,8 +119,13 @@ def show_login_page():
 
         except Exception as e:
             st.error(f"서버 연결 실패: {e}")
+            
+    if st.button("회원가입 하러가기"):
+        st.session_state.page = "signup"
+        st.rerun()
 
     # st.write("로그인 테스트 완료 영역 (오류 확인용)")
+    
 
 if __name__ == "__main__":
     show_login_page()

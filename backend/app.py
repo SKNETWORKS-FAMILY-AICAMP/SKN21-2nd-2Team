@@ -261,6 +261,50 @@ def create_user():
 
 
 # -------------------------------------------------------------
+# CREATE (회원가입)
+# -------------------------------------------------------------  
+@app.route("/api/signup", methods=["POST"])
+def signup():
+    data = request.json
+
+    user_id = data.get("user_id")
+    name = data.get("name")
+    favorite_music = data.get("favorite_music", "")
+    password = data.get("password")
+    grade = "01"  # 기본 사용자 등급
+
+    if not user_id or not name or not password:
+        return jsonify({"success": False, "message": "필수 항목이 누락되었습니다."}), 400
+
+    # ID 숫자 체크
+    if not str(user_id).isdigit():
+        return jsonify({"success": False, "message": "ID는 숫자만 가능합니다."}), 400
+
+    # 비밀번호 bcrypt 해싱
+    hashed_pw = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    # ID 중복 체크
+    cursor.execute("SELECT COUNT(*) AS cnt FROM users WHERE user_id = %s", (user_id,))
+    if cursor.fetchone()["cnt"] > 0:
+        return jsonify({"success": False, "message": "이미 존재하는 ID입니다."})
+
+    # 회원 생성
+    sql = """
+        INSERT INTO users (user_id, name, favorite_music, password, join_date, modify_date, grade)
+        VALUES (%s, %s, %s, %s, NOW(), NOW(), %s)
+    """
+    cursor.execute(sql, (user_id, name, favorite_music, hashed_pw, grade))
+    conn.commit()
+
+    cursor.close()
+    conn.close()
+
+    return jsonify({"success": True, "message": "회원가입 완료"})
+
+# -------------------------------------------------------------
 # UPDATE
 # -------------------------------------------------------------  
 @app.route("/api/users/<int:user_id>", methods=["PUT"])
@@ -379,6 +423,27 @@ def login_user():
         })
 
     return jsonify({"success": False, "message": "비밀번호 틀림"}), 401
+
+# -------------------------------------------------------------
+# ID 중복확인 API
+# -------------------------------------------------------------
+@app.route("/api/check_user_id", methods=["GET"])
+def check_user_id():
+    user_id = request.args.get("user_id", "").strip()
+
+    if not user_id.isdigit():
+        return jsonify({"success": False, "exists": False, "msg": "ID는 숫자만 가능합니다."})
+
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("SELECT COUNT(*) AS cnt FROM users WHERE user_id = %s", (user_id,))
+    cnt = cursor.fetchone()["cnt"]
+
+    cursor.close()
+    conn.close()
+
+    return jsonify({"success": True, "exists": cnt > 0})
 
 # -------------------------------------------------------------
 # Flask 실행
