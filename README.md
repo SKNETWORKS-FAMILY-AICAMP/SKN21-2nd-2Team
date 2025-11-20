@@ -15,9 +15,9 @@
 - **출력**: 해당 사용자의 **이탈 확률(0~1)** 및 **이탈/비이탈 분류 결과**
 
 <h2>👥 팀 구성 및 역할 분담</h2>
-<p>Team 역전파</p>
+<p><strong>Team 역전파</strong></p>
 
-<div style="display:flex; gap:20px; flex-wrap:wrap; justify-content:center;">
+<div style="display:flex; gap:25px; flex-wrap:nowrap; justify-content:center; overflow-x:auto;">
 
   <!-- 멤버 1 -->
   <div style="text-align:center; width:150px;">
@@ -33,7 +33,7 @@
   <div style="text-align:center; width:150px;">
     <img src="image/피카츄.jpg" width="150" style="border-radius:10px;">
     <h4>신지용</h4>
-    <p> 전처리 검증 + Feature튜닝</p>
+    <p>전처리 검증 + Feature 튜닝</p>
     <a href="https://github.com/sjy361872">
       <img src="https://img.shields.io/badge/GitHub-181717?style=for-the-badge&logo=github&logoColor=white">
     </a>
@@ -43,9 +43,9 @@
   <div style="text-align:center; width:150px;">
     <img src="image/초롱이.jpg" width="150" style="border-radius:10px;">
     <h4>윤경은</h4>
-    <p> 데이터분석 + 파이프라인 설계 </p>
+    <p>데이터 분석 + 파이프라인 설계</p>
     <a href="https://github.com/ykgstar37-lab">
-      <img src="https://img.shields.io/badge/GitHub-181717?style=for-the-badge&logo=github&logoColor=white">
+      <img src="https://img.shields.io-badge/GitHub-181717?style=for-the-badge&logo=github&logoColor=white">
     </a>
   </div>
 
@@ -53,21 +53,22 @@
   <div style="text-align:center; width:150px;">
     <img src="image/짱쎈고양이.jpg" width="150" style="border-radius:10px;">
     <h4>정세연</h4>
-    <p> 모델템플릿제작 + Baseline 학습</p>
+    <p>모델 템플릿 제작 + Baseline 학습</p>
     <a href="https://github.com/wjdtpdus25">
       <img src="https://img.shields.io/badge/GitHub-181717?style=for-the-badge&logo=github&logoColor=white">
     </a>
   </div>
 
   <!-- 멤버 5 -->
-  <div style="text-align:center; width:127px;">
+  <div style="text-align:center; width:150px;">
     <img src="image/코카인.jpg" width="150" style="border-radius:10px;">
     <h4>박민정</h4>
-    <p> pipeline 구현 담당 </p>
+    <p>Pipeline 구현 담당</p>
     <a href="https://github.com/silentkit12">
       <img src="https://img.shields.io/badge/GitHub-181717?style=for-the-badge&logo=github&logoColor=white">
     </a>
   </div>
+
 
 
 </div>
