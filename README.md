@@ -1,4 +1,7 @@
 ## <span style="color:green">SKN21-2nd-2Team</span>
+
+<br>
+
 # Spotipy 이탈 예측 어플리케이션 (Spotify Churn Prediction App)
 <br>
 
@@ -14,7 +17,7 @@
 - **입력**: 사용자의 청취 시간, 스킵률, 참여도(engagement score), 광고 노출 정도 등 행동 로그 데이터
 - **출력**: 해당 사용자의 **이탈 확률(0~1)** 및 **이탈/비이탈 분류 결과**
 
-<br><br>
+<br><br><br>
 
 <h2>👥 팀 구성 및 역할 분담</h2>
 <p><strong>Team 역전파</strong></p>
@@ -85,7 +88,7 @@
 
 </div>
 
-<br><br>
+<br><br><br>
 ## 🛠 Tech Stack
 
 ### 🎛 Backend (API 서버)
@@ -113,7 +116,7 @@
 
 
 </div>
-<br><br>
+<br><br><br>
 
 <div> 
 
@@ -196,7 +199,7 @@
   - 발표 자료  
   - `README.md`
 
-<br><br>
+<br><br><br>
 
 
 
@@ -221,7 +224,7 @@ SKN21-2ND-2TEAM/
 <br>
 <div> 
 
-<br><br>
+<br><br><br>
 
 ## 🗄️ Database Structure
 
@@ -242,8 +245,6 @@ SKN21-2ND-2TEAM/
 <br>
 
 ### 🔹 주요 테이블 구조
-
-<br>
 
 #### 1) `users` — 사용자 정보 테이블
 | 컬럼명 | 타입 | 설명 |
@@ -269,7 +270,7 @@ SKN21-2ND-2TEAM/
 
 
 
-<br><br>
+<br><br><br>
 
 
 ## 💡 주요 기능 (Key Features)
@@ -328,7 +329,7 @@ SKN21-2ND-2TEAM/
 - 파트별 책임(데이터 분석 / 전처리 / 모델링 / UI / 통합)이 명확
 - 실제 서비스 개발 과정과 유사한 협업 프로세스 구성
 
-<br><br>
+<br><br><br>
 
 ## 📝 팀원 소감 (Team Retrospective)
 <br>
