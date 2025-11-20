@@ -22,7 +22,7 @@
 <table>
 <tr>
 <td align="center" width="200" style="vertical-align: top; height: 300px;">
-  <img src="image/강하다.jpg" width="150" height="150" style="border-radius: 50%; object-fit: cover;" alt="박수빈"/>
+  <img src="image/강하다.jpg" width="200" height="200" style="border-radius: 50%; object-fit: cover;" alt="박수빈"/>
   <br />
   <h3 style="margin: 10px 0 5px 0;">박수빈</h3>
   <p style="margin: 5px 0;">총괄 | Streamlit + Integrator</p>
