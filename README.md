@@ -12,9 +12,9 @@
 
 ## 📌 프로젝트 개요
 
-<img src="image/spotify_naver.png" alt="네이버-스포티파이기사" width="500">
-<img src="image/spotify_naver2.png" alt="사진" width="500">
-<img src="image/spotifyfree.png" alt="사진" width="500">
+<img src="image/spotify_naver.png" alt="네이버-스포티파이기사" width="auto">
+<img src="image/spotify_naver2.png" alt="사진" width="auto">
+<img src="image/spotifyfree.png" alt="사진" width="auto">
 <div style="display:flex; gap:20px; justify-content:center;">
   <img src="image/spotifyfree2.png" alt="사진" width="250">
   <img src="image/spotify추세.jpg" alt="사진" width="250">
