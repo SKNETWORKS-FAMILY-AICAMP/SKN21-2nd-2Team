@@ -43,9 +43,9 @@
   <div style="text-align:center; width:150px;">
     <img src="image/초롱이.jpg" width="150" style="border-radius:10px;">
     <h4>윤경은</h4>
-    <p>데이터 분석 + 파이프라인 설계</p>
+    <p> 데이터분석 + 파이프라인 설계 </p>
     <a href="https://github.com/ykgstar37-lab">
-      <img src="https://img.shields.io-badge/GitHub-181717?style=for-the-badge&logo=github&logoColor=white">
+      <img src="https://img.shields.io/badge/GitHub-181717?style=for-the-badge&logo=github&logoColor=white">
     </a>
   </div>
 
