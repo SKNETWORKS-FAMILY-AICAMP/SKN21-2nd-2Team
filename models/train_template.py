@@ -1,5 +1,5 @@
 """
-train_template.py
+train_template.py (공통 모델 템플릿)
 Author: 정세연
 Date: 2025-11-20
 Description
