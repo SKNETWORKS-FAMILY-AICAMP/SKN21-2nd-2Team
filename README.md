@@ -19,35 +19,6 @@
 <h2>👥 팀 구성 및 역할 분담</h2>
 <p><strong>Team 역전파</strong></p>
 
-<style>
-.member-card {
-  text-align: center;
-  width: 200px;
-  height: 320px;
-  vertical-align: top;
-}
-
-.member-card img.profile {
-  width: 150px;
-  height: 150px;
-  border-radius: 50%;
-  object-fit: cover;
-}
-
-.member-card h3 {
-  margin: 10px 0 5px 0;
-}
-
-.member-card p {
-  margin: 5px 0;
-}
-
-.member-card .github {
-  margin-top: 10px;
-}
-</style>
-
-
 <table>
 <tr>
 <td align="center" width="200" style="vertical-align: top; height: 300px;">
