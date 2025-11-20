@@ -250,20 +250,20 @@ SKN21-2ND-2TEAM/
 ### 🔹 주요 테이블 구조
 
 #### 1) `Original Dataset` — 원본 피처 테이블
-| 컬럼명                   | 타입        | 설명               | 비고                   |
-| --------------------- | --------- | ---------------- | -------------------- |
-| user_id               | INT       | 사용자 고유 ID        | PK                   |
-| gender                | VARCHAR   | 성별 (Male/Female) | 범주형                  |
-| age                   | INT       | 사용자 나이           | 수치형                  |
-| country               | VARCHAR   | 접속 국가            | 이후 Top5 + Others 그룹화 |
-| subscription_type     | VARCHAR   | 요금제 종류           | One-hot 인코딩          |
-| listening_time        | FLOAT     | 하루 음악 청취 시간(분)   | 결측 → 중앙값             |
-| songs_played_per_day  | FLOAT     | 하루 재생 곡수         | 결측 → 중앙값             |
-| skip_rate             | FLOAT     | 스킵률              | 0~1.5 이상치 cap        |
-| device_type           | VARCHAR   | 기기 종류            | One-hot 인코딩          |
-| ads_listened_per_week | INT       | 주간 광고 시청 수       | 상위 1% cap            |
-| offline_listening     | INT (0/1) | 오프라인 재생 기능 여부    | binary               |
-| is_churned            | INT(0/1)  | 이탈 여부            | Target               |
+| 컬럼명                   | 타입        | 설명               | 
+| --------------------- | --------- | ---------------- |
+| user_id               | INT       | 사용자 고유 ID        | 
+| gender                | VARCHAR   | 성별 (Male/Female) | 
+| age                   | INT       | 사용자 나이           | 
+| country               | VARCHAR   | 접속 국가            | 
+| subscription_type     | VARCHAR   | 요금제 종류           |
+| listening_time        | FLOAT     | 하루 음악 청취 시간(분)   | 
+| songs_played_per_day  | FLOAT     | 하루 재생 곡수         |
+| skip_rate             | FLOAT     | 스킵률              |
+| device_type           | VARCHAR   | 기기 종류            |
+| ads_listened_per_week | INT       | 주간 광고 시청 수       |
+| offline_listening     | INT (0/1) | 오프라인 재생 기능 여부    |
+| is_churned            | INT(0/1)  | 이탈 여부            |
 
 <br>
 
