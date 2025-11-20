@@ -87,7 +87,7 @@
 
 
 </div>
----
+
 
 <br><br><br>
 ## 🛠 Tech Stack
@@ -118,7 +118,7 @@
 
 </div>
 <br><br><br>
----
+
 
 <div> 
 
@@ -221,10 +221,9 @@ SKN21-2ND-2TEAM/
 │
 ├── requirements.txt            # 패키지 리스트
 └── README.md                   # 프로젝트 설명 문서
-```
+
 <br>
 <div> 
----
 
 <br><br><br>
 
@@ -270,7 +269,7 @@ SKN21-2ND-2TEAM/
 | `prediction` | FLOAT | 예측된 이탈 확률 |
 | `created_at` | DATETIME | 예측 수행 시간 |
 
----
+
 
 <br><br><br>
 
@@ -331,7 +330,7 @@ SKN21-2ND-2TEAM/
 - 파트별 책임(데이터 분석 / 전처리 / 모델링 / UI / 통합)이 명확
 - 실제 서비스 개발 과정과 유사한 협업 프로세스 구성
 
----
+
 <br><br><br>
 
 ## 📝 팀원 소감 (Team Retrospective)
