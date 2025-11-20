@@ -122,7 +122,7 @@
 본 프로젝트는 5인의 역할 분담을 통해 단계별로 **데이터 분석 → 전처리 → 모델링 → 서비스 UI**까지  
 효율적으로 구축되었습니다. 아래는 각 역할 흐름을 기반으로 정리한 프로젝트 구조입니다.
 
----
+
 
 ### 🔹 1. 데이터 분석 & 파이프라인 설계  
 **담당:** 데이터 분석 + 파이프라인 설계 리더  
@@ -137,7 +137,7 @@
   - `docs/pipeline_design.md`  
   - Feature 리스트 문서
 
----
+
 
 ### 🔹 2. 전처리 파이프라인 구현  
 **담당:** 백엔드 + 파이프라인 구현  
@@ -152,7 +152,7 @@
   - `X_train.pkl`, `X_test.pkl`  
   - `y_train.pkl`, `y_test.pkl`
 
----
+
 
 ### 🔹 3. 전처리 검증 + Feature 튜닝  
 **담당:** FE Engineer + QA  
@@ -166,7 +166,7 @@
   - `preprocessing_validation.ipynb`  
   - FE 개선안 문서
 
----
+
 
 ### 🔹 4. 모델 템플릿 제작 + Baseline 학습  
 **담당:** ML Engineer  
@@ -180,7 +180,7 @@
   - `train_template.py`  
   - `model_lr.pkl`
 
----
+
 
 ### 🔹 5. Streamlit UI 제작 + 최종 통합  
 **담당:** Frontend + Integrator  
@@ -220,13 +220,15 @@ SKN21-2ND-2TEAM/
 <br>
 <div> 
 
+---
+
 ## 🗄️ Database Structure
 
 본 프로젝트는 Flask API 서버와 MySQL 데이터베이스를 연동하여  
 사용자 로그인, 예측 기록 저장을 처리합니다.  
 데이터베이스는 PyMySQL 기반으로 연결되며 아래와 같은 구조로 설계되었습니다.
 
----
+
 
 ### 🔹 DB Schema Overview
 - **DBMS:** MySQL  
@@ -236,7 +238,7 @@ SKN21-2ND-2TEAM/
   - 예측 요청 기록 저장
   - 향후 개선을 위한 사용자 행동 로그 관리
 
----
+
 
 ### 🔹 주요 테이블 구조
 
@@ -248,7 +250,6 @@ SKN21-2ND-2TEAM/
 | `password_hash` | VARCHAR | bcrypt로 해싱된 비밀번호 |
 | `created_at` | DATETIME | 가입 시간 |
 
----
 
 #### 2) `predictions` — 예측 결과 저장
 | 컬럼명 | 타입 | 설명 |
@@ -272,35 +273,35 @@ SKN21-2ND-2TEAM/
 본 프로젝트는 Spotify 사용자 행동 데이터를 기반으로  
 **이탈 확률을 예측**하고, 이를 Streamlit UI를 통해 시각화하고 제공합니다.
 
----
+
 
 ### ⭐ 1. 사용자 입력 기반 이탈 예측
 - 사용자가 직접 **listening_time, skip_rate, engagement_score, ads_pressure** 값을 입력
 - Flask API 서버가 모델을 통해 **이탈 확률(Churn Probability)**을 계산
 - "잔존 / 이탈" 여부를 즉시 제공
 
----
+
 
 ### 📊 2. 시각화 기반 데이터 확인
 - 입력된 값에 따라 간단한 시각화를 제공
 - 사용자 행동 변수들의 해석을 지원
 - Feature 간 상관관계 및 churn 영향 확인 가능
 
----
+
 
 ### 📁 3. 전처리 파이프라인 자동 적용
 - Train/Test 데이터와 동일한 전처리 흐름을 API에서 자동 적용
 - 인코딩, 스케일링, Feature 변환이 일관되게 진행됨  
 - 모델 입력 오류 방지
 
----
+
 
 ### 🤖 4. Baseline ML 모델 기반 예측
 - Logistic Regression Baseline 모델 적용
 - 전처리 + 학습 + 평가 흐름 자동화
 - `.pkl`로 저장된 모델을 API에서 로드하여 실시간 예측
 
----
+
 
 ### 🗄️ 5. MySQL 사용자 관리 & 예측 이력 저장
 - 회원가입 / 로그인 기능 지원
@@ -310,14 +311,14 @@ SKN21-2ND-2TEAM/
   - 예측 결과(churn probability)
   - 요청 시간
 
----
+
 
 ### 🖥️ 6. Streamlit 기반 단일 페이지 UI
 - 직관적이고 심플한 UI 구성
 - 버튼 클릭만으로 예측 수행
 - 온라인 서비스 형태와 유사한 구조
 
----
+
 
 ### 🔧 7. 팀 기반 구조화된 파이프라인
 - 파트별 책임(데이터 분석 / 전처리 / 모델링 / UI / 통합)이 명확
