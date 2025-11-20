@@ -12,35 +12,45 @@
 
 ## 📌 프로젝트 개요
 
-<img src="image/spotify_naver.png" alt="네이버-스포티파이기사" width="500">
+<img src="image/spotify_naver.png" alt="네이버-스포티파이기사" width="600">
 <img src="image/spotify_naver2.png" alt="사진" width="500">
-<img src="image/spotifyfree.png" alt="사진" width="500">
+
+<br>
+
+국내 음악 스트리밍 시장에서 경쟁이 심화되면서, **고객 이탈(Churn)** 은 플랫폼의 수익성과 직결되는 핵심 문제가 되었습니다.
+특히 Spotify는 최근 ‘Spotify Free’ 를 **한국 시장에 론칭하며 점유율 확대**를 적극적으로 추진하고 있어,
+**잠재적 이탈 고객을 조기에 식별하고 유지 전략을 세우는 능력이 더욱 중요**해지고 있습니다.
+
+<br>
+
+<img src="image/spotifyfree.png" alt="사진" width="600">
 <div style="display:flex; gap:20px; justify-content:center;">
-  <img src="image/spotifyfree2.png" alt="사진" width="250">
-  <img src="image/spotify추세.jpg" alt="사진" width="250">
-  <img src="image/멜론잡겠다.jpg" alt="사진" width="250">
+  <img src="image/spotifyfree2.png" alt="사진" width="200">
+  <img src="image/spotify추세.jpg" alt="사진" width="200">
+  <img src="image/멜론잡겠다.jpg" alt="사진" width="200">
 </div>
 
 <br>
 
-국내 음악 스트리밍 시장에서 경쟁이 심화되면서, 고객 이탈(Churn)은 플랫폼의 수익성과 직결되는 핵심 문제가 되었습니다.
-특히 Spotify는 최근 ‘Spotify Free’ 를 한국 시장에 론칭하며 점유율 확대를 적극적으로 추진하고 있어,
-잠재적 이탈 고객을 조기에 식별하고 유지 전략을 세우는 능력이 더욱 중요해지고 있습니다.
-
 본 프로젝트는 Spotify 사용자 데이터를 기반으로,
-사용자 행동 데이터를 분석하여 이탈 가능성을 예측하는 웹 어플리케이션을 개발하는 것을 목표로 합니다.
-이를 통해 마케팅/운영 팀은 다음과 같은 의사결정을 효과적으로 수행할 수 있습니다.
+사용자 행동 데이터를 분석하여 **이탈 가능성**을 예측하는 웹 어플리케이션을 개발하는 것을 목표로 합니다.
+이를 통해 **마케팅/운영 팀은 다음과 같은 의사결정**을 **효과적**으로 수행할 수 있습니다.
 
-- 위험 고객을 조기에 발견하여 맞춤형 리텐션 캠페인 실행
+<br>
 
-- 유료 전환/유지 가능성이 높은 고객군 식별
+- **🔍 위험 고객을 조기에 발견하여 맞춤형 리텐션 캠페인 실행**
 
-- 사용자 행동 패턴을 이해하고 서비스 개선 방향 수립
+- **📈 유료 전환/유지 가능성이 높은 고객군 식별**
+
+- **📊 사용자 행동 패턴을 이해하고 서비스 개선 방향 수립**
+
+<br>
 
 본 시스템은 단순 예측을 넘어서,
 파생 변수 기반의 **행동 인사이트 분석**(Engagement Score, Skip Behavior 등) 과
-시각화 기능을 제공하여,
-Spotify 내부 팀이 보다 직관적으로 데이터 기반 결정을 내릴 수 있도록 지원합니다.
+**시각화 기능**을 제공하여,
+**Spotify 내부 팀이 보다 직관적으로 데이터 기반 결정을 내릴 수 있도록 지원**합니다.
+
 <br><br><br>
 
 <h2>👥 팀 구성 및 역할 분담</h2>
