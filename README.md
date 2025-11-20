@@ -34,7 +34,7 @@
 </td>
 
 <td align="center" width="200" style="vertical-align: top; height: 300px;">
-<img src="image/피카츄.jpg" width="180" height="180" style="border-radius: 50%; object-fit: cover;" alt="신지용"/>
+<img src="image/피카츄.jpg" width="160" height="160" style="border-radius: 50%; object-fit: cover;" alt="신지용"/>
   <br />
 <br />
 <h3 style="margin: 10px 0 5px 0;">신지용</h3>
@@ -46,7 +46,7 @@
 </div>
 </td>
 <td align="center" width="200" style="vertical-align: top; height: 300px;">
-<img src="image/초롱이.jpg" width="180" height="180" style="border-radius: 50%; object-fit: cover;" alt="윤경은"/>
+<img src="image/초롱이.jpg" width="170" height="170" style="border-radius: 50%; object-fit: cover;" alt="윤경은"/>
   <br />
 <br />
 <h3 style="margin: 10px 0 5px 0;">윤경은</h3>
@@ -69,7 +69,7 @@
 </div>
 </td>
 <td align="center" width="200" style="vertical-align: top; height: 300px;">
-<img src="image/코카인.jpg" width="130" height="130" style="border-radius: 50%; object-fit: cover;" alt="박민정"/>
+<img src="image/코카인.jpg" width="150" height="150" style="border-radius: 50%; object-fit: cover;" alt="박민정"/>
 <br />
 <h3 style="margin: 10px 0 5px 0;">박민정</h3>
 <p style="margin: 5px 0;">pipeline 구현 담당</p>
