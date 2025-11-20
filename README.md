@@ -22,7 +22,7 @@
 <table>
 <tr>
 <td align="center" width="200" style="vertical-align: top; height: 300px;">
-  <img src="image/강하다.jpg" width="200" height="200" style="border-radius: 50%; object-fit: cover;" alt="박수빈"/>
+  <img src="image/강하다.jpg" width="210" height="210" style="border-radius: 50%; object-fit: cover;" alt="박수빈"/>
   <br />
   <h3 style="margin: 10px 0 5px 0;">박수빈</h3>
   <p style="margin: 5px 0;">총괄 | Streamlit + Integrator</p>
@@ -58,7 +58,7 @@
 </div>
 </td>
 <td align="center" width="200" style="vertical-align: top; height: 300px;">
-<img src="image/짱쎈고양이.jpg" width="150" height="150" style="border-radius: 50%; object-fit: cover;" alt="정세연"/>
+<img src="image/짱쎈고양이.jpg" width="180" height="180" style="border-radius: 50%; object-fit: cover;" alt="정세연"/>
 <br />
 <h3 style="margin: 10px 0 5px 0;">정세연</h3>
 <p style="margin: 5px 0;">모델 템플릿제작 + Baseline 학습</p>
@@ -69,7 +69,7 @@
 </div>
 </td>
 <td align="center" width="200" style="vertical-align: top; height: 300px;">
-<img src="image/코카인.jpg" width="150" height="150" style="border-radius: 50%; object-fit: cover;" alt="박민정"/>
+<img src="image/코카인.jpg" width="130" height="130" style="border-radius: 50%; object-fit: cover;" alt="박민정"/>
 <br />
 <h3 style="margin: 10px 0 5px 0;">박민정</h3>
 <p style="margin: 5px 0;">pipeline 구현 담당</p>
