@@ -5,7 +5,7 @@
 # Spotipy 이탈 예측 어플리케이션 (Spotify Churn Prediction App)
 <br>
 
-<img src="image/스포티파이.svg" alt="프로젝트 로고" width="800">
+<img src="image/스포티파이.svg" alt="프로젝트 로고" width="500">
 
 <br><br><br>
 
