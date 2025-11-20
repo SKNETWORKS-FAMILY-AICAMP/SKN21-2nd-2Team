@@ -19,6 +19,20 @@
 <h2>👥 팀 구성 및 역할 분담</h2>
 <p><strong>Team 역전파</strong></p>
 
+  <style>
+    .member-card img {
+      width:150px;
+      height:150px;          /* ★ 이미지 고정 높이 */
+      object-fit:cover;      /* ★ 이미지 비율 잘라서 딱 맞추기 */
+      border-radius:10px;
+    }
+    .member-card {
+      text-align:center;
+      width:180px;           /* 카드 너비 */
+      padding-bottom:15px;
+    }
+  </style>
+
 <table>
 <tr>
 <td align="center" width="200" style="vertical-align: top; height: 300px;">
