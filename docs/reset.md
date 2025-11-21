@@ -2,7 +2,7 @@
 
 **작성일**: 2025-11-20  
 **담당자**: 3번 (Preprocessing Validation + Feature Tuning)  
-**상태**: 데이터 가공 완료, 내일 EDA부터 재시작 예정
+**상태**: 데이터 가공 완료 + 파이프라인 수령 후 backend 기준 모듈화 진행 중
 
 #### 노트북 타임라인 정리
 
@@ -35,8 +35,9 @@
 4. [Phase 3: 성능 개선 시도 (실패 기록)](#phase-3-성능-개선-시도-실패-기록)
 5. [Phase 4: 근본 원인 분석](#phase-4-근본-원인-분석)
 6. [Phase 5: 해결책 - 피처 추가 (데이터 가공)](#phase-5-해결책---피처-추가-데이터-가공)
-7. [최종 산출물](#최종-산출물)
-8. [내일 작업 계획 (재시작)](#내일-작업-계획-재시작)
+7. [Phase 6: 모듈화 설계 및 EDA 정책 확정](#phase-6-모듈화-설계-및-eda-정책-확정)
+8. [최종 산출물](#최종-산출물)
+9. [내일 작업 계획 (재시작)](#내일-작업-계획-재시작)
 
 ---
 
@@ -357,6 +358,109 @@ ads_listened_per_week      6.891          6.962        0.8393
 
 ---
 
+## Phase 6: 모듈화 설계 및 EDA 정책 확정
+
+### 📁 관련 파일
+- `backend/preprocessing.py`
+- `backend/train_with_pipeline.py`
+- `backend/models.py`
+- `notebooks/pipeline.ipynb`
+- `notebooks/preprocessing_validation_v2.ipynb`
+- `notebooks/eda_add.ipynb`
+- `data/enhanced_data_not_clean_FE_delete.csv`
+
+### 6-1. 파이프라인 기반 모듈화 (backend 기준, 2025-11-21 이후)
+- **배경**:
+  - 초기에는 `src/config.py`, `src/data_loader.py`, `src/models.py`, `src/train_eval.py`, `backend/run_baseline.py` 구조로  
+    `enhanced_data_clean_model.csv` + 15개 수치형 기준 baseline 모듈화를 시도했으나,
+  - 이후 **실제 전처리 파이프라인 파일(`backend/preprocessing.py`)을 전달받으면서, 전체 흐름을 파이프라인 기준으로 재설계**하기로 결정.
+  - 그 결과, `src/` 내부 모듈들은 최종 파이프라인 플로우에서 사용하지 않기로 하여 **정리(삭제)** 함.
+
+- **현재 모듈화 구조 (backend 기준)**:
+  - `backend/preprocessing.py`  
+    - 역할: **전처리 전용 모듈**  
+    - 단계:
+      1. 데이터 로드 (`load_data`)
+      2. 사용하지 않는 컬럼 제거 (`drop_unused_columns`)  
+         - `user_id` 및 FE 5개(`engagement_score`, `songs_per_minute`, `skip_intensity`, `skip_rate_cap`, `ads_pressure`) drop
+      3. 결측치 처리 (`clean_missing_values`)  
+         - `listening_time`, `songs_played_per_day` → median  
+         - `payment_failure_count`, `app_crash_count_30d` → 0  
+         - `customer_support_contact`, `promotional_email_click` → False/0  
+      4. 이상치 처리 (`handle_outliers`)  
+         - IQR 기반 clip, `user_id`, `is_churned` 제외
+      5. 범주형 인코딩 (`encode_categorical`)  
+         - `gender`, `country`, `subscription_type`, `device_type` → one-hot
+      6. 수치형 스케일링 (`scale_numeric`)  
+         - StandardScaler 기반 표준화
+      7. Train/Test 분리 (`split_data`)  
+         - `is_churned` 타깃 기준 stratify  
+      8. 전체를 묶는 엔트리 함수: `preprocess_pipeline()`  
+         - 기본 입력: `data/enhanced_data_not_clean_FE_delete.csv`  
+         - 반환: `X_train, X_test, y_train, y_test, scaler`  
+         - 필요 시 `save_output=True`로 pkl/scaler 저장 가능
+  - `backend/train_with_pipeline.py`  
+    - 역할: **모델 학습 + 평가 전담 모듈**  
+    - `from preprocessing import preprocess_pipeline` 으로 전처리 결과를 받아와 학습/평가만 수행
+    - 상단 CONFIG로 공통 설정 관리:
+      - `DATA_PATH`, `TEST_SIZE`, `RANDOM_STATE`, `MODEL_NAME`  
+      - → 데이터 경로/분할 비율/seed/사용 모델을 한 곳에서 제어
+    - `main()`에서:
+      1. `preprocess_pipeline(path=DATA_PATH, test_size=TEST_SIZE, random_state=RANDOM_STATE)` 호출 → 전처리 + split
+      2. `backend/models.py`의 `get_model(name=MODEL_NAME, random_state=RANDOM_STATE)` 으로 모델 생성 후 학습
+      3. `predict_proba` 결과로 F1/AUC/Best Threshold 출력
+  - `backend/models.py`  
+    - 역할: **모델 팩토리 모듈 (이름으로 모델 선택)**  
+    - `get_model(name, random_state)` 하나로 여러 모델을 선택적으로 생성
+    - 현재 지원:
+      - `"rf"`: RandomForestClassifier (기본 실험용)
+      - `"logit"`: LogisticRegression (baseline 비교용)
+    - 추후 `"xgb"`, `"lgbm"` 등 이름을 추가해 확장 가능
+
+- **모듈화 포인트**:
+  - **전처리 변경**: `backend/preprocessing.py`만 수정
+  - **모델/파라미터 변경**:  
+    - 모델 종류: `backend/train_with_pipeline.py`의 `MODEL_NAME` 변경 (`"rf"`, `"logit"` 등)  
+    - 개별 모델 세부 파라미터: `backend/models.py`의 `get_model()` 내부 수정
+  - **EDA/전처리 정책 문서화**: `preprocessing_validation_v2.ipynb`, `eda_add.ipynb`, `reset.md`가 역할 분담
+
+### 6-2. EDA 설계 및 FE 5개 제외 결정 (2025-11-21)
+- **핵심 결정**:  
+  - 합성으로 만든 **기본 FE 5개**  
+    - `engagement_score`, `songs_per_minute`, `skip_intensity`, `skip_rate_cap`, `ads_pressure`  
+  - 위 5개는 **최종 모델 입력에서 완전히 제외**하고,  
+  - EDA에서도 **“결측/이상치 처리 대상 피처”에서는 제외**하기로 확정
+
+- **EDA용 데이터 버전 정리**:
+  - `data/enhanced_data_not_clean_FE_delete.csv`  
+    - 기준: `enhanced_data.csv`에서 **FE 5개 컬럼을 제거만 하고, 결측/이상치는 그대로 둔 버전**  
+    - 용도:  
+      - `eda_add.ipynb` 등에서 **결측/이상치가 실제로 존재하는 상태**를 보여주기 위한 “raw+” 역할  
+      - 최종적으로 사용할 15개 수치형 피처의 분포, 결측/이상치 비율, IQR 기반 이상치 행 수 등을 EDA에서 설명
+  - `data/enhanced_data_clean.csv`  
+    - 위 원천 데이터(`enhanced_data.csv`)에 **결측/이상치 처리 규칙(섹션 4-2에서 기술)을 적용한 정제 버전**  
+    - EDA에서 **“전처리 이후의 안정된 분포”**를 보여줄 때 사용
+  - `data/enhanced_data_clean_model.csv`  
+    - `enhanced_data_clean.csv`에서 **FE 5개를 제거한 최종 모델 입력용 데이터**  
+    - 모듈화된 코드(`src/`)와 `run_baseline.py`는 이 파일을 기본 입력으로 사용
+
+- **전처리 검증 노트북 업데이트 (`preprocessing_validation_v2.ipynb`)**:
+  - 노트북 맨 마지막 셀에 `enhanced_data_not_clean_FE_delete.csv`를 로드하여:
+    - FE 5개 컬럼이 실제로 제거되었는지 여부 확인
+    - 전체/컬럼별 결측치 개수 확인
+    - IQR 기준 이상치 행 수 및 컬럼별 이상치 개수 Top 5 출력
+  - → 터미널에서 한 검증 과정을 **노트북 안에서 재현 가능**하게 정리
+
+- **최종 정책 요약 (2025-11-21 기준)**:
+  1. **FE 5개는 EDA·모델 모두에서 입력 피처로 사용하지 않음** (설명용/실험용으로만 남겨둘 수 있음)
+  2. EDA에서 결측/이상치 처리 설명 시,  
+     - “처리 전”: `enhanced_data_not_clean_FE_delete.csv`  
+     - “처리 후”: `enhanced_data_clean.csv`  
+     를 사용하는 흐름으로 설계
+  3. 모델 실험/튜닝은 **항상 `enhanced_data_clean_model.csv` + 15개 수치형 피처**를 기준으로 진행
+
+---
+
 ## 최종 산출물
 
 ### 📦 생성된 파일
@@ -575,8 +679,8 @@ ads_listened_per_week      6.891          6.962        0.8393
 ---
 
 **작성자**: 3번 (Preprocessing Validation + Feature Tuning)  
-**최종 업데이트**: 2025-11-20 23:00  
-**다음 작업 시작일**: 2025-11-21 (내일)
+**최종 업데이트**: 2025-11-21 23:00  
+**다음 작업 시작일**: 2025-11-22
 
 ---
 
