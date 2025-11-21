@@ -16,6 +16,24 @@ import os
 
 API_URL = "http://localhost:5000/api"
 
+# selectbox input field 편집 불가 처리
+st.markdown("""
+<style>
+/* Streamlit의 selectbox는 Baseweb 컴포넌트의 input 요소를 사용 */
+/* 해당 input 요소의 편집을 불가능하게 만듦 */
+div[data-baseweb="select"] input {
+    pointer-events: none !important;   /* 클릭 후 텍스트 수정 불가 */
+}
+
+/* 커서를 텍스트 수정 커서가 아닌 기본 화살표로 변경 */
+div[data-baseweb="select"] input {
+    caret-color: transparent !important;
+}
+</style>
+""", unsafe_allow_html=True)
+
+value = st.selectbox("옵션 선택", ["A", "B", "C"])
+
 # ----------------------------------------------------------
 # 음악 카테고리 목록 로드 함수
 # ----------------------------------------------------------
@@ -220,18 +238,22 @@ def show_profile_page():
     music_categories = get_music_categories()
     temp_music_value = st.session_state[f"temp_profile_{user_id}_music"]
     
-    # 현재 값이 목록에 없으면 빈 문자열로 처리
-    if temp_music_value and temp_music_value not in music_categories:
-        # 현재 값이 목록에 없으면 첫 번째 옵션으로 설정하거나 빈 값 추가
-        music_categories_with_empty = [""] + music_categories
-        current_music_index = 0
+    # 빈 값 포함 옵션 리스트 생성
+    music_categories_with_empty = [""] + music_categories
+    
+    # selectbox의 key를 통해 세션 상태에서 현재 값을 가져오거나, 없으면 temp_music_value 사용
+    selectbox_key = f"profile_music_select_{user_id}"
+    if selectbox_key not in st.session_state:
+        # 세션 상태에 없으면 temp_music_value를 사용하여 인덱스 계산
+        if temp_music_value and temp_music_value in music_categories_with_empty:
+            current_music_index = music_categories_with_empty.index(temp_music_value)
+        else:
+            current_music_index = 0
     else:
-        music_categories_with_empty = [""] + music_categories
-        if temp_music_value:
-            try:
-                current_music_index = music_categories_with_empty.index(temp_music_value)
-            except ValueError:
-                current_music_index = 0
+        # 세션 상태에 값이 있으면 해당 값의 인덱스 사용
+        current_value = st.session_state[selectbox_key]
+        if current_value in music_categories_with_empty:
+            current_music_index = music_categories_with_empty.index(current_value)
         else:
             current_music_index = 0
     
@@ -239,7 +261,7 @@ def show_profile_page():
         "좋아하는 음악",
         options=music_categories_with_empty,
         index=current_music_index,
-        key=f"profile_music_select_{user_id}",
+        key=selectbox_key,
         help="음악 장르를 선택한 후 '저장' 버튼을 클릭해야 변경사항이 적용됩니다."
     )
     # 버튼 클릭 시에만 세션 상태 업데이트하도록 주석 처리
@@ -255,13 +277,24 @@ def show_profile_page():
     if grade == "99":
         # 관리자는 select box로 선택 가능
         grade_display_options = [f"{k}: {v}" for k, v in grade_options.items()]
-        # 임시 세션 상태의 grade에 맞는 인덱스 찾기
         temp_grade = st.session_state[f"temp_profile_{user_id}_grade"]
-        current_grade_index = 0
-        for idx, (k, v) in enumerate(grade_options.items()):
-            if k == temp_grade:
-                current_grade_index = idx
-                break
+        
+        # selectbox의 key를 통해 세션 상태에서 현재 값을 가져오거나, 없으면 temp_grade 사용
+        selectbox_key = f"profile_grade_select_{user_id}"
+        if selectbox_key not in st.session_state:
+            # 세션 상태에 없으면 temp_grade를 사용하여 인덱스 계산
+            current_grade_display = f"{temp_grade}: {grade_options.get(temp_grade, '')}"
+            if current_grade_display in grade_display_options:
+                current_grade_index = grade_display_options.index(current_grade_display)
+            else:
+                current_grade_index = 0
+        else:
+            # 세션 상태에 값이 있으면 해당 값의 인덱스 사용
+            current_value = st.session_state[selectbox_key]
+            if current_value in grade_display_options:
+                current_grade_index = grade_display_options.index(current_value)
+            else:
+                current_grade_index = 0
         
         # selectbox의 key를 고정하여 값 변경 시 자동 업데이트 방지
         # 버튼 클릭 시에만 값을 읽도록 처리
@@ -269,7 +302,7 @@ def show_profile_page():
             "등급",
             options=grade_display_options,
             index=current_grade_index,
-            key=f"profile_grade_select_{user_id}",
+            key=selectbox_key,
             help="등급을 선택한 후 '저장' 버튼을 클릭해야 변경사항이 적용됩니다."
         )
         # 선택된 값에서 key 추출 (예: "01: 일반회원" -> "01")
@@ -280,11 +313,23 @@ def show_profile_page():
         # 일반 사용자는 disabled select box
         grade_display_options = [f"{k}: {v}" for k, v in grade_options.items()]
         temp_grade = st.session_state[f"temp_profile_{user_id}_grade"]
-        current_grade_index = 0
-        for idx, (k, v) in enumerate(grade_options.items()):
-            if k == temp_grade:
-                current_grade_index = idx
-                break
+        
+        # selectbox의 key를 통해 세션 상태에서 현재 값을 가져오거나, 없으면 temp_grade 사용
+        selectbox_key = f"profile_grade_disabled_{user_id}"
+        if selectbox_key not in st.session_state:
+            # 세션 상태에 없으면 temp_grade를 사용하여 인덱스 계산
+            current_grade_display = f"{temp_grade}: {grade_options.get(temp_grade, '')}"
+            if current_grade_display in grade_display_options:
+                current_grade_index = grade_display_options.index(current_grade_display)
+            else:
+                current_grade_index = 0
+        else:
+            # 세션 상태에 값이 있으면 해당 값의 인덱스 사용
+            current_value = st.session_state[selectbox_key]
+            if current_value in grade_display_options:
+                current_grade_index = grade_display_options.index(current_value)
+            else:
+                current_grade_index = 0
         
         selected_grade_display = st.selectbox(
             "등급",
@@ -292,7 +337,7 @@ def show_profile_page():
             index=current_grade_index,
             disabled=True,
             help="등급은 관리자(99)만 수정할 수 있습니다.",
-            key=f"profile_grade_disabled_{user_id}"
+            key=selectbox_key
         )
         st.info("ℹ️ 등급은 관리자만 수정할 수 있습니다.")
 
@@ -327,6 +372,8 @@ def show_profile_page():
                 del st.session_state[f"profile_music_select_{user_id}"]
             if f"profile_grade_select_{user_id}" in st.session_state:
                 del st.session_state[f"profile_grade_select_{user_id}"]
+            if f"profile_grade_disabled_{user_id}" in st.session_state:
+                del st.session_state[f"profile_grade_disabled_{user_id}"]
             
             st.success("입력값이 초기화되었습니다.")
             st.rerun()
