@@ -286,40 +286,55 @@ SKN21-2ND-2TEAM/
 
 ### 🔹 주요 테이블 구조
 
-#### 1) `Original Dataset` — 원본 피처 테이블
+### 1) `Original Dataset` — 원본 피처 테이블
 | 컬럼명                   | 타입        | 설명               | 
 | --------------------- | --------- | ---------------- |
-| user_id               | INT       | 사용자 고유 ID        | 
-| gender                | VARCHAR   | 성별 (Male/Female) | 
-| age                   | INT       | 사용자 나이           | 
-| country               | VARCHAR   | 접속 국가            | 
-| subscription_type     | VARCHAR   | 요금제 종류           |
-| listening_time        | FLOAT     | 하루 음악 청취 시간(분)   | 
-| songs_played_per_day  | FLOAT     | 하루 재생 곡수         |
-| skip_rate             | FLOAT     | 스킵률              |
-| device_type           | VARCHAR   | 기기 종류            |
-| ads_listened_per_week | INT       | 주간 광고 시청 수       |
-| offline_listening     | INT (0/1) | 오프라인 재생 기능 여부    |
-| is_churned            | INT(0/1)  | 이탈 여부            |
+| `user_id`              | INT       | 사용자 고유 ID        | 
+| `gender`                | VARCHAR   | 성별 (Male/Female) | 
+| `age`                   | INT       | 사용자 나이           | 
+| `country`               | VARCHAR   | 접속 국가            | 
+| `subscription_type`     | VARCHAR   | 요금제 종류           |
+| `listening_time`        | FLOAT     | 하루 음악 청취 시간(분)   | 
+| `songs_played_per_day`  | FLOAT     | 하루 재생 곡수         |
+| `skip_rate`             | FLOAT     | 스킵률              |
+| `device_type`           | VARCHAR   | 기기 종류            |
+| `ads_listened_per_week` | INT       | 주간 광고 시청 수       |
+| `offline_listening`     | INT (0/1) | 오프라인 재생 기능 여부    |
+| `is_churned`            | INT(0/1)  | 이탈 여부            |
 
 <br>
 
-#### 2) `Feature Engineering` — 파생 변수 테이블
+### 2) ❌❌❌❌❌`Feature Engineering` — 파생 변수 테이블
 | 컬럼명                | 타입      | 설명                                |
 | --------------------- | --------- | ------------------------------------ |
-| engagement_score   | FLOAT   | 청취시간 + 재생곡수 기반 참여도 지표             |
-| listening_time_bin | VARCHAR | very_low ~ high 구간화               |
-| skip_intensity     | FLOAT   | skip_rate × songs_played_per_day  |
-| skip_index         | FLOAT   | songs_played / (skip_rate + 1e-5) |
-
+| `engagement_score`   | FLOAT   | listening_time × songs_played_per_day             |
+| `songs_per_minute` | FLOAT | songs_played_per_day / listening_time               |
+| `skip_intensity`     | FLOAT   | skip_rate × songs_played_per_day  |
+| `skip_rate_cap`         | FLOAT   | skip_rate.clip(0, 1.5) |
+| `ads_pressure`         | FLOAT   | ads_listened_per_week / listening_time |
 
 <br>
 
-#### 3) `Target Variable` 
-| 컬럼명        | 타입       | 설명              |
-| --------------------- | --------- | ------------------------------------ |
-| is_churned | INT(0/1) | 1 = 이탈 / 0 = 유지 |
+### 3) 💡 Improvement Proposal
 
+##### 3) `Time-Series Behavioral Trends` -
+| 피처명 | 타입 | 설명 | 예상 기여도 |
+|--------|------|------|-------------|
+| `listening_time_trend_7d` | float | 최근 7일 청취 시간 변화율 (%) | 높음 |
+| `login_frequency_30d` | int | 최근 30일 로그인 횟수 | 높음 |
+| `days_since_last_login` | int | 마지막 로그인 후 경과 일수 | 높음 |
+| `skip_rate_increase_7d` | float | 최근 1주 vs 이전 1주 스킵률 증가율 | 중간 |
+| `freq_of_use_trend_14d` | float | 최근 2주 사용 빈도 변화율 (%) | 높음 |
+
+<br>
+
+##### 4) `Customer Interaction Signalss`
+| 피처명 | 타입 | 설명 | 예상 기여도 |
+|--------|------|------|-------------|
+| `customer_support_contact` | bool | 최근 30일 내 고객센터 문의 여부 | 중간 |
+| `payment_failure_count` | int | 결제 실패 횟수 | 높음 |
+| `promotional_email_click` | bool | 프로모션 이메일 클릭 여부 | 낮음 |
+| `app_crash_count_30d` | int | 최근 30일 앱 크래시 횟수 | 중간 |
 
 <br><br><br>
 
