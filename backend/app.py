@@ -91,13 +91,16 @@ def get_all_users():
 @app.route("/api/users/<int:user_id>", methods=["GET"])
 def get_user(user_id):
     conn = get_connection()
-    cursor = conn.cursor()
+    cursor = conn.cursor(DictCursor)
 
     cursor.execute("SELECT * FROM users WHERE user_id = %s", (user_id,))
     row = cursor.fetchone()
 
     cursor.close()
     conn.close()
+
+    if not row:
+        return jsonify({"error": "User not found"}), 404
 
     return jsonify(row)
 
@@ -337,10 +340,12 @@ def update_user(user_id):
     return jsonify({"message": "User updated"})
 
 # -------------------------------------------------------------
-# UPDATE_USER_DATA
+# UPDATE_USER_DATA (트랜잭션 적용)
 # -------------------------------------------------------------  
 @app.route("/api/update_user_data", methods=["POST"])
 def update_user_data():
+    conn = None
+    cursor = None
     try:
         data = request.json
 
@@ -350,29 +355,70 @@ def update_user_data():
         grade = data.get("grade")
 
         if not user_id:
-            return jsonify({"success": False, "error": "user_id가 필요합니다."})
+            return jsonify({"success": False, "error": "user_id가 필요합니다."}), 400
 
+        # 입력값 검증
+        if not name or not name.strip():
+            return jsonify({"success": False, "error": "이름은 필수 입력 항목입니다."}), 400
+
+        if grade not in ["01", "99"]:
+            return jsonify({"success": False, "error": "등급은 01 또는 99만 가능합니다."}), 400
+
+        # 데이터베이스 연결
         conn = get_connection()
         cursor = conn.cursor()
 
+        # 트랜잭션 시작 (autocommit 비활성화)
+        conn.autocommit(False)
+
+        # 사용자 존재 여부 확인
+        cursor.execute("SELECT user_id FROM users WHERE user_id = %s", (user_id,))
+        if not cursor.fetchone():
+            conn.rollback()
+            return jsonify({"success": False, "error": "사용자를 찾을 수 없습니다."}), 404
+
+        # UPDATE 쿼리 실행
         sql = """
             UPDATE users
             SET name = %s,
                 favorite_music = %s,
-                grade = %s
+                grade = %s,
+                modify_date = NOW()
             WHERE user_id = %s
         """
 
-        cursor.execute(sql, (name, favorite_music, grade, user_id))
+        cursor.execute(sql, (name.strip(), favorite_music.strip() if favorite_music else "", grade, user_id))
+        
+        # 영향받은 행 수 확인
+        if cursor.rowcount == 0:
+            conn.rollback()
+            return jsonify({"success": False, "error": "수정된 데이터가 없습니다."}), 400
+
+        # 트랜잭션 커밋
         conn.commit()
 
-        cursor.close()
-        conn.close()
-
-        return jsonify({"success": True, "message": "사용자 정보가 수정되었습니다."})
+        return jsonify({
+            "success": True, 
+            "message": "사용자 정보가 수정되었습니다.",
+            "data": {
+                "user_id": user_id,
+                "name": name.strip(),
+                "favorite_music": favorite_music.strip() if favorite_music else "",
+                "grade": grade
+            }
+        })
 
     except Exception as e:
-        return jsonify({"success": False, "error": str(e)})
+        # 트랜잭션 롤백
+        if conn:
+            conn.rollback()
+        return jsonify({"success": False, "error": f"데이터베이스 오류: {str(e)}"}), 500
+    finally:
+        # 리소스 정리
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
 
 # -------------------------------------------------------------
 # DELETE
