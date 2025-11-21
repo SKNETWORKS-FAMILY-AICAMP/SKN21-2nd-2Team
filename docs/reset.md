@@ -4,6 +4,27 @@
 **담당자**: 3번 (Preprocessing Validation + Feature Tuning)  
 **상태**: 데이터 가공 완료, 내일 EDA부터 재시작 예정
 
+#### 노트북 타임라인 정리
+
+- **① `preprocessing_validation.ipynb`**  
+  - 초기 전처리/기초 통계 수집 + 간단한 FE 생성/검증 (raw 데이터 기준)
+- **② `FE_validation.ipynb`**  
+  - 여러 FE 세트(Set A~G) 비교 → **Set D(기본 수치형 6 + FE 5 = 11개 피처)**를 최종 추천 세트로 선정
+- **③ `FE_add.ipynb`**  
+  - 세그먼트 플래그, ratio, 비선형/interaction 등 추가 FE 후보 실험 → **ΔF1 거의 0 또는 마이너스**로, 더 이상의 FE 추가는 의미 없다고 결론
+- **④ `feature_selection.ipynb`**  
+  - 수치형 + FE + 범주형(원-핫)까지 모두 포함해 여러 모델(Logistic, RF, GB, HGB)로 재검증  
+  - 결과: 모델/튜닝/앙상블을 바꿔도 **F1 0.41±0.01, AUC 0.52~0.54 수준** → **데이터 구조 한계(유저당 1행, 시계열 없음)** 진단
+- **⑤ `SMOTE_XGB_RF.ipynb`**  
+  - SMOTE, XGBoost, RF·HGB·LR 앙상블 등 “모델 쪽 마지막 시도” 수행  
+  - SMOTE/부스팅/앙상블 모두 baseline RF보다 개선이 거의 없거나 악화 → **데이터 자체가 문제**라는 결론 보강
+- **⑥ `feature_engineering_advanced.ipynb`**  
+  - 시계열 5개 + 고객접점 4개 합성 피처 생성 → `enhanced_data.csv` 및 `synthetic_features.csv` 생성  
+  - RandomForest 기준 **Baseline(F1≈0.415, AUC≈0.535) → Advanced(F1≈0.62, AUC≈0.79)** 로 성능 대폭 개선
+- **⑦ `preprocessing_validation_v2.ipynb`**  
+  - `enhanced_data.csv` 기준으로 **결측치/이상치 처리 → `enhanced_data_clean.csv`·`enhanced_data_clean_model.csv` 생성**  
+  - FE 5개를 모델 입력에서 제외하고, **원본 수치형 + 시계열 + 고객접점 15개 수치 피처**에 대해 RF baseline 성능(F1≈0.57, AUC≈0.80) 재검증
+
 ---
 
 ## 📋 목차
@@ -392,21 +413,82 @@ ads_listened_per_week      6.891          6.962        0.8393
 - **주의 사항**:
   - **시계열 피처는 이미 가공 완료**되었으므로 추가 FE 불필요
   - 범주형 인코딩은 모델 학습 시 필요하면 그때 추가
-
 - **산출물**: `notebooks/preprocessing_validation_v2.ipynb` (선택)
 
-#### Step 3: 모델 학습 및 최종 성능 검증
-- **대상 데이터**: `enhanced_data.csv`
-- **피처 세트**:
-  - **Baseline (11개)**: 기본 수치형 6 + FE 5
-  - **Enhanced (20개)**: Baseline 11 + 시계열 5 + 고객접점 4
+#### ✅ Step 2-1: Preprocessing Validation v2 실행 결과 (2025-11-21 기준, 3번 담당)
 
-- **모델 비교**:
-  - RandomForest (Baseline)
-  - RandomForest (Enhanced) ⭐
+- **사용 노트북**: `notebooks/preprocessing_validation_v2.ipynb`
+
+- **전처리 결과 데이터**
+  - `data/enhanced_data_clean.csv`  
+    - `enhanced_data.csv`에서 **결측/이상치 처리까지 완료한 정제 버전**
+    - 결측치:
+      - `listening_time`, `songs_played_per_day` → 각 컬럼 median으로 대체  
+      - 그 후 `engagement_score`, `skip_intensity`를 해당 값으로 **재계산**  
+      - `payment_failure_count`, `app_crash_count_30d` → NaN 시 0회  
+      - `customer_support_contact`, `promotional_email_click` → NaN 시 False  
+      - 최종적으로 **전체 결측치 0개**
+    - 이상치(IQR 기준):
+      - 수치형 컬럼(`user_id`, `is_churned` 제외) 전체에 대해  
+        \[Q1 − 1.5×IQR, Q3 + 1.5×IQR\] 범위를 벗어나면 해당 경계값으로 **clip(winsorizing)**  
+      - 이상치 행을 제거하지 않고, **값만 경계 안으로 자름**
+
+  - `data/enhanced_data_clean_model.csv`  
+    - `enhanced_data_clean.csv`에서 **FE 5개 컬럼만 제거한 모델 학습용 축소 버전**
+    - 제거된 FE 컬럼:  
+      - `engagement_score`, `songs_per_minute`, `skip_intensity`, `skip_rate_cap`, `ads_pressure`
+    - 최종 모델/튜닝 시, 공통 입력 데이터로 사용 권장
+
+- **최종 피처 세트 결정 (모델 입력 기준)**
+  - **포함**:
+    - 기존 수치형: `age`, `listening_time`, `songs_played_per_day`, `skip_rate`, `ads_listened_per_week`, `offline_listening`
+    - 시계열 5개: `listening_time_trend_7d`, `login_frequency_30d`, `days_since_last_login`, `skip_rate_increase_7d`, `freq_of_use_trend_14d`
+    - 고객접점 4개: `customer_support_contact`, `payment_failure_count`, `promotional_email_click`, `app_crash_count_30d`
+  - **제외 (모델 입력에서는 사용하지 않음)**:
+    - FE 5개: `engagement_score`, `songs_per_minute`, `skip_intensity`, `skip_rate_cap`, `ads_pressure`
+  - ➡️ **EDA는 `enhanced_data_clean.csv`(풀 피처) 기준, 모델 학습은 `enhanced_data_clean_model.csv` 기준**으로 진행
+
+- **RandomForest 기준 성능 (시계열 + 고객접점 포함, FE 제거)**  
+  _※ 모두 수치형 피처만 사용, `user_id`/`is_churned` 제외_
+  - **[원본 `enhanced_data.csv` + 결측 행 drop]**  
+    - 사용 행: 7,527행 (결측 포함 473행 제거)  
+    - F1 **0.6151**, AUC **0.8287**  
+    - → 결측 있는 “어려운 샘플”을 제외한 **상한선(upper bound) 성능**으로 해석
+  - **[`enhanced_data_clean.csv` (결측/이상치 처리, 8,000행 전부 사용)]**  
+    - 사용 행: 8,000행 (행 제거 없음)  
+    - F1 **0.5664**, AUC **0.7957**  
+    - → **실제 서비스 파이프라인에 가까운 baseline 성능**으로 채택
+
+- **요약**
+  1. 결측/이상치 처리까지 끝난 기준 데이터로 `enhanced_data_clean.csv` 확정
+  2. FE 5개는 최종 모델 입력에서 제외하고, **원본 수치형 + 시계열 + 고객접점**만 사용
+  3. 모델/튜닝/비교 실험은 `enhanced_data_clean_model.csv` + 위 피처 세트를 기준으로 진행
+
+#### Step 3: 모델 학습 및 최종 성능 검증
+- **대상 데이터**:  
+  - 전처리/정제 기준: `enhanced_data_clean.csv`  
+  - **모델 입력 기준**: `enhanced_data_clean_model.csv` (FE 5개 제거된 축소 버전)
+
+- **피처 세트 (수치형 중심)**:
+  - **Baseline**: 기존 수치형 6개  
+    - `age`, `listening_time`, `songs_played_per_day`, `skip_rate`, `ads_listened_per_week`, `offline_listening`
+  - **Enhanced (최종 세트)**: Baseline 6 + 시계열 5 + 고객접점 4 (**총 15개 수치형**)  
+    - 시계열 5: `listening_time_trend_7d`, `login_frequency_30d`, `days_since_last_login`, `skip_rate_increase_7d`, `freq_of_use_trend_14d`  
+    - 고객접점 4: `customer_support_contact`, `payment_failure_count`, `promotional_email_click`, `app_crash_count_30d`  
+  - **제외**: FE 5개(`engagement_score`, `songs_per_minute`, `skip_intensity`, `skip_rate_cap`, `ads_pressure`)는 최종 모델 입력에서 사용하지 않음
+
+- **모델 비교 (Enhanced 세트 중심)**:
+  - RandomForest (Enhanced 기준 baseline) ⭐
   - XGBoost (Enhanced)
   - LightGBM (Enhanced) (옵션)
-  - 앙상블 (Enhanced)
+  - 앙상블 (Enhanced, RF + XGB + LGBM 등)
+
+- **목표 성능 (Enhanced 세트 기준)**:
+  - F1 0.62+  
+  - AUC 0.80+  
+  - (현재 RF + `enhanced_data_clean_model.csv` 기준 baseline: **F1 ≈ 0.57, AUC ≈ 0.80** → 모델/튜닝으로 F1 추가 개선 목표)
+
+- **산출물**: `notebooks/model_training.ipynb` 또는 `notebooks/model_training_enhanced.ipynb`
 
 - **목표 성능**:
   - F1 0.62+ ✅ (이미 달성)
@@ -498,5 +580,5 @@ ads_listened_per_week      6.891          6.962        0.8393
 
 ---
 
-**🎯 내일의 목표**: `enhanced_data.csv`로 깨끗하게 재시작하여, **F1 0.65+, AUC 0.80+** 최종 달성! 🚀
+
 
