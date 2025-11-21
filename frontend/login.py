@@ -21,13 +21,15 @@ temp_accounts = {
         "password": "1234",
         "user_id": 99,
         "name": "Test Admin",
-        "grade": "99"
+        "grade": "99",
+        "favorite_music": "Rock"  # test 계정용 기본값
     },
     "test2": {  # 일반 유저 계정
         "password": "1234",
         "user_id": 1,
         "name": "Test User",
-        "grade": "01"
+        "grade": "01",
+        "favorite_music": "Pop"  # test 계정용 기본값
     }
 }
 
@@ -36,94 +38,226 @@ def show_login_page():
     로그인 화면 페이지
     """
 
-    st.set_page_config(page_title="로그인", page_icon="🔐", layout="centered")
+    st.set_page_config(page_title="로그인", page_icon="🔐", layout="wide")
 
-    st.title("🔐 로그인 페이지")
+    # FHD 화면에 맞는 CSS 스타일 추가
+    st.markdown("""
+    <style>
+    /* 로그인 페이지 중앙 정렬 및 적절한 너비 */
+    .main .block-container {
+        max-width: 600px;
+        padding-top: 3rem;
+    }
+    
+    /* 입력 필드 스타일 */
+    div[data-testid="stTextInput"] {
+        width: 100%;
+    }
+    
+    /* stHorizontalBlock 클래스의 우측 여백 제거 및 버튼 우측 정렬 */
+    .stHorizontalBlock.st-emotion-cache-1permvm.e196pkbe2 {
+        padding-right: 0 !important;
+        margin-right: 0 !important;
+        justify-content: flex-end !important;
+        display: flex !important;
+        gap: 0.5rem !important;
+    }
+    
+    /* stHorizontalBlock 내부 컬럼들의 불필요한 패딩 제거 */
+    .stHorizontalBlock.st-emotion-cache-1permvm.e196pkbe2 > div[data-testid="column"] {
+        padding-right: 0.25rem !important;
+        padding-left: 0.25rem !important;
+    }
+    
+    /* 빈 컬럼(첫 번째 컬럼)의 너비 최소화 */
+    .stHorizontalBlock.st-emotion-cache-1permvm.e196pkbe2 > div[data-testid="column"]:first-child {
+        flex-grow: 1;
+        min-width: 0;
+    }
+    
+    /* 버튼이 있는 컬럼은 자동 크기 조정 */
+    .stHorizontalBlock.st-emotion-cache-1permvm.e196pkbe2 > div[data-testid="column"]:not(:first-child) {
+        flex-shrink: 0;
+    }
+    
+    /* 버튼 스타일 - 적절한 크기 */
+    button[kind="primary"] {
+        min-height: 2.5rem;
+        font-size: 1rem;
+        padding: 0.5rem 1.5rem;
+    }
+    
+    button:not([kind="primary"]) {
+        min-height: 2.5rem;
+        font-size: 1rem;
+        padding: 0.5rem 1.5rem;
+    }
+    </style>
+    """, unsafe_allow_html=True)
 
-    # 세션 초기화 (최초 1회만)
-    if "initialized" not in st.session_state:
-        st.session_state.initialized = True
-        st.session_state.logged_in = False
-        st.session_state.user_info = None
+    # 중앙 정렬을 위한 컬럼 사용
+    col_left, col_center, col_right = st.columns([1, 2, 1])
+    
+    with col_center:
+        st.title("🔐 로그인 페이지")
+        
+        # 세션 초기화 (최초 1회만)
+        if "initialized" not in st.session_state:
+            st.session_state.initialized = True
+            st.session_state.logged_in = False
+            st.session_state.user_info = None
 
-    st.subheader("로그인 정보를 입력해 주세요.")
+        st.subheader("로그인 정보를 입력해 주세요.")
+        st.markdown("---")
 
-    # 입력
-    user_id_input = st.text_input("아이디 (user_id)", placeholder="ID를 입력해주세요")
-    password = st.text_input("비밀번호", type="password")
+        # 입력 필드
+        user_id_input = st.text_input("아이디 (user_id)", placeholder="ID를 입력해주세요 (또는 test1/test2)")
+        password = st.text_input("비밀번호", type="password", placeholder="비밀번호를 입력해주세요")
 
-    if st.button("로그인"):
-        # st.write("➡ 버튼 클릭 감지됨")
+        # 버튼 영역 (우측 정렬, 동일선상에 가로 배치, 적당한 간격)
+        st.markdown("---")
+        btn_col1, btn_col2, btn_col3 = st.columns([4, 1.1, 1.1])
+        with btn_col1:
+            pass  # 빈 공간
+        with btn_col2:
+            login_button = st.button("🔐 로그인", type="primary")
+        with btn_col3:
+            signup_button = st.button("📝 회원가입")
+        
+        if signup_button:
+            st.session_state.page = "signup"
+            st.rerun()
+        
+        if login_button:
+            st.write("🔍 [LOG] 로그인 버튼 클릭 감지됨")
+            st.write(f"🔍 [LOG] 입력된 아이디: '{user_id_input}'")
+            st.write(f"🔍 [LOG] 입력된 비밀번호 길이: {len(password)}")
 
-        # ------------------------------
-        # 임시 로그인 공통 처리
-        # ------------------------------
-        if user_id_input.strip() in temp_accounts:
-            acc = temp_accounts[user_id_input.strip()]
+            # ------------------------------
+            # 임시 로그인 공통 처리
+            # ------------------------------
+            if user_id_input.strip() in temp_accounts:
+                st.write(f"🔍 [LOG] 임시 계정 체크: '{user_id_input.strip()}' 발견됨")
+                acc = temp_accounts[user_id_input.strip()]
 
-            if password.strip() == acc["password"]:
-                st.success("임시 계정으로 로그인되었습니다.")
+                if password.strip() == acc["password"]:
+                    st.write("🔍 [LOG] 임시 계정 비밀번호 일치 확인")
+                    st.write(f"🔍 [LOG] 계정 정보: user_id={acc['user_id']}, name={acc['name']}, grade={acc['grade']}")
+                    
+                    st.session_state.logged_in = True
+                    st.session_state.user_info = {
+                        "user_id": acc["user_id"],
+                        "name": acc["name"],
+                        "grade": acc["grade"],
+                        "favorite_music": acc.get("favorite_music", ""),  # test 계정용 favorite_music 추가
+                    }
+                    st.session_state.page = "main"  # 페이지 상태 변경 추가
+                    
+                    st.write("🔍 [LOG] 세션 상태 설정 완료")
+                    st.write(f"🔍 [LOG] logged_in: {st.session_state.logged_in}")
+                    st.write(f"🔍 [LOG] user_info: {st.session_state.user_info}")
+                    st.write(f"🔍 [LOG] page: {st.session_state.page}")
+                    
+                    st.success("임시 계정으로 로그인되었습니다.")
+                    st.write("🔍 [LOG] st.rerun() 호출 전")
+                    st.rerun()
+                    st.write("🔍 [LOG] st.rerun() 호출 후 (이 메시지는 보이지 않아야 함)")
+                    return
+                else:
+                    st.write("🔍 [LOG] 임시 계정 비밀번호 불일치")
+                    st.error("비밀번호가 일치하지 않습니다.")
+                    return
+            else:
+                st.write(f"🔍 [LOG] 임시 계정 아님: '{user_id_input.strip()}'")
 
-                st.session_state.logged_in = True
-                st.session_state.user_info = {
-                    "user_id": acc["user_id"],
-                    "name": acc["name"],
-                    "grade": acc["grade"],
-                }
+            # ------------------------------
+            # 실제 API 로그인 로직 (숫자 user_id 전용)
+            # ------------------------------
 
-                st.rerun()
+            # 빈 문자열 검증
+            if not user_id_input.strip():
+                st.error("아이디를 입력해주세요.")
                 return
 
-        # ------------------------------
-        # 실제 API 로그인 로직 (숫자 user_id 전용)
-        # ------------------------------
+            # 숫자 형식 검증 (임시 계정이 아닌 경우에만)
+            if not user_id_input.strip().isdigit():
+                st.write("🔍 [LOG] 숫자 형식 검증 실패")
+                st.error("아이디는 숫자만 입력 가능합니다. (또는 임시 계정: test1/test2)")
+                return
 
-        # 숫자 검증
-        if not user_id_input.strip().isdigit():
-            st.error("아이디는 숫자만 입력 가능합니다. (또는 임시 계정: test / 1234)")
-            return
-
-        user_id = int(user_id_input.strip())
-
-        try:
-            # API 요청
-            res = requests.post(
-                f"{API_URL}/login",
-                json={"user_id": user_id, "password": password}
-            )
-            # st.write("📡 API 응답 코드:", res.status_code)
+            st.write("🔍 [LOG] 숫자 형식 검증 통과")
+            try:
+                user_id = int(user_id_input.strip())
+                st.write(f"🔍 [LOG] user_id 변환 완료: {user_id}")
+            except ValueError as e:
+                st.write(f"🔍 [LOG] user_id 변환 실패: {e}")
+                st.error("아이디는 숫자만 입력 가능합니다.")
+                return
 
             try:
-                data = res.json()
-                # st.write("📡 JSON 응답:", data)
+                st.write(f"🔍 [LOG] API 요청 시작: {API_URL}/login")
+                st.write(f"🔍 [LOG] 요청 데이터: user_id={user_id}, password 길이={len(password)}")
+                
+                # API 요청
+                res = requests.post(
+                    f"{API_URL}/login",
+                    json={"user_id": user_id, "password": password}
+                )
+                st.write(f"🔍 [LOG] API 요청 완료: status_code={res.status_code}")
+
+                try:
+                    data = res.json()
+                    # st.write("📡 JSON 응답:", data)
+                except Exception as e:
+                    st.error(f"JSON 파싱 오류: {e}")
+                    return
+
+                # ------------------------------
+                # 로그인 성공 여부 판정
+                # 백엔드 응답 구조: {"success": True, "user_id": ..., "name": ..., "grade": ...}
+                # ------------------------------
+                st.write(f"🔍 [LOG] API 응답 상태 코드: {res.status_code}")
+                st.write(f"🔍 [LOG] API 응답 데이터: {data}")
+                
+                if res.status_code == 200 and data.get("success") == True:
+                    st.write("🔍 [LOG] API 로그인 성공 조건 만족")
+                    # 필수 필드 검증
+                    required_fields = ["user_id", "name", "grade"]
+                    if all(field in data for field in required_fields):
+                        st.write("🔍 [LOG] 필수 필드 검증 통과")
+                        st.session_state.logged_in = True
+                        st.session_state.user_info = {
+                            "user_id": data["user_id"],
+                            "name": data["name"],
+                            "grade": data["grade"]
+                        }
+                        st.session_state.page = "main"  # 페이지 상태 변경 추가
+                        
+                        st.write("🔍 [LOG] 세션 상태 설정 완료")
+                        st.write(f"🔍 [LOG] logged_in: {st.session_state.logged_in}")
+                        st.write(f"🔍 [LOG] user_info: {st.session_state.user_info}")
+                        st.write(f"🔍 [LOG] page: {st.session_state.page}")
+                        
+                        st.success("로그인 성공!")
+                        st.write("🔍 [LOG] st.rerun() 호출 전")
+                        st.rerun()
+                        st.write("🔍 [LOG] st.rerun() 호출 후 (이 메시지는 보이지 않아야 함)")
+                    else:
+                        st.write(f"🔍 [LOG] 필수 필드 검증 실패. 누락된 필드: {[f for f in required_fields if f not in data]}")
+                        st.error("로그인 실패: 서버 응답 형식 오류")
+                else:
+                    st.write(f"🔍 [LOG] API 로그인 실패: status_code={res.status_code}, success={data.get('success')}")
+                    # 백엔드에서 반환한 에러 메시지 표시
+                    error_msg = data.get("message", "아이디 또는 비밀번호를 확인해 주세요.")
+                    st.error(f"로그인 실패: {error_msg}")
+
+            except requests.exceptions.ConnectionError:
+                st.error("서버에 연결할 수 없습니다. 백엔드 서버가 실행 중인지 확인해주세요.")
+            except requests.exceptions.RequestException as e:
+                st.error(f"서버 요청 실패: {e}")
             except Exception as e:
-                st.error(f"JSON 파싱 오류: {e}")
-                return
-
-            # ------------------------------
-            # 로그인 성공 여부 대체 판정 방식
-            # user_id, name, grade 존재 여부로 판단
-            # ------------------------------
-            required_fields = ["user_id", "name", "grade"]
-            is_valid = all(field in data for field in required_fields)
-
-            if res.status_code == 200 and is_valid:
-                st.session_state.logged_in = True
-                st.session_state.user_info = data
-
-                st.success("로그인 성공!")
-                st.rerun()
-
-            else:
-                st.error("로그인 실패: 아이디 또는 비밀번호를 확인해 주세요.")
-
-        except Exception as e:
-            st.error(f"서버 연결 실패: {e}")
-            
-    if st.button("회원가입 하러가기"):
-        st.session_state.page = "signup"
-        st.rerun()
-
+                st.error(f"오류 발생: {e}")
+    
     # st.write("로그인 테스트 완료 영역 (오류 확인용)")
     
 
