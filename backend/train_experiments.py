@@ -47,6 +47,19 @@ from preprocessing_pipeline import preprocess_and_split  # 같은 backend 디렉
 # =========================================================
 MODEL_NAME = DEFAULT_MODEL_NAME  # "rf", "logit" 등 backend/models.py에서 지원하는 이름
 
+# 선택: 하이퍼파라미터 override (기본은 빈 dict, 필요할 때만 수정)
+MODEL_PARAMS = {
+    # 예시) RandomForest/ExtraTrees 튜닝
+    # "n_estimators": 400,
+    # "max_depth": 8,
+    # "min_samples_leaf": 5,
+    #
+    # 예시) XGBoost / LightGBM 튜닝
+    # "learning_rate": 0.05,
+    # "n_estimators": 400,
+    # "max_depth": 6,
+}
+
 
 def evaluate_with_best_threshold(
     y_true,
@@ -90,8 +103,9 @@ def main():
     )
 
     # 2) 모델 생성 및 학습
-    #    - MODEL_NAME을 "rf" → "logit" 등으로 바꿔가며 실험 가능
-    model = get_model(name=MODEL_NAME, random_state=RANDOM_STATE)
+    #    - MODEL_NAME을 "rf", "xgb" 등으로 바꿔가며 실험하고
+    #    - MODEL_PARAMS에 원하는 하이퍼파라미터만 선택적으로 넣어 override 가능
+    model = get_model(name=MODEL_NAME, random_state=RANDOM_STATE, **MODEL_PARAMS)
     model.fit(X_train, y_train)
 
     # 3) 예측 및 평가
