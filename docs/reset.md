@@ -369,53 +369,56 @@ ads_listened_per_week      6.891          6.962        0.8393
 - `notebooks/eda_add.ipynb`
 - `data/enhanced_data_not_clean_FE_delete.csv`
 
-### 6-1. 파이프라인 기반 모듈화 (backend 기준, 2025-11-21 이후)
+### 6-1. 파이프라인 기반 모듈화 (backend 기준, 2025-11-21 이후 업데이트 포함)
 - **배경**:
   - 초기에는 `src/config.py`, `src/data_loader.py`, `src/models.py`, `src/train_eval.py`, `backend/run_baseline.py` 구조로  
     `enhanced_data_clean_model.csv` + 15개 수치형 기준 baseline 모듈화를 시도했으나,
   - 이후 **실제 전처리 파이프라인 파일(`backend/preprocessing.py`)을 전달받으면서, 전체 흐름을 파이프라인 기준으로 재설계**하기로 결정.
   - 그 결과, `src/` 내부 모듈들은 최종 파이프라인 플로우에서 사용하지 않기로 하여 **정리(삭제)** 함.
 
-- **현재 모듈화 구조 (backend 기준)**:
-  - `backend/preprocessing.py`  
-    - 역할: **전처리 전용 모듈**  
+- **현재 모듈화 구조 (backend 기준, 2025-11-22 기준)**:
+  - `backend/preprocessing_pipeline.py`  
+    - 역할: **sklearn ColumnTransformer 기반 전처리 전용 모듈**  
     - 단계:
       1. 데이터 로드 (`load_data`)
-      2. 사용하지 않는 컬럼 제거 (`drop_unused_columns`)  
-         - `user_id` 및 FE 5개(`engagement_score`, `songs_per_minute`, `skip_intensity`, `skip_rate_cap`, `ads_pressure`) drop
-      3. 결측치 처리 (`clean_missing_values`)  
+      2. 결측치 처리 (`clean_missing_values`)  
          - `listening_time`, `songs_played_per_day` → median  
          - `payment_failure_count`, `app_crash_count_30d` → 0  
-         - `customer_support_contact`, `promotional_email_click` → False/0  
-      4. 이상치 처리 (`handle_outliers`)  
+         - `customer_support_contact`, `promotional_email_click` → False  
+      3. 이상치 처리 (`handle_outliers_iqr`)  
          - IQR 기반 clip, `user_id`, `is_churned` 제외
-      5. 범주형 인코딩 (`encode_categorical`)  
-         - `gender`, `country`, `subscription_type`, `device_type` → one-hot
-      6. 수치형 스케일링 (`scale_numeric`)  
-         - StandardScaler 기반 표준화
-      7. Train/Test 분리 (`split_data`)  
-         - `is_churned` 타깃 기준 stratify  
-      8. 전체를 묶는 엔트리 함수: `preprocess_pipeline()`  
-         - 기본 입력: `data/enhanced_data_not_clean_FE_delete.csv`  
-         - 반환: `X_train, X_test, y_train, y_test, scaler`  
-         - 필요 시 `save_output=True`로 pkl/scaler 저장 가능
-  - `backend/train_with_pipeline.py`  
-    - 역할: **모델 학습 + 평가 전담 모듈**  
-    - `from preprocessing import preprocess_pipeline` 으로 전처리 결과를 받아와 학습/평가만 수행
-    - 상단 CONFIG로 공통 설정 관리:
-      - `DATA_PATH`, `TEST_SIZE`, `RANDOM_STATE`, `MODEL_NAME`  
-      - → 데이터 경로/분할 비율/seed/사용 모델을 한 곳에서 제어
-    - `main()`에서:
-      1. `preprocess_pipeline(path=DATA_PATH, test_size=TEST_SIZE, random_state=RANDOM_STATE)` 호출 → 전처리 + split
-      2. `backend/models.py`의 `get_model(name=MODEL_NAME, random_state=RANDOM_STATE)` 으로 모델 생성 후 학습
-      3. `predict_proba` 결과로 F1/AUC/Best Threshold 출력
+      4. 전처리기 구성 (`build_preprocessor`)  
+         - 수치형: `SimpleImputer(strategy=\"median\")` + `StandardScaler()`  
+         - 범주형: `SimpleImputer(strategy=\"most_frequent\")` + `OneHotEncoder(handle_unknown=\"ignore\")`
+      5. Train/Test 분리 + 전처리 적용 (`preprocess_and_split`)  
+         - `is_churned` 타깃 기준 stratify,  
+         - `preprocessor.fit_transform(X_train)` / `preprocessor.transform(X_test)`  
+         - 반환: `X_train_processed, X_test_processed, y_train, y_test, preprocessor`
+      6. 전처리 결과/객체 저장·로딩 유틸 (`save_processed_data`, `load_processed_data`)  
+         - `X_train_processed.pkl`, `X_test_processed.pkl`, `y_train.pkl`, `y_test.pkl`, `preprocessor.pkl`
   - `backend/models.py`  
-    - 역할: **모델 팩토리 모듈 (이름으로 모델 선택)**  
-    - `get_model(name, random_state)` 하나로 여러 모델을 선택적으로 생성
-    - 현재 지원:
-      - `"rf"`: RandomForestClassifier (기본 실험용)
+    - 역할: **모델 팩토리 + 레지스트리 모듈 (이름으로 모델 선택)**  
+    - `MODEL_REGISTRY`에 모델별 클래스와 기본 하이퍼파라미터를 정의  
+    - `get_model(name, random_state, **overrides)` 하나로 여러 모델을 선택적으로 생성
+    - 현재 기본 지원:
+      - `"rf"`: RandomForestClassifier (기본 실험용, `class_weight=\"balanced\"` 등 설정)
       - `"logit"`: LogisticRegression (baseline 비교용)
-    - 추후 `"xgb"`, `"lgbm"` 등 이름을 추가해 확장 가능
+    - 추후 `"xgb"`, `"lgbm"` 등 이름을 `MODEL_REGISTRY`에 추가해 확장 가능
+  - `backend/config.py`  
+    - 역할: **실험 공통 설정 모듈**  
+    - `DATA_PATH`, `TEST_SIZE`, `RANDOM_STATE`, `DEFAULT_MODEL_NAME`,  
+      threshold 스캔 범위(`THRESH_START`, `THRESH_END`, `THRESH_STEP`),  
+      메트릭 저장 경로(`METRICS_PATH`) 등을 한 곳에서 관리
+  - `backend/train_experiments.py`  
+    - 역할: **모델 학습 + 다양한 지표 평가 + 메트릭 자동 저장 스크립트**  
+    - `preprocess_and_split()`으로 전처리 결과를 받아와 학습/평가 수행
+    - 평가 지표:
+      - F1, ROC-AUC, PR-AUC
+      - Best Threshold (F1 기준)
+      - Precision, Recall (Best Threshold 기준)
+      - Confusion Matrix (TN, FP, FN, TP)
+    - `models/metrics.json`에 실행 결과를 **리스트 형태로 누적 저장**  
+      - 모델 이름, 데이터 경로, test_size, random_state, threshold 범위, timestamp 등 메타 정보 포함
 
 - **모듈화 포인트**:
   - **전처리 변경**: `backend/preprocessing.py`만 수정
