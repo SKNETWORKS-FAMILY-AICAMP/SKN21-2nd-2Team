@@ -159,86 +159,7 @@
 
 <div> 
 
-## 📁 Project Structure
-
-본 프로젝트는 5인의 역할 분담을 통해 단계별로 **데이터 분석 → 전처리 → 모델링 → 서비스 UI**까지  
-효율적으로 구축되었습니다. 아래는 각 역할 흐름을 기반으로 정리한 프로젝트 구조입니다.
-
 <br>
-
-### 🔹 1. 데이터 분석 & 파이프라인 설계  
-**담당:** 데이터 분석 + 파이프라인 설계 리더  
-**역할 요약:** 데이터 구조 파악 및 전체 전처리 설계
-
-- 원본 데이터 구조 분석 (`info()`, `describe()`)
-- 수치형/범주형 변수 파악
-- Feature 사용/제거 기준 설정
-- 스케일링/인코딩 방식 결정
-- Feature Engineering 아이디어 제안
-- **산출물:**  
-  - `docs/pipeline_design.md`  
-  - Feature 리스트 문서
-
-<br>
-
-### 🔹 2. 전처리 파이프라인 구현  
-**담당:** 백엔드 + 파이프라인 구현  
-**역할 요약:** 전처리를 실제 코드로 완성시키는 역할
-
-- 결측치 처리, 인코딩, 스케일링 코드 구현
-- Train/Test Split 함수화
-- DataFrame → X, y 변환 함수 제작
-- 최종 파이프라인 실행 함수 완성
-- **산출물:**  
-  - `preprocessing.py`  
-  - `X_train.pkl`, `X_test.pkl`  
-  - `y_train.pkl`, `y_test.pkl`
-
-<br>
-
-### 🔹 3. 전처리 검증 + Feature 튜닝  
-**담당:** FE Engineer + QA  
-**역할 요약:** 전처리 품질 검사 및 Feature 개선
-
-- 전처리 파이프라인 품질 체크
-- Feature 타당성 검증
-- 성능 영향을 주는 변수 탐색
-- 개선된 Feature 리스트 작성
-- **산출물:**  
-  - `preprocessing_validation.ipynb`  
-  - FE 개선안 문서
-
-<br>
-
-
-### 🔹 4. 모델 템플릿 제작 + Baseline 학습  
-**담당:** ML Engineer  
-**역할 요약:** 모델링 구조를 잡고 베이스라인 모델 제작
-
-- 공통 모델 템플릿 개발
-- Logistic Regression 등 Baseline 학습
-- 성능 평가 함수 제작
-- 전체 팀이 공유할 수 있는 모델 구조 제공
-- **산출물:**  
-  - `train_template.py`  
-  - `model_lr.pkl`
-
-<br>
-
-### 🔹 5. Streamlit UI 제작 + 최종 통합  
-**담당:** Frontend + Integrator  
-**역할 요약:** 최종 서비스를 UI로 구현하고 발표용으로 정리
-
-- Streamlit 기반 UI 개발
-- 최종 모델 로드 및 예측 기능 구현
-- 모델 비교 후 최종 선정
-- 발표 자료 / README.md 구성
-- **산출물:**  
-  - `frontend/run_app.py`  
-  - 발표 자료  
-  - `README.md`
-
-<br><br><br>
 
 
 
@@ -266,13 +187,106 @@ SKN21-2ND-2TEAM/
 <br><br><br>
 
 
-## 🗄️ Database Structure
+## 📊 1)  Data & Baseline Setup
 
-본 프로젝트는 Flask API 서버와 MySQL 데이터베이스를 연동하여  
-사용자 로그인, 예측 기록 저장을 처리합니다.  
-데이터베이스는 PyMySQL 기반으로 연결되며 아래와 같은 구조로 설계되었습니다.
+- **데이터 구조**: 8,000명 유저, 유저당 1행 스냅샷 (수치형 6개 + 범주형 4개, 타깃 `is_churned`)
+     ### 🔹 `Original Dataset` — 원본 피처 테이블
+    | 컬럼명                   | 타입        | 설명               | 
+    | --------------------- | --------- | ---------------- |
+    | `user_id`              | INT       | 사용자 고유 ID        | 
+    | `gender`                | VARCHAR   | 성별 (Male/Female) | 
+    | `age`                   | INT       | 사용자 나이           | 
+    | `country`               | VARCHAR   | 접속 국가            | 
+    | `subscription_type`     | VARCHAR   | 요금제 종류           |
+    | `listening_time`        | FLOAT     | 하루 음악 청취 시간(분)   | 
+    | `songs_played_per_day`  | FLOAT     | 하루 재생 곡수         |
+    | `skip_rate`             | FLOAT     | 스킵률              |
+    | `device_type`           | VARCHAR   | 기기 종류            |
+    | `ads_listened_per_week` | INT       | 주간 광고 시청 수       |
+    | `offline_listening`     | INT (0/1) | 오프라인 재생 기능 여부    |
+    | **`is_churned`**            | INT(0/1)  | 이탈 여부            |
 
 <br>
+
+- **초기 베이스라인** (`preprocessing_validation.ipynb`, `FE_validation.ipynb`):
+  - 수치형 6개 + 핵심 FE 5개(engagement_score, songs_per_minute, skip_intensity, skip_rate_cap, ads_pressure) 조합(Set D)
+     ### 🔹`Feature Engineering` — 파생 변수 테이블
+    | 컬럼명                | 타입      | 설명                                |
+    | --------------------- | --------- | ------------------------------------ |
+    | `engagement_score`   | FLOAT   | listening_time × songs_played_per_day             |
+    | `songs_per_minute` | FLOAT | songs_played_per_day / listening_time               |
+    | `skip_intensity`     | FLOAT   | skip_rate × songs_played_per_day  |
+    | `skip_rate_cap`         | FLOAT   | skip_rate.clip(0, 1.5) |
+    | `ads_pressure`         | FLOAT   | ads_listened_per_week / listening_time |
+
+  - **모델**: RandomForestClassifier(class_weight='balanced') + threshold 튜닝
+  - **성능**: F1≈0.41, AUC≈0.54 수준에서 정체
+
+
+<br>
+
+## 🛠️ 2) Feature Engineering & Feature Selection 검증
+- **FE 검증** (`FE_validation.ipynb`, `FE_add.ipynb`):
+  - 여러 FE 세트(Set A~G) 및 추가 세그먼트/ratio/비선형 FE 후보를 실험
+  - **결과**: 핵심 FE 4~5개만 남기는 것이 최선, 복잡한 교호작용·플래그를 더해도 성능 개선은 ΔF1≈0 수준
+- **범주형 및 FS 검증** (`feature_selection.ipynb`):
+  - `gender`, `country`, `subscription_type`, `device_type` 및 파생 범주형을 One-Hot 인코딩해 포함
+  - 수치형+FE(10~11개) vs 수치형+FE+범주형(30개 이상) 비교 시 **오히려 F1/AUC 소폭 하락 → 범주형 기여도 낮음**
+
+## 🎯 3) Model Tuning·SMOTE·앙상블 검증
+- **모델/파라미터 튜닝** (`feature_selection.ipynb`):
+  - RandomForest 하이퍼파라미터(RandomizedSearchCV), K-Fold + threshold 튜닝, 소프트보팅 앙상블(RF+XGB+HGB) 등 적용
+  - **결과**: 어떤 조합도 F1 0.41±0.01, AUC 0.52~0.54 범위를 크게 넘지 못함
+- **SMOTE + XGBoost + 앙상블** (`SMOTE_XGB_RF.ipynb`):
+  - SMOTE(오버샘플링 비율·test_size·scale_pos_weight 등 여러 버전), XGBoost GridSearchCV, RF+XGB+HGB 앙상블 시도
+  - **결과**: Train에서는 F1↑지만 Test에서는 Baseline보다 낮거나 비슷한 수준 → **심한 과적합 & 실질적 개선 실패**
+
+## ⚠️ 4) Limitations & Root Cause Analysis(한계 원인 분석)
+- **통계·상관·Feature Importance 분석** (`feature_selection.ipynb` 6장, `improvement_proposal.md`):
+  - 모든 피처에서 t-test p-value>0.05, 상관계수 |r|<0.02 → 이탈/비이탈 간 행동 차이가 통계적으로 거의 없음
+  - RF Feature Importance & Permutation Importance도 특정 피처가 두드러지지 않고 8~14% 수준으로 고르게 분산
+- **결론**:
+  - 현재 구조(유저당 1행 스냅샷 + 단일 시점 피처)에서는 **F1≈0.41, AUC≈0.53이 사실상 상한**
+  - 모델 변경·튜닝·SMOTE만으로는 성능을 올리기 어렵고, **데이터/피처 자체를 바꾸는 방향이 필요**함
+
+
+## 💡 5) 시계열·고객 접점 Features 추가 및 성능 향상
+- **개선 아이디어 정리 (`improvement_proposal.md`)**:
+  - Priority 1: 최근 7/14/30일 행동 변화를 담는 **시계열 피처 5개**
+  - Priority 2: 고객센터 문의, 결제 실패, 프로모션 반응, 앱 크래시 등 **고객 접점 피처 4개**
+     ### 🔹 `Time-Series Behavioral Trends` - 시계열features(5개)
+      | 피처명 | 타입 | 설명 | 예상 기여도 |
+      |--------|------|------|-------------|
+      | `listening_time_trend_7d` | float | 최근 7일 청취 시간 변화율 (%) | 높음 |
+      | `login_frequency_30d` | int | 최근 30일 로그인 횟수 | 높음 |
+      | `days_since_last_login` | int | 마지막 로그인 후 경과 일수 | 높음 |
+      | `skip_rate_increase_7d` | float | 최근 1주 vs 이전 1주 스킵률 증가율 | 중간 |
+      | `freq_of_use_trend_14d` | float | 최근 2주 사용 빈도 변화율 (%) | 높음 |
+     ### 🔹 `Customer Interaction Signalss` - 고객접점features(4개)
+      | 피처명 | 타입 | 설명 | 예상 기여도 |
+      |--------|------|------|-------------|
+      | `customer_support_contact` | bool | 최근 30일 내 고객센터 문의 여부 | 중간 |
+      | `payment_failure_count` | int | 결제 실패 횟수 | 높음 |
+      | `promotional_email_click` | bool | 프로모션 이메일 클릭 여부 | 낮음 |
+      | `app_crash_count_30d` | int | 최근 30일 앱 크래시 횟수 | 중간 |
+  - 실제 로그 수집이 어려운 환경을 가정해, 위 피처들을 **현실적인 분포를 가진 합성 특성**으로 먼저 실험
+- **합성 피처 생성 및 검증** (`feature_engineering_advanced.ipynb`):
+  - 원본 베이스라인(수치형 6 + FE 5, 총 11개) 대비, **시계열 5개 + 고객 접점 4개**를 추가한 `enhanced_data.csv` 생성
+  - RandomForest 기반 실험 결과:
+    - Baseline: F1≈0.42, AUC≈0.54
+    - +시계열 피처: F1≈0.49, AUC≈0.73
+    - +시계열+고객접점(최종): **F1≈0.62, AUC≈0.79** (ΔF1 +0.20 이상, ΔAUC +0.25 이상)
+  - **Feature Importance 기준 핵심 기여 피처**:
+    - `payment_failure_count`, `app_crash_count_30d` (고객 접점)
+    - `freq_of_use_trend_14d`, `listening_time_trend_7d`, `skip_rate_increase_7d` (시계열)
+
+## 🧹 6) Preprocessing Pipeline Refinement
+
+
+## 🧩 7) Final Summary & Key Takeaways
+
+
+## 🏆 8) Final Model Comparison & Selection (HGB Selected)
 
 ### 🔹 DB Schema Overview
 - **DBMS:** MySQL  
@@ -284,47 +298,9 @@ SKN21-2ND-2TEAM/
 
 <br>
 
-### 🔹 주요 테이블 구조
-
-### 1) `Original Dataset` — 원본 피처 테이블
-| 컬럼명                   | 타입        | 설명               | 
-| --------------------- | --------- | ---------------- |
-| `user_id`              | INT       | 사용자 고유 ID        | 
-| `gender`                | VARCHAR   | 성별 (Male/Female) | 
-| `age`                   | INT       | 사용자 나이           | 
-| `country`               | VARCHAR   | 접속 국가            | 
-| `subscription_type`     | VARCHAR   | 요금제 종류           |
-| `listening_time`        | FLOAT     | 하루 음악 청취 시간(분)   | 
-| `songs_played_per_day`  | FLOAT     | 하루 재생 곡수         |
-| `skip_rate`             | FLOAT     | 스킵률              |
-| `device_type`           | VARCHAR   | 기기 종류            |
-| `ads_listened_per_week` | INT       | 주간 광고 시청 수       |
-| `offline_listening`     | INT (0/1) | 오프라인 재생 기능 여부    |
-| `is_churned`            | INT(0/1)  | 이탈 여부            |
 
 <br>
 
-### 2) ❌❌❌❌❌`Feature Engineering` — 파생 변수 테이블
-| 컬럼명                | 타입      | 설명                                |
-| --------------------- | --------- | ------------------------------------ |
-| `engagement_score`   | FLOAT   | listening_time × songs_played_per_day             |
-| `songs_per_minute` | FLOAT | songs_played_per_day / listening_time               |
-| `skip_intensity`     | FLOAT   | skip_rate × songs_played_per_day  |
-| `skip_rate_cap`         | FLOAT   | skip_rate.clip(0, 1.5) |
-| `ads_pressure`         | FLOAT   | ads_listened_per_week / listening_time |
-
-<br>
-
-### 3) 💡 Improvement Proposal
-
-##### 3) `Time-Series Behavioral Trends` -
-| 피처명 | 타입 | 설명 | 예상 기여도 |
-|--------|------|------|-------------|
-| `listening_time_trend_7d` | float | 최근 7일 청취 시간 변화율 (%) | 높음 |
-| `login_frequency_30d` | int | 최근 30일 로그인 횟수 | 높음 |
-| `days_since_last_login` | int | 마지막 로그인 후 경과 일수 | 높음 |
-| `skip_rate_increase_7d` | float | 최근 1주 vs 이전 1주 스킵률 증가율 | 중간 |
-| `freq_of_use_trend_14d` | float | 최근 2주 사용 빈도 변화율 (%) | 높음 |
 
 <br>
 
