@@ -1,4 +1,11 @@
 # utils/spotify_auth.py
+# ----------------------------------------------------------
+# 파일명: frontend/utils/spotify_auth.py
+# 설명: Spotify 인증 관련 유틸리티. 로그인 URL 생성, 토큰 교환 및 갱신 기능을 제공합니다.
+# 작성일: 2025-11-24
+# 작성자: Antigravity (AI Assistant)
+# ----------------------------------------------------------
+
 import os
 import urllib.parse
 import requests
@@ -11,7 +18,7 @@ CLIENT_SECRET = os.getenv("SPOTIFY_CLIENT_SECRET")
 # REDIRECT_URI 기본값 설정
 REDIRECT_URI = os.getenv("SPOTIFY_REDIRECT_URI", "http://localhost:5000/spotify/callback")
 
-SCOPE = "user-read-private user-read-email streaming user-read-playback-state user-modify-playback-state"
+SCOPE = "user-read-private user-read-email streaming user-read-playback-state user-modify-playback-state playlist-read-private playlist-read-collaborative playlist-modify-public playlist-modify-private"
 
 
 def get_login_url():

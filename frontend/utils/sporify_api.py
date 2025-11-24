@@ -1,4 +1,11 @@
 # utils/sporify_api.py
+# ----------------------------------------------------------
+# 파일명: frontend/utils/sporify_api.py
+# 설명: Spotify API 호출 유틸리티. 트랙 검색 등의 기능을 제공합니다.
+# 작성일: 2025-11-24
+# 작성자: Antigravity (AI Assistant)
+# ----------------------------------------------------------
+
 import requests
 
 
@@ -24,3 +31,5 @@ def search_tracks(access_token: str, query: str, limit: int = 20, offset: int = 
     
     data = res.json()
     return data.get("tracks", {}).get("items", [])
+
+

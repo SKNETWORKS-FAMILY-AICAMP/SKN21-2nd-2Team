@@ -12,20 +12,22 @@ import os
 import bcrypt
 import pandas as pd
 from dotenv import load_dotenv
-
-load_dotenv()
-
-# -------------------------------------------------------------
-# 프로젝트 루트를 Python 경로에 추가 (utils import 가능)
-# -------------------------------------------------------------
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-
-from flask import Flask, jsonify, request, Response, redirect
+from flask import Flask, request, jsonify, redirect, Response
 import requests
+import pymysql.cursors
+
+# backend 디렉토리에서 실행할 때 상위 디렉토리를 sys.path에 추가
+backend_dir = os.path.dirname(os.path.abspath(__file__))
+parent_dir = os.path.dirname(backend_dir)
+if parent_dir not in sys.path:
+    sys.path.insert(0, parent_dir)
+
 from utils.constants import get_connection
 from utils.user_insert import load_users_from_csv
-from pymysql.cursors import DictCursor
 
+DictCursor = pymysql.cursors.DictCursor
+
+load_dotenv()
 app = Flask(__name__)
 
 # -------------------------------------------------------------
@@ -92,6 +94,221 @@ def init_user_prediction_table():
 
 
 # -------------------------------------------------------------
+# 0-2) user_features 테이블 생성 (CSV 피처 데이터 저장용)
+# -------------------------------------------------------------
+@app.route("/api/init_user_features_table")
+def init_user_features_table():
+    """
+    enhanced_data_not_clean_FE_delete.csv의 피처 데이터를 저장할 user_features 테이블을 생성합니다.
+    
+    users 테이블에 없는 컬럼들을 저장하며, user_id로 join하여 사용합니다.
+    """
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    sql = """
+    CREATE TABLE IF NOT EXISTS user_features (
+        user_id INT NOT NULL PRIMARY KEY,
+        gender VARCHAR(20),
+        age INT,
+        country VARCHAR(50),
+        subscription_type VARCHAR(50),
+        listening_time FLOAT,
+        songs_played_per_day FLOAT,
+        skip_rate FLOAT,
+        device_type VARCHAR(50),
+        ads_listened_per_week INT,
+        offline_listening INT,
+        is_churned INT,
+        listening_time_trend_7d FLOAT,
+        login_frequency_30d INT,
+        days_since_last_login INT,
+        skip_rate_increase_7d FLOAT,
+        freq_of_use_trend_14d FLOAT,
+        customer_support_contact INT,
+        payment_failure_count INT,
+        promotional_email_click INT,
+        app_crash_count_30d INT,
+        FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+    )
+    """
+
+    cursor.execute(sql)
+    conn.commit()
+    cursor.close()
+    conn.close()
+
+    return jsonify({"message": "user_features table created"})
+
+
+# -------------------------------------------------------------
+# 0-3) log 테이블 생성 (사용자 활동 로그 저장용)
+# -------------------------------------------------------------
+@app.route("/api/init_log_table")
+def init_log_table():
+    """
+    사용자 활동 로그를 저장할 log 테이블을 생성합니다.
+    
+    - user_id: 사용자 ID (외래키)
+    - action_type: 활동 유형 ('LOGIN', 'PAGE_VIEW', 'UNSUBSCRIBE' 등)
+    - page_name: 접근한 페이지 이름
+    - created_at: 기록 시간
+    - additional_info: 추가 정보 (JSON 형태)
+    """
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        sql = """
+        CREATE TABLE IF NOT EXISTS log (
+            log_id INT AUTO_INCREMENT PRIMARY KEY,
+            user_id INT NOT NULL,
+            action_type VARCHAR(50) NOT NULL,
+            page_name VARCHAR(100),
+            additional_info TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+            INDEX idx_user_id (user_id),
+            INDEX idx_action_type (action_type),
+            INDEX idx_created_at (created_at)
+        )
+        """
+
+        cursor.execute(sql)
+        conn.commit()
+        cursor.close()
+        conn.close()
+
+        return jsonify({"success": True, "message": "log table created"})
+    except Exception as e:
+        return jsonify({"success": False, "error": f"테이블 생성 중 오류: {str(e)}"}), 500
+
+
+# -------------------------------------------------------------
+# 0-4) 로그 기록 API
+# -------------------------------------------------------------
+@app.route("/api/log", methods=["POST"])
+def create_log():
+    """
+    사용자 활동 로그를 기록합니다.
+    
+    Request JSON:
+    {
+        "user_id": 123,
+        "action_type": "LOGIN" | "PAGE_VIEW" | "UNSUBSCRIBE" 등,
+        "page_name": "개인정보 수정",
+        "additional_info": "추가 정보 (선택적)"
+    }
+    """
+    try:
+        data = request.get_json()
+        user_id = data.get("user_id")
+        action_type = data.get("action_type")
+        page_name = data.get("page_name")
+        additional_info = data.get("additional_info")
+        
+        if not user_id or not action_type:
+            return jsonify({"success": False, "error": "user_id와 action_type은 필수입니다."}), 400
+        
+        conn = get_connection()
+        cursor = conn.cursor()
+        
+        sql = """
+        INSERT INTO log (user_id, action_type, page_name, additional_info)
+        VALUES (%s, %s, %s, %s)
+        """
+        
+        cursor.execute(sql, (user_id, action_type, page_name, additional_info))
+        conn.commit()
+        cursor.close()
+        conn.close()
+        
+        return jsonify({"success": True, "message": "로그가 기록되었습니다."})
+        
+    except Exception as e:
+        return jsonify({"success": False, "error": f"로그 기록 중 오류: {str(e)}"}), 500
+
+
+# -------------------------------------------------------------
+# 0-5) 로그 조회 API
+# -------------------------------------------------------------
+@app.route("/api/logs", methods=["GET"])
+def get_logs():
+    """
+    로그를 조회합니다.
+    
+    Query Parameters:
+    - user_id: 특정 사용자의 로그만 조회 (선택적)
+    - action_type: 특정 액션 타입만 조회 (선택적)
+    - page: 페이지 번호 (기본값: 1)
+    - page_size: 페이지 크기 (기본값: 50)
+    """
+    try:
+        user_id = request.args.get("user_id", "").strip()
+        action_type = request.args.get("action_type", "").strip()
+        page = int(request.args.get("page", 1))
+        page_size = int(request.args.get("page_size", 50))
+        offset = (page - 1) * page_size
+        
+        conn = get_connection()
+        cursor = conn.cursor(DictCursor)
+        
+        # WHERE 조건 생성
+        conditions = []
+        params = []
+        
+        if user_id and user_id.isdigit():
+            conditions.append("l.user_id = %s")
+            params.append(int(user_id))
+        
+        if action_type:
+            conditions.append("l.action_type = %s")
+            params.append(action_type)
+        
+        where_clause = " AND ".join(conditions)
+        if where_clause:
+            where_clause = "WHERE " + where_clause
+        
+        # 전체 개수 조회
+        count_sql = f"""
+        SELECT COUNT(*) AS cnt
+        FROM log l
+        {where_clause}
+        """
+        cursor.execute(count_sql, tuple(params))
+        total_rows = cursor.fetchone()["cnt"]
+        
+        # 페이징된 데이터 조회
+        query_sql = f"""
+        SELECT l.log_id, l.user_id, u.name AS user_name, l.action_type, 
+               l.page_name, l.additional_info, l.created_at
+        FROM log l
+        LEFT JOIN users u ON l.user_id = u.user_id
+        {where_clause}
+        ORDER BY l.created_at DESC
+        LIMIT %s OFFSET %s
+        """
+        
+        cursor.execute(query_sql, tuple(params) + (page_size, offset))
+        rows = cursor.fetchall()
+        
+        cursor.close()
+        conn.close()
+        
+        return jsonify({
+            "success": True,
+            "page": page,
+            "page_size": page_size,
+            "total_rows": total_rows,
+            "total_pages": (total_rows + page_size - 1) // page_size,
+            "rows": rows
+        })
+        
+    except Exception as e:
+        return jsonify({"success": False, "error": f"로그 조회 중 오류: {str(e)}"}), 500
+
+
+# -------------------------------------------------------------
 # 1) CSV 데이터 단발성 삽입
 # -------------------------------------------------------------
 @app.route("/api/import_users_from_csv")
@@ -103,6 +320,154 @@ def import_users_from_csv():
         return jsonify({"message": "CSV imported to DB"})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
+# -------------------------------------------------------------
+# 1-1) user_features CSV 데이터 삽입
+# -------------------------------------------------------------
+@app.route("/api/import_user_features_from_csv", methods=["POST"])
+def import_user_features_from_csv():
+    """
+    CSV 파일을 읽어서 user_features 테이블에 삽입합니다.
+    
+    두 가지 방식 지원:
+    1. 파일 업로드: multipart/form-data로 CSV 파일 전송
+    2. JSON 데이터: request.json에 rows 배열로 데이터 전송
+    3. 기본 경로: 파일이 없으면 data/enhanced_data_not_clean_FE_delete.csv 사용
+    """
+    try:
+        df = None
+        
+        # 1. 파일 업로드 방식 확인
+        if 'file' in request.files:
+            uploaded_file = request.files['file']
+            if uploaded_file.filename:
+                df = pd.read_csv(uploaded_file)
+        
+        # 2. JSON 데이터 방식 확인
+        elif request.is_json:
+            payload = request.get_json()
+            if 'rows' in payload and isinstance(payload['rows'], list):
+                df = pd.DataFrame(payload['rows'])
+        
+        # 3. 기본 경로 사용
+        if df is None:
+            csv_path = os.path.join("data", "enhanced_data_not_clean_FE_delete.csv")
+            if not os.path.exists(csv_path):
+                return jsonify({"success": False, "error": f"CSV 파일을 찾을 수 없습니다. 파일을 업로드하거나 {csv_path} 파일이 존재해야 합니다."}), 404
+            df = pd.read_csv(csv_path)
+        
+        if df is None or df.empty:
+            return jsonify({"success": False, "error": "데이터가 없습니다."}), 400
+        
+        # 필수 컬럼 확인
+        required_columns = ['user_id']
+        missing_columns = [col for col in required_columns if col not in df.columns]
+        if missing_columns:
+            return jsonify({"success": False, "error": f"필수 컬럼이 없습니다: {', '.join(missing_columns)}"}), 400
+        
+        # NaN 값을 None으로 변환
+        df = df.where(pd.notnull(df), None)
+        
+        conn = get_connection()
+        cursor = conn.cursor()
+        
+        # INSERT OR UPDATE (ON DUPLICATE KEY UPDATE)
+        sql = """
+        INSERT INTO user_features (
+            user_id, gender, age, country, subscription_type, listening_time,
+            songs_played_per_day, skip_rate, device_type, ads_listened_per_week,
+            offline_listening, is_churned, listening_time_trend_7d, login_frequency_30d,
+            days_since_last_login, skip_rate_increase_7d, freq_of_use_trend_14d,
+            customer_support_contact, payment_failure_count, promotional_email_click,
+            app_crash_count_30d
+        ) VALUES (
+            %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
+        )
+        ON DUPLICATE KEY UPDATE
+            gender = VALUES(gender),
+            age = VALUES(age),
+            country = VALUES(country),
+            subscription_type = VALUES(subscription_type),
+            listening_time = VALUES(listening_time),
+            songs_played_per_day = VALUES(songs_played_per_day),
+            skip_rate = VALUES(skip_rate),
+            device_type = VALUES(device_type),
+            ads_listened_per_week = VALUES(ads_listened_per_week),
+            offline_listening = VALUES(offline_listening),
+            is_churned = VALUES(is_churned),
+            listening_time_trend_7d = VALUES(listening_time_trend_7d),
+            login_frequency_30d = VALUES(login_frequency_30d),
+            days_since_last_login = VALUES(days_since_last_login),
+            skip_rate_increase_7d = VALUES(skip_rate_increase_7d),
+            freq_of_use_trend_14d = VALUES(freq_of_use_trend_14d),
+            customer_support_contact = VALUES(customer_support_contact),
+            payment_failure_count = VALUES(payment_failure_count),
+            promotional_email_click = VALUES(promotional_email_click),
+            app_crash_count_30d = VALUES(app_crash_count_30d)
+        """
+        
+        inserted_count = 0
+        error_count = 0
+        error_messages = []
+        
+        for idx, row in df.iterrows():
+            try:
+                # user_id는 필수
+                user_id = int(row['user_id']) if pd.notna(row['user_id']) else None
+                if user_id is None:
+                    error_count += 1
+                    continue
+                
+                values = (
+                    user_id,
+                    str(row['gender']) if pd.notna(row.get('gender')) else None,
+                    int(row['age']) if pd.notna(row.get('age')) else None,
+                    str(row['country']) if pd.notna(row.get('country')) else None,
+                    str(row['subscription_type']) if pd.notna(row.get('subscription_type')) else None,
+                    float(row['listening_time']) if pd.notna(row.get('listening_time')) else None,
+                    float(row['songs_played_per_day']) if pd.notna(row.get('songs_played_per_day')) else None,
+                    float(row['skip_rate']) if pd.notna(row.get('skip_rate')) else None,
+                    str(row['device_type']) if pd.notna(row.get('device_type')) else None,
+                    int(row['ads_listened_per_week']) if pd.notna(row.get('ads_listened_per_week')) else None,
+                    int(row['offline_listening']) if pd.notna(row.get('offline_listening')) else None,
+                    int(row['is_churned']) if pd.notna(row.get('is_churned')) else None,
+                    float(row['listening_time_trend_7d']) if pd.notna(row.get('listening_time_trend_7d')) else None,
+                    int(row['login_frequency_30d']) if pd.notna(row.get('login_frequency_30d')) else None,
+                    int(row['days_since_last_login']) if pd.notna(row.get('days_since_last_login')) else None,
+                    float(row['skip_rate_increase_7d']) if pd.notna(row.get('skip_rate_increase_7d')) else None,
+                    float(row['freq_of_use_trend_14d']) if pd.notna(row.get('freq_of_use_trend_14d')) else None,
+                    int(row['customer_support_contact']) if pd.notna(row.get('customer_support_contact')) else None,
+                    int(row['payment_failure_count']) if pd.notna(row.get('payment_failure_count')) else None,
+                    int(row['promotional_email_click']) if pd.notna(row.get('promotional_email_click')) else None,
+                    int(row['app_crash_count_30d']) if pd.notna(row.get('app_crash_count_30d')) else None,
+                )
+                cursor.execute(sql, values)
+                inserted_count += 1
+            except Exception as e:
+                error_count += 1
+                if len(error_messages) < 5:  # 최대 5개까지만 저장
+                    error_messages.append(f"행 {idx+1}: {str(e)}")
+                continue
+        
+        conn.commit()
+        cursor.close()
+        conn.close()
+        
+        result_message = f"CSV 데이터 import 완료: {inserted_count}개 행 처리됨"
+        if error_count > 0:
+            result_message += f", {error_count}개 행 오류 발생"
+        
+        return jsonify({
+            "success": True,
+            "message": result_message,
+            "inserted_count": inserted_count,
+            "error_count": error_count,
+            "errors": error_messages if error_messages else None
+        })
+        
+    except Exception as e:
+        return jsonify({"success": False, "error": f"CSV import 중 오류: {str(e)}"}), 500
 
 
 # -------------------------------------------------------------
@@ -240,13 +605,16 @@ def users_search():
         total_rows = cursor.fetchone()["cnt"]
 
         # ----------------------------
-        # 페이징된 데이터 조회
+        # 페이징된 데이터 조회 (위험도 포함)
         # ----------------------------
         query_sql = f"""
-            SELECT user_id, name, favorite_music, join_date, grade
-            FROM users
+            SELECT u.user_id, u.name, u.favorite_music, u.join_date, u.grade,
+                   COALESCE(up.risk_score, 'UNKNOWN') AS risk_score,
+                   COALESCE(up.churn_rate, 0) AS churn_rate
+            FROM users u
+            LEFT JOIN user_prediction up ON u.user_id = up.user_id
             {where_clause}
-            ORDER BY user_id
+            ORDER BY u.user_id
             LIMIT %s OFFSET %s
         """
 
@@ -494,13 +862,34 @@ def login_user():
     """, (data['user_id'],))
     
     row = cursor.fetchone()
-    cursor.close()
-    conn.close()
-
+    
     if not row:
+        cursor.close()
+        conn.close()
         return jsonify({"success": False, "message": "아이디 없음"}), 401
 
     if bcrypt.checkpw(data['password'].encode("utf-8"), row['password'].encode("utf-8")):
+        # 등급이 '00' (휴면 유저)인 경우 로그인 차단
+        if row['grade'] == '00':
+            cursor.close()
+            conn.close()
+            return jsonify({"success": False, "message": "구독해지된 계정입니다. 로그인할 수 없습니다."}), 403
+        
+        # 로그인 성공 시 로그 기록
+        try:
+            log_sql = """
+            INSERT INTO log (user_id, action_type, page_name, additional_info)
+            VALUES (%s, %s, %s, %s)
+            """
+            cursor.execute(log_sql, (row['user_id'], 'LOGIN', '로그인', None))
+            conn.commit()
+        except Exception as e:
+            # 로그 기록 실패해도 로그인은 성공 처리
+            pass
+        
+        cursor.close()
+        conn.close()
+        
         return jsonify({
             "success": True,
             "user_id": row['user_id'],
@@ -508,7 +897,78 @@ def login_user():
             "grade": row['grade']
         })
 
+    cursor.close()
+    conn.close()
     return jsonify({"success": False, "message": "비밀번호 틀림"}), 401
+
+# -------------------------------------------------------------
+# 구독해지 API
+# -------------------------------------------------------------
+@app.route("/api/unsubscribe", methods=["POST"])
+def unsubscribe_user():
+    """
+    사용자 구독해지 처리
+    - users 테이블의 grade를 '00'으로 변경 (휴면 유저)
+    - user_prediction 테이블의 risk_score를 'HIGH'로 업데이트
+    - log 테이블에 구독해지 기록
+    """
+    conn = None
+    cursor = None
+    try:
+        data = request.get_json()
+        user_id = data.get("user_id")
+        reason = data.get("reason", "")
+        feedback = data.get("feedback", "")
+        
+        if not user_id:
+            return jsonify({"success": False, "error": "user_id는 필수입니다."}), 400
+        
+        conn = get_connection()
+        cursor = conn.cursor()
+        
+        # users 테이블의 grade를 '00'으로 변경 (휴면 유저)
+        sql_user = """
+        UPDATE users
+        SET grade = '00', modify_date = NOW()
+        WHERE user_id = %s
+        """
+        cursor.execute(sql_user, (user_id,))
+        
+        # user_prediction 테이블의 risk_score를 HIGH로 업데이트
+        # 테이블에 레코드가 없으면 생성
+        sql_prediction = """
+        INSERT INTO user_prediction (user_id, churn_rate, risk_score, update_date)
+        VALUES (%s, %s, %s, CURDATE())
+        ON DUPLICATE KEY UPDATE
+            risk_score = 'HIGH',
+            update_date = CURDATE()
+        """
+        cursor.execute(sql_prediction, (user_id, 100, 'HIGH'))
+        
+        # log 테이블에 구독해지 기록
+        additional_info = f"reason: {reason}, feedback: {feedback}" if reason or feedback else None
+        sql_log = """
+        INSERT INTO log (user_id, action_type, page_name, additional_info)
+        VALUES (%s, %s, %s, %s)
+        """
+        cursor.execute(sql_log, (user_id, 'UNSUBSCRIBE', '개인정보 수정', additional_info))
+        
+        conn.commit()
+        
+        return jsonify({
+            "success": True,
+            "message": "구독해지가 처리되었습니다. 휴면 유저로 전환되었고 이탈 위험도가 높음으로 설정되었습니다."
+        })
+        
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        return jsonify({"success": False, "error": f"구독해지 처리 중 오류: {str(e)}"}), 500
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
 
 # -------------------------------------------------------------
 # ID 중복확인 API
@@ -538,31 +998,41 @@ def check_user_id():
 @app.route("/api/user_features/<int:user_id>", methods=["GET"])
 def get_user_features(user_id):
     """
-    특정 user_id의 ML 학습용 전체 피처 데이터를 CSV에서 조회해 반환합니다.
+    특정 user_id의 ML 학습용 전체 피처 데이터를 user_features 테이블에서 조회해 반환합니다.
     관리자 페이지에서 '불러오기' 후 '수치 조정(시뮬레이션)'을 할 때 사용합니다.
     """
     try:
-        # 1순위: churn_prob.py 로 생성된 최신 분석 결과 파일
-        csv_path = os.path.join("data", "enhanced_data_with_lgbm_churn_prob.csv")
+        conn = get_connection()
+        cursor = conn.cursor(DictCursor)
         
-        # 2순위: 학습에 쓰인 원본 데이터
-        if not os.path.exists(csv_path):
+        # user_features 테이블에서 조회
+        cursor.execute(
+            """
+            SELECT *
+            FROM user_features
+            WHERE user_id = %s
+            """,
+            (user_id,)
+        )
+        
+        row = cursor.fetchone()
+        cursor.close()
+        conn.close()
+        
+        if not row:
+            # 테이블에 없으면 CSV에서 조회 (하위 호환성)
             csv_path = os.path.join("data", "enhanced_data_not_clean_FE_delete.csv")
+            if os.path.exists(csv_path):
+                df = pd.read_csv(csv_path)
+                user_row = df[df["user_id"] == user_id]
+                if not user_row.empty:
+                    user_data = user_row.fillna(0).iloc[0].to_dict()
+                    return jsonify({"success": True, "data": user_data})
             
-        if not os.path.exists(csv_path):
-             return jsonify({"success": False, "error": "ML 데이터 파일이 없습니다."}), 404
-
-        # CSV 로드 (운영 환경에선 DB 조회가 더 적합)
-        df = pd.read_csv(csv_path)
+            return jsonify({"success": False, "error": f"user_features에서 user_id={user_id}를 찾을 수 없습니다."}), 404
         
-        # user_id 검색
-        user_row = df[df["user_id"] == user_id]
-        
-        if user_row.empty:
-             return jsonify({"success": False, "error": f"ML 데이터에서 user_id={user_id}를 찾을 수 없습니다."}), 404
-             
-        # dict로 변환 (NaN -> 0 or null)
-        user_data = user_row.fillna(0).iloc[0].to_dict()
+        # dict로 변환
+        user_data = dict(row)
         
         return jsonify({"success": True, "data": user_data})
         
@@ -581,14 +1051,14 @@ def api_predict_churn():
     - 위험도 레벨(risk_level)
     을 반환하는 API.
 
-    내부적으로 backend.inference.predict_churn 를 사용하며,
-    전처리 파이프라인 + config.DEFAULT_MODEL_NAME 기반의 "풀 모델"을 호출합니다.
+    user_id가 제공되면 user_features 테이블에서 조회하여 사용합니다.
+    예측 결과는 user_prediction 테이블에 저장됩니다.
 
     Request JSON 예시 (단일 행):
     {
+      "user_id": 123,             # 선택적, 제공 시 user_features에서 조회
       "model_name": "hgb",        # 선택 사항 (미입력 시 config.DEFAULT_MODEL_NAME 사용)
-      "features": {
-        "user_id": 123,           # 선택적, 필요 시 사용
+      "features": {               # user_id가 없을 때만 사용
         "listening_time": 180,
         "songs_played_per_day": 40,
         "payment_failure_count": 1,
@@ -610,16 +1080,66 @@ def api_predict_churn():
     try:
         payload = request.get_json(force=True) or {}
         model_name = payload.get("model_name")
+        user_id = payload.get("user_id")
         features = payload.get("features") or {}
+
+        # user_id가 제공되면 user_features 테이블에서 조회
+        if user_id:
+            try:
+                conn = get_connection()
+                cursor = conn.cursor(DictCursor)
+                cursor.execute("SELECT * FROM user_features WHERE user_id = %s", (user_id,))
+                db_features = cursor.fetchone()
+                cursor.close()
+                conn.close()
+                
+                if db_features:
+                    # DB에서 조회한 데이터를 features로 사용
+                    features = dict(db_features)
+                    # user_id는 제거 (예측 함수에 전달하지 않음)
+                    features.pop('user_id', None)
+                else:
+                    return jsonify({"success": False, "error": f"user_features에서 user_id={user_id}를 찾을 수 없습니다."}), 404
+            except Exception as e:
+                return jsonify({"success": False, "error": f"user_features 조회 중 오류: {str(e)}"}), 500
 
         if not isinstance(features, dict):
             return jsonify({"success": False, "error": "features 필드는 dict 형태여야 합니다."}), 400
 
-        from backend.inference import predict_churn as _predict_churn
+        from inference import predict_churn as _predict_churn
 
         result = _predict_churn(user_features=features, model_name=model_name)
 
-        status_code = 200 if result.get("success") else 500
+        if not result.get("success"):
+            status_code = 500
+            return jsonify(result), status_code
+
+        # 예측 결과를 user_prediction 테이블에 저장
+        if user_id:
+            try:
+                churn_prob = result.get("churn_prob", 0.0)
+                churn_rate = int(round(churn_prob * 100))  # 0~100 (%)
+                risk_score = result.get("risk_level", "UNKNOWN")
+                
+                conn = get_connection()
+                cursor = conn.cursor()
+                sql = """
+                INSERT INTO user_prediction (user_id, churn_rate, risk_score, update_date)
+                VALUES (%s, %s, %s, CURDATE())
+                ON DUPLICATE KEY UPDATE
+                    churn_rate = VALUES(churn_rate),
+                    risk_score = VALUES(risk_score),
+                    update_date = CURDATE()
+                """
+                cursor.execute(sql, (user_id, churn_rate, risk_score))
+                conn.commit()
+                cursor.close()
+                conn.close()
+            except Exception as e:
+                # 저장 실패해도 예측 결과는 반환
+                pass
+
+        status_code = 200
         return jsonify(result), status_code
 
     except Exception as e:
@@ -637,29 +1157,22 @@ def api_predict_churn_bulk():
     - 위험도 레벨(risk_level)
     을 한 번에 반환하는 배치 예측 API.
 
-    내부적으로 backend.inference.predict_churn 를 반복 호출합니다.
+    각 행에 user_id가 있으면 user_features 테이블에서 조회하여 사용합니다.
+    예측 결과는 user_prediction 테이블에 저장됩니다.
 
     Request JSON 예시:
     {
       "model_name": "hgb",          # 선택 사항 (미입력 시 config.DEFAULT_MODEL_NAME 사용)
       "rows": [
         {
-          "user_id": 123,
-          "listening_time": 180,
+          "user_id": 123,           # user_id가 있으면 user_features에서 조회
+          "listening_time": 180,    # user_id가 없을 때만 사용
           "songs_played_per_day": 40,
-          "payment_failure_count": 1,
-          "app_crash_count_30d": 0,
-          "subscription_type": "Premium",
-          "customer_support_contact": 0
+          ...
         },
         {
           "user_id": 124,
-          "listening_time": 60,
-          "songs_played_per_day": 10,
-          "payment_failure_count": 0,
-          "app_crash_count_30d": 2,
-          "subscription_type": "Free",
-          "customer_support_contact": 1
+          ...
         }
       ]
     }
@@ -692,15 +1205,62 @@ def api_predict_churn_bulk():
         if not isinstance(rows, list):
             return jsonify({"success": False, "error": "rows 필드는 리스트 형태여야 합니다."}), 400
 
-        from backend.inference import predict_churn as _predict_churn
+        from inference import predict_churn as _predict_churn
 
+        import math
+        import numpy as np
+        
+        conn = get_connection()
+        cursor = conn.cursor(DictCursor)
+        
         results = []
+        prediction_inserts = []  # 배치로 저장할 예측 결과들
+        
         for idx, row in enumerate(rows):
             if not isinstance(row, dict):
                 continue
 
             user_id = row.get("user_id")
-            res = _predict_churn(user_features=row, model_name=model_name)
+            cleaned_row = {}
+            
+            # user_id가 있으면 user_features 테이블에서 조회
+            if user_id:
+                try:
+                    cursor.execute("SELECT * FROM user_features WHERE user_id = %s", (user_id,))
+                    db_features = cursor.fetchone()
+                    if db_features:
+                        cleaned_row = dict(db_features)
+                        cleaned_row.pop('user_id', None)  # 예측 함수에 전달하지 않음
+                    else:
+                        results.append({
+                            "index": idx,
+                            "user_id": user_id,
+                            "error": f"user_features에서 user_id={user_id}를 찾을 수 없습니다."
+                        })
+                        continue
+                except Exception as e:
+                    results.append({
+                        "index": idx,
+                        "user_id": user_id,
+                        "error": f"user_features 조회 중 오류: {str(e)}"
+                    })
+                    continue
+            else:
+                # user_id가 없으면 직접 제공된 features 사용
+                # NaN, inf, -inf 값 정리
+                for key, value in row.items():
+                    if isinstance(value, (int, float)):
+                        if math.isnan(value) or math.isinf(value):
+                            cleaned_row[key] = None
+                        else:
+                            cleaned_row[key] = value
+                    elif pd.isna(value):
+                        cleaned_row[key] = None
+                    else:
+                        cleaned_row[key] = value
+
+            # 예측 실행
+            res = _predict_churn(user_features=cleaned_row, model_name=model_name)
 
             if not res.get("success"):
                 results.append({
@@ -709,18 +1269,63 @@ def api_predict_churn_bulk():
                     "error": res.get("error")
                 })
             else:
+                # churn_prob 값 검증 및 정리
+                churn_prob = res.get("churn_prob", 0.0)
+                if isinstance(churn_prob, (int, float)):
+                    if math.isnan(churn_prob) or math.isinf(churn_prob):
+                        churn_prob = 0.0
+                    # 0.0 ~ 1.0 범위로 제한
+                    churn_prob = max(0.0, min(1.0, float(churn_prob)))
+                else:
+                    churn_prob = 0.0
+                
                 results.append({
                     "index": idx,
                     "user_id": user_id,
-                    "churn_prob": res["churn_prob"],
-                    "risk_level": res["risk_level"]
+                    "churn_prob": churn_prob,
+                    "risk_level": res.get("risk_level", "UNKNOWN")
                 })
+                
+                # user_id가 있으면 예측 결과 저장 준비
+                if user_id:
+                    churn_rate = int(round(churn_prob * 100))
+                    risk_score = res.get("risk_level", "UNKNOWN")
+                    prediction_inserts.append((user_id, churn_rate, risk_score))
+        
+        cursor.close()
+        
+        # 배치로 user_prediction 테이블에 저장
+        saved_count = 0
+        if prediction_inserts:
+            try:
+                cursor = conn.cursor()
+                sql = """
+                INSERT INTO user_prediction (user_id, churn_rate, risk_score, update_date)
+                VALUES (%s, %s, %s, CURDATE())
+                ON DUPLICATE KEY UPDATE
+                    churn_rate = VALUES(churn_rate),
+                    risk_score = VALUES(risk_score),
+                    update_date = CURDATE()
+                """
+                cursor.executemany(sql, prediction_inserts)
+                conn.commit()
+                saved_count = len(prediction_inserts)
+                cursor.close()
+            except Exception as e:
+                # 저장 실패해도 예측 결과는 반환 (에러는 로그에 기록)
+                import traceback
+                print(f"배치 예측 결과 저장 중 오류: {str(e)}")
+                print(traceback.format_exc())
+        
+        conn.close()
 
-        return jsonify({
+        response_data = {
             "success": True,
             "model_name": (model_name or "default"),
-            "results": results
-        }), 200
+            "results": results,
+            "saved_count": saved_count
+        }
+        return jsonify(response_data), 200
 
     except Exception as e:
         return jsonify({"success": False, "error": f"배치 예측 중 오류 발생: {str(e)}"}), 500
@@ -766,7 +1371,7 @@ def api_predict_churn_6feat():
         if not user_id:
             return jsonify({"success": False, "error": "user_id 필드는 필수입니다."}), 400
 
-        from backend.inference_sim_6feat_lgbm import predict_churn_6feat_lgbm
+        from inference_sim_6feat_lgbm import predict_churn_6feat_lgbm
 
         result = predict_churn_6feat_lgbm(features)
 
@@ -866,7 +1471,11 @@ def get_user_prediction(user_id):
         return jsonify({"success": True, "data": row}), 200
 
     except Exception as e:
-        return jsonify({"success": False, "error": f"user_prediction 조회 중 오류: {str(e)}"}), 500
+        error_msg = str(e)
+        # 테이블이 없는 경우 명확한 메시지
+        if "doesn't exist" in error_msg.lower() or "table" in error_msg.lower() or "unknown table" in error_msg.lower():
+            error_msg = "user_prediction 테이블이 존재하지 않습니다. 먼저 테이블을 생성해주세요. (사용자 데이터 관리 > User Prediction Table 생성)"
+        return jsonify({"success": False, "error": f"user_prediction 조회 중 오류: {error_msg}"}), 500
 
 
 # -------------------------------------------------------------
@@ -942,7 +1551,11 @@ def get_user_prediction_list():
         return jsonify({"success": True, "rows": rows}), 200
 
     except Exception as e:
-        return jsonify({"success": False, "error": f"user_prediction 목록 조회 중 오류: {str(e)}"}), 500
+        error_msg = str(e)
+        # 테이블이 없는 경우 명확한 메시지
+        if "doesn't exist" in error_msg.lower() or "table" in error_msg.lower():
+            error_msg = "user_prediction 테이블이 존재하지 않습니다. 먼저 테이블을 생성해주세요. (사용자 데이터 관리 > User Prediction Table 생성)"
+        return jsonify({"success": False, "error": f"user_prediction 목록 조회 중 오류: {error_msg}"}), 500
 
 
 # -------------------------------------------------------------
@@ -984,7 +1597,7 @@ def upload_prediction_csv():
             if col not in df.columns:
                 return jsonify({"success": False, "error": f"CSV에 '{col}' 컬럼이 필요합니다."}), 400
 
-        from backend.inference_sim_6feat_lgbm import predict_churn_6feat_lgbm
+        from inference_sim_6feat_lgbm import predict_churn_6feat_lgbm
 
         conn = get_connection()
         cursor = conn.cursor()
@@ -1145,11 +1758,11 @@ def search_music():
             
         data = res.json()
         tracks = data.get("tracks", {}).get("items", [])
+        
         return jsonify({"tracks": tracks})
         
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
 
 # -------------------------------------------------------------
 # Flask 실행

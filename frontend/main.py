@@ -8,13 +8,19 @@ Description
 - Admin 사용자 데이터 관리
 - Admin 사용자 조회
 """
-
 import streamlit as st
 import requests
 import pandas as pd
+import numpy as np
 import os
 import streamlit.components.v1 as components
 from utils.spotify_auth import get_login_url
+import matplotlib.pyplot as plt
+import matplotlib.font_manager as fm
+
+# 한글 폰트 설정 (matplotlib)
+plt.rcParams['font.family'] = 'Malgun Gothic'  # Windows 기본 한글 폰트
+plt.rcParams['axes.unicode_minus'] = False  # 마이너스 기호 깨짐 방지
 
 API_URL = "http://localhost:5000/api"
 
@@ -73,7 +79,14 @@ def call_api(endpoint: str):
     """
     try:
         res = requests.get(f"{API_URL}/{endpoint}")
-        return True, res.json()
+        if res.status_code == 200:
+            try:
+                return True, res.json()
+            except ValueError as e:
+                # JSON 파싱 실패 시 텍스트 반환
+                return False, {"error": f"JSON 파싱 실패: {str(e)}, 응답: {res.text[:200]}"}
+        else:
+            return False, {"error": f"HTTP {res.status_code}: {res.text[:200]}"}
     except Exception as e:
         return False, {"error": str(e)}
 
@@ -110,7 +123,7 @@ def search_tracks_api(query, limit=20, offset=0):
 # 서브 페이지 함수들
 # ----------------------------------------------------------
 def show_home_page():
-    render_top_guide_banner()
+    render_top_guide_banner("home")
     
     st.markdown("## 🎵 Music Search & Player")
     
@@ -238,6 +251,7 @@ def show_home_page():
                                 "artists": artists,
                                 "image_url": image_url
                             }
+                            
                             st.rerun()
             
             if st.session_state.get("has_more", False):
@@ -298,9 +312,109 @@ def show_home_page():
 # ----------------------------------------------------------
 # 상단 배너
 # ----------------------------------------------------------
-def render_top_guide_banner():
-    st.markdown(
+def render_top_guide_banner(page_name="default"):
+    """
+    각 화면별 이용 가이드 배너를 표시합니다.
+    
+    Args:
+        page_name: 화면 이름 ("home", "profile", "logs", "churn_single", "churn_bulk", 
+                   "churn_6feat", "prediction_results", "prediction_csv", "user_admin", 
+                   "user_search", "feature_b", "default")
+    """
+    guides = {
+        "home": """
+            <b style="font-size:17px;">🎵 홈 화면 이용 가이드</b><br>
+            • Spotify 음악 검색 및 재생 기능을 사용할 수 있습니다.<br>
+            • 검색어를 입력하고 원하는 트랙을 찾아 재생하세요.<br>
+            • Spotify 인증이 필요합니다. 로그인 화면에서 인증을 완료해주세요.<br>
+            • 재생할 트랙을 선택하면 플레이어가 자동으로 표시됩니다.
+        """,
+        "profile": """
+            <b style="font-size:17px;">👤 개인정보 수정 이용 가이드</b><br>
+            • 이름, 좋아하는 음악, 등급을 수정할 수 있습니다.<br>
+            • 등급은 관리자(99)만 수정 가능합니다.<br>
+            • 정보를 수정한 후 '저장' 버튼을 클릭해야 변경사항이 적용됩니다.<br>
+            • 구독해지를 하시면 휴면 유저(등급 00)로 전환되고 이탈 위험도가 높음으로 설정됩니다.<br>
+            • 관리자는 구독해지 기능을 사용할 수 없습니다.
+        """,
+        "logs": """
+            <b style="font-size:17px;">📋 로그 조회 이용 가이드</b><br>
+            • 사용자 활동 로그를 조회할 수 있습니다. (관리자 전용)<br>
+            • User ID로 특정 사용자의 로그만 필터링할 수 있습니다.<br>
+            • 액션 타입(LOGIN, PAGE_VIEW, UNSUBSCRIBE)으로 필터링할 수 있습니다.<br>
+            • 페이지 크기를 조정하여 한 번에 볼 로그 수를 설정할 수 있습니다.<br>
+            • 로그는 최신순으로 정렬되어 표시됩니다.
+        """,
+        "churn_single": """
+            <b style="font-size:17px;">📊 단일 유저 이탈 예측 이용 가이드</b><br>
+            • User ID를 입력하고 '유저 데이터 불러오기' 버튼을 클릭하세요.<br>
+            • user_features 테이블에서 해당 유저의 데이터를 자동으로 불러옵니다.<br>
+            • 피처 값을 수정한 후 '예측 실행' 버튼을 클릭하면 이탈 확률과 위험도를 확인할 수 있습니다.<br>
+            • 예측 결과는 자동으로 user_prediction 테이블에 저장됩니다.<br>
+            • 이탈 확률은 0~100%로 표시되며, 위험도는 LOW/MEDIUM/HIGH로 표시됩니다.
+        """,
+        "churn_bulk": """
+            <b style="font-size:17px;">📊 배치 이탈 예측 이용 가이드</b><br>
+            • CSV 파일을 업로드하거나 수동으로 데이터를 입력할 수 있습니다.<br>
+            • CSV 파일에는 user_id 컬럼이 포함되어야 하며, user_features 테이블에서 자동으로 조회됩니다.<br>
+            • 여러 유저의 이탈 확률을 한 번에 예측할 수 있습니다.<br>
+            • 예측 결과는 차트로 시각화되어 표시됩니다.<br>
+            • 모든 예측 결과는 자동으로 user_prediction 테이블에 저장됩니다.
+        """,
+        "churn_6feat": """
+            <b style="font-size:17px;">📊 6피처 이탈 예측 이용 가이드</b><br>
+            • 6개의 핵심 피처만 사용하여 이탈 예측을 수행합니다.<br>
+            • 필수 피처: app_crash_count_30d, skip_rate_increase_7d, days_since_last_login,<br>
+            &nbsp;&nbsp;listening_time_trend_7d, freq_of_use_trend_14d, login_frequency_30d<br>
+            • User ID를 입력하면 user_features 테이블에서 자동으로 데이터를 불러옵니다.<br>
+            • 예측 결과는 user_prediction 테이블에 자동으로 저장됩니다.
+        """,
+        "prediction_results": """
+            <b style="font-size:17px;">📈 예측 결과 조회 이용 가이드</b><br>
+            • user_prediction 테이블에 저장된 예측 결과를 조회할 수 있습니다. (관리자 전용)<br>
+            • User ID로 특정 사용자의 예측 결과를 검색할 수 있습니다.<br>
+            • 위험도(LOW/MEDIUM/HIGH)로 필터링할 수 있습니다.<br>
+            • 예측 결과는 테이블 형식으로 표시되며, 통계 정보도 함께 제공됩니다.
+        """,
+        "prediction_csv": """
+            <b style="font-size:17px;">📁 예측 결과 CSV 관리 이용 가이드</b><br>
+            • CSV 파일을 업로드하여 일괄 예측을 수행할 수 있습니다. (관리자 전용)<br>
+            • 필수 컬럼: user_id, app_crash_count_30d, skip_rate_increase_7d, days_since_last_login,<br>
+            &nbsp;&nbsp;listening_time_trend_7d, freq_of_use_trend_14d, login_frequency_30d<br>
+            • 예측 결과를 CSV 파일로 다운로드할 수 있습니다.<br>
+            • 예측 결과는 user_prediction 테이블에 자동으로 저장됩니다.
+        """,
+        "user_admin": """
+            <b style="font-size:17px;">🛠 사용자 데이터 관리 이용 가이드</b><br>
+            • 데이터베이스 테이블을 생성하고 CSV 데이터를 import할 수 있습니다. (관리자 전용)<br>
+            • User Table, User Features Table, User Prediction Table, Log Table을 생성할 수 있습니다.<br>
+            • CSV 파일을 업로드하여 user_features 테이블에 데이터를 삽입할 수 있습니다.<br>
+            • 기본 경로의 CSV 파일(data/enhanced_data_not_clean_FE_delete.csv)을 사용할 수도 있습니다.
+        """,
+        "user_search": """
+            <b style="font-size:17px;">🔍 사용자 조회 이용 가이드</b><br>
+            • 이름, User ID, 좋아하는 음악, 등급으로 사용자를 검색할 수 있습니다. (관리자 전용)<br>
+            • 각 사용자의 등급을 수정할 수 있습니다.<br>
+            • 사용자의 위험도(이탈 위험도)를 확인할 수 있습니다.<br>
+            • 페이징 기능을 사용하여 많은 사용자 데이터를 효율적으로 조회할 수 있습니다.
+        """,
+        "feature_b": """
+            <b style="font-size:17px;">⚙️ 기능 B 이용 가이드</b><br>
+            • 기능 B의 내용을 여기에 작성하세요.
+        """,
+        "default": """
+            <b style="font-size:17px;">📘 이용 가이드</b><br>
+            • 왼쪽 사이드바에서 원하는 기능을 선택하세요.<br>
+            • 권한(grade)에 따라 접근 가능한 메뉴가 달라질 수 있습니다.<br>
+            • 관리자(99)는 추가 관리 기능을 사용할 수 있습니다.<br>
+            • 모든 페이지 상단에 이 안내가 항상 표시됩니다.
         """
+    }
+    
+    guide_text = guides.get(page_name, guides["default"])
+    
+    st.markdown(
+        f"""
         <div style="
             background-color: #1f2937;
             padding: 15px 20px;
@@ -310,11 +424,7 @@ def render_top_guide_banner():
             font-size: 16px;
             border-left: 5px solid #3b82f6;
         ">
-            <b style="font-size:17px;">📘 이용 가이드</b><br>
-            • 왼쪽 사이드바에서 원하는 기능을 선택하세요.<br>
-            • 권한(grade)에 따라 접근 가능한 메뉴가 달라질 수 있습니다.<br>
-            • 관리자(99)는 추가 관리 기능을 사용할 수 있습니다.<br>
-            • 모든 페이지 상단에 이 안내가 항상 표시됩니다.
+            {guide_text}
         </div>
         """,
         unsafe_allow_html=True
@@ -327,6 +437,19 @@ def show_profile_page():
     """
     개인 정보 확인 및 수정 페이지
     """
+    render_top_guide_banner("profile")
+    # 화면 접근 로그 기록
+    user = st.session_state.user_info
+    user_id = user.get("user_id") if user else None
+    if user_id:
+        try:
+            requests.post(f"{API_URL}/log", json={
+                "user_id": user_id,
+                "action_type": "PAGE_VIEW",
+                "page_name": "개인정보 수정"
+            })
+        except:
+            pass  # 로그 기록 실패해도 계속 진행
 
     # stHorizontalBlock 클래스의 우측 여백 제거 및 버튼 우측 정렬을 위한 CSS
     st.markdown("""
@@ -559,8 +682,82 @@ def show_profile_page():
         st.write(f"**등급:** {current_grade} ({grade_display_name})")
 
     # ------------------------------
+    # 구독해지 섹션 (등급 99는 제외)
+    # ------------------------------
+    if grade != "99":  # 관리자는 구독해지 불가
+        st.markdown("---")
+        st.markdown("### 🚪 구독해지")
+        st.warning("⚠️ 구독해지를 하시면 이탈 위험도가 높음으로 설정됩니다.")
+        
+        # 구독해지 모달 상태 관리
+        if f"unsubscribe_modal_{user_id}" not in st.session_state:
+            st.session_state[f"unsubscribe_modal_{user_id}"] = False
+        
+        unsubscribe_button = st.button("구독해지", type="secondary", key=f"unsubscribe_button_{user_id}")
+        
+        if unsubscribe_button:
+            st.session_state[f"unsubscribe_modal_{user_id}"] = True
+        
+            # 구독해지 모달 표시
+            if st.session_state[f"unsubscribe_modal_{user_id}"]:
+                with st.container():
+                    st.markdown("---")
+                    st.markdown("### 📝 구독해지 양식")
+                    st.info("구독해지를 진행하시겠습니까? 이탈 위험도가 높음으로 설정됩니다.")
+                    
+                    reason = st.selectbox(
+                        "구독해지 사유",
+                        ["", "서비스 불만", "가격 문제", "사용 빈도 감소", "다른 서비스 이용", "기타"],
+                        key=f"unsubscribe_reason_{user_id}"
+                    )
+                    
+                    feedback = st.text_area(
+                        "의견 및 피드백 (선택사항)",
+                        placeholder="서비스 개선을 위한 의견을 남겨주세요.",
+                        key=f"unsubscribe_feedback_{user_id}"
+                    )
+                    
+                    col1, col2, col3 = st.columns([2, 1, 1])
+                    with col1:
+                        pass
+                    with col2:
+                        confirm_button = st.button("확인", type="primary", key=f"unsubscribe_confirm_{user_id}")
+                    with col3:
+                        cancel_button = st.button("취소", key=f"unsubscribe_cancel_{user_id}")
+                    
+                    if cancel_button:
+                        st.session_state[f"unsubscribe_modal_{user_id}"] = False
+                        st.rerun()
+                    
+                    if confirm_button:
+                        try:
+                            with st.spinner("구독해지 처리 중..."):
+                                payload = {
+                                    "user_id": user_id,
+                                    "reason": reason,
+                                    "feedback": feedback
+                                }
+                                res = requests.post(f"{API_URL}/unsubscribe", json=payload)
+                                
+                                if res.status_code == 200:
+                                    result = res.json()
+                                    if result.get("success"):
+                                        st.success("✅ 구독해지가 처리되었습니다. 휴면 유저로 전환되었고 이탈 위험도가 높음으로 설정되었습니다.")
+                                        st.session_state[f"unsubscribe_modal_{user_id}"] = False
+                                        # 세션 정보 업데이트 (등급을 00으로 변경)
+                                        st.session_state.user_info["grade"] = "00"
+                                        st.rerun()
+                                    else:
+                                        st.error(result.get("error", "구독해지 처리 실패"))
+                                else:
+                                    st.error(f"구독해지 처리 중 오류 발생: {res.status_code}")
+                        except Exception as e:
+                            st.error(f"오류 발생: {str(e)}")
+
+    # ------------------------------
     # 저장 버튼 (버튼 클릭 시에만 실제 저장, 우측 정렬, 동일선상에 가로 배치, 적당한 간격)
     # ------------------------------
+    st.markdown("---")
     btn_col1, btn_col2, btn_col3 = st.columns([4, 1.1, 1.1])
     with btn_col1:
         pass  # 빈 공간
@@ -682,6 +879,7 @@ def show_profile_page():
 # 사용자 조회 함수
 # ----------------------------------------------------------
 def search_user():
+    render_top_guide_banner("user_search")
     st.subheader("🔍 사용자 조회")
     
     # FHD 화면에 맞는 CSS 스타일 추가
@@ -768,7 +966,7 @@ def search_user():
             search_music = selected_music_filter
     with filter_col4:
         # 등급을 selectbox로 변경
-        grade_filter_options = ["전체", "01: 일반회원", "99: 관리자"]
+        grade_filter_options = ["전체", "01: 일반회원", "99: 관리자", "00: 휴면"]
         selected_grade_filter = st.selectbox("등급", options=grade_filter_options, key="search_grade_filter")
         if selected_grade_filter == "전체":
             search_grade = ""
@@ -851,9 +1049,18 @@ def search_user():
         # grade 옵션 정의
         grade_options = {
             "01": "일반회원",
-            "99": "관리자"
+            "99": "관리자",
+            "00": "휴면"
         }
         grade_display_options = [f"{k}: {v}" for k, v in grade_options.items()]
+        
+        # 위험도 표시 옵션
+        risk_score_colors = {
+            "LOW": "🟢",
+            "MEDIUM": "🟡",
+            "HIGH": "🔴",
+            "UNKNOWN": "⚪"
+        }
         
         # 각 row의 실제 값 길이를 모두 고려하여 컬럼 비율 동적 계산
         # 모든 row의 각 컬럼 값 길이를 수집
@@ -990,8 +1197,8 @@ def search_user():
         </style>
         """, unsafe_allow_html=True)
         
-        # 헤더 행
-        header_col1, header_col2, header_col3, header_col4, header_col5, header_col6 = st.columns(col_ratios)
+        # 헤더 행 (위험도 추가)
+        header_col1, header_col2, header_col3, header_col4, header_col5, header_col6, header_col7 = st.columns(col_ratios + [2.0])
         with header_col1:
             st.markdown("**ID**")
         with header_col2:
@@ -1003,6 +1210,8 @@ def search_user():
         with header_col5:
             st.markdown("**등급**")
         with header_col6:
+            st.markdown("**위험도**")
+        with header_col7:
             st.markdown("**작업**")
         
         st.markdown("---")
@@ -1010,7 +1219,7 @@ def search_user():
         # 각 row에 대해 수정 가능한 UI 생성
         for idx, row in enumerate(rows):
             with st.container():
-                col1, col2, col3, col4, col5, col6 = st.columns(col_ratios)
+                col1, col2, col3, col4, col5, col6, col7 = st.columns(col_ratios + [2.0])
                 
                 with col1:
                     st.write(f"**{row['user_id']}**")
@@ -1060,6 +1269,16 @@ def search_user():
                     selected_grade = selected_grade_display.split(":")[0].strip()
                 
                 with col6:
+                    # 위험도 표시
+                    risk_score = row.get('risk_score', 'UNKNOWN')
+                    risk_color = risk_score_colors.get(risk_score, '⚪')
+                    churn_rate = row.get('churn_rate', 0)
+                    if risk_score == 'UNKNOWN':
+                        st.write(f"{risk_color} {risk_score}")
+                    else:
+                        st.write(f"{risk_color} {risk_score} ({churn_rate}%)")
+                
+                with col7:
                     # 저장 버튼 (적절한 크기로 조정)
                     if st.button("💾 저장", key=f"save_grade_{row['user_id']}_{page}", type="primary"):
                         # grade가 변경되었는지 확인
@@ -1116,14 +1335,620 @@ def search_user():
                 st.rerun()
 
 def show_feature_b():
+    render_top_guide_banner("feature_b")
     st.subheader("기능 B")
     st.write("기능 B의 내용을 여기에 작성하세요.")
 
 
 # ----------------------------------------------------------
+# 로그 조회 함수
+# ----------------------------------------------------------
+def show_logs_page():
+    """로그 조회 화면"""
+    render_top_guide_banner("logs")
+    st.header("📋 로그 조회")
+    st.write("사용자 활동 로그를 조회합니다.")
+    st.markdown("---")
+    
+    # 조회 필터
+    filter_col1, filter_col2, filter_col3, filter_col4 = st.columns([2, 2, 2, 1])
+    
+    with filter_col1:
+        search_user_id = st.text_input("User ID", placeholder="사용자 ID를 입력하세요", key="log_search_user_id")
+    with filter_col2:
+        action_type_options = ["전체", "LOGIN", "PAGE_VIEW", "UNSUBSCRIBE"]
+        selected_action = st.selectbox("액션 타입", options=action_type_options, key="log_action_type")
+        search_action_type = "" if selected_action == "전체" else selected_action
+    with filter_col3:
+        page_size = st.selectbox("페이지 크기", [20, 50, 100, 200], index=1, key="log_page_size")
+    with filter_col4:
+        st.write("")  # 빈 공간
+        search_button = st.button("🔍 조회", type="primary", key="log_search_button")
+    
+    # 페이지 상태 관리
+    if "log_page" not in st.session_state:
+        st.session_state.log_page = 1
+    if "log_search_executed" not in st.session_state:
+        st.session_state.log_search_executed = False
+    if "log_search_params" not in st.session_state:
+        st.session_state.log_search_params = {}
+    
+    if search_button:
+        st.session_state.log_page = 1
+        st.session_state.log_search_executed = True
+        st.session_state.log_search_params = {
+            "user_id": search_user_id,
+            "action_type": search_action_type,
+            "page_size": page_size
+        }
+        st.rerun()
+    
+    if not st.session_state.log_search_executed:
+        st.info("💡 조회 조건을 입력한 후 '조회' 버튼을 클릭하세요.")
+        return
+    
+    # 저장된 조회 파라미터 사용
+    saved_params = st.session_state.log_search_params
+    current_user_id = saved_params.get("user_id", "")
+    current_action_type = saved_params.get("action_type", "")
+    current_page_size = saved_params.get("page_size", page_size)
+    page = st.session_state.log_page
+    
+    # API 요청
+    api_url = f"logs?page={page}&page_size={current_page_size}"
+    if current_user_id:
+        api_url += f"&user_id={current_user_id}"
+    if current_action_type:
+        api_url += f"&action_type={current_action_type}"
+    
+    ok, res = call_api(api_url)
+    
+    if not ok or not res.get("success"):
+        st.error("로그 조회 중 오류가 발생하였습니다.")
+        st.write(res)
+        return
+    
+    rows = res["rows"]
+    total_rows = res["total_rows"]
+    total_pages = res["total_pages"]
+    
+    st.write(f"총 {total_rows}개 로그, 페이지 {page}/{total_pages}")
+    st.markdown("---")
+    
+    if rows:
+        # 테이블 표시
+        df = pd.DataFrame(rows)
+        # 컬럼 순서 조정
+        df = df[['log_id', 'user_id', 'user_name', 'action_type', 'page_name', 'additional_info', 'created_at']]
+        df.columns = ['로그 ID', '사용자 ID', '사용자 이름', '액션 타입', '페이지명', '추가 정보', '기록 시간']
+        
+        st.dataframe(df, use_container_width=True, height=400)
+        
+        # 페이징 버튼
+        colA, colB, colC = st.columns(3)
+        with colA:
+            if st.button("⬅ 이전 페이지", key="log_prev"):
+                if page > 1:
+                    st.session_state.log_page -= 1
+                    st.rerun()
+        with colB:
+            st.write(f"현재 페이지: {page}")
+        with colC:
+            if st.button("다음 페이지 ➡", key="log_next"):
+                if page < total_pages:
+                    st.session_state.log_page += 1
+                    st.rerun()
+    else:
+        st.info("조회 결과가 없습니다.")
+
+
+# ----------------------------------------------------------
+# 이탈 예측 화면들 (GRADE=99 전용)
+# ----------------------------------------------------------
+
+def show_churn_prediction_page():
+    """단일 유저 이탈 예측 화면"""
+    render_top_guide_banner("churn_single")
+    st.header("📊 단일 유저 이탈 예측")
+    st.write("전체 피처를 사용하여 유저의 이탈 확률을 예측합니다.")
+    st.markdown("---")
+    
+    # 테이블 생성 안내 및 버튼
+    with st.expander("⚠️ 테이블이 없으면 먼저 생성하세요"):
+        if st.button("📊 User Prediction Table 생성", key="init_pred_table_1"):
+            try:
+                res = requests.get(f"{API_URL}/init_user_prediction_table")
+                if res.status_code == 200:
+                    st.success("테이블 생성 완료!")
+                else:
+                    st.error(f"테이블 생성 실패: {res.status_code}")
+            except Exception as e:
+                st.error(f"오류 발생: {str(e)}")
+    
+    # User ID 입력
+    user_id = st.number_input("User ID", min_value=1, value=1, step=1)
+    
+    if st.button("유저 데이터 불러오기"):
+        try:
+            res = requests.get(f"{API_URL}/user_features/{user_id}")
+            if res.status_code == 200:
+                data = res.json()
+                if data.get("success"):
+                    st.session_state[f"user_features_{user_id}"] = data.get("data", {})
+                    st.success("유저 데이터를 불러왔습니다.")
+                else:
+                    st.error(data.get("error", "데이터를 불러올 수 없습니다."))
+            else:
+                st.error(f"API 오류: {res.status_code}")
+        except Exception as e:
+            st.error(f"오류 발생: {str(e)}")
+    
+    # 피처 입력 폼
+    if f"user_features_{user_id}" in st.session_state:
+        features = st.session_state[f"user_features_{user_id}"]
+        
+        st.subheader("피처 입력")
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            listening_time = st.number_input("listening_time", value=float(features.get("listening_time", 0)), step=1.0)
+            songs_played_per_day = st.number_input("songs_played_per_day", value=float(features.get("songs_played_per_day", 0)), step=1.0)
+            payment_failure_count = st.number_input("payment_failure_count", value=int(features.get("payment_failure_count", 0)), step=1)
+            app_crash_count_30d = st.number_input("app_crash_count_30d", value=int(features.get("app_crash_count_30d", 0)), step=1)
+        
+        with col2:
+            subscription_type = st.selectbox("subscription_type", ["Free", "Premium"], index=0 if features.get("subscription_type") == "Free" else 1)
+            customer_support_contact = st.number_input("customer_support_contact", value=int(features.get("customer_support_contact", 0)), step=1)
+        
+        # 추가 피처들 (필요한 경우)
+        feature_dict = {
+            "user_id": user_id,
+            "listening_time": listening_time,
+            "songs_played_per_day": songs_played_per_day,
+            "payment_failure_count": payment_failure_count,
+            "app_crash_count_30d": app_crash_count_30d,
+            "subscription_type": subscription_type,
+            "customer_support_contact": customer_support_contact
+        }
+        
+        # 기존 피처들 병합
+        for key, value in features.items():
+            if key not in feature_dict and key != "user_id":
+                feature_dict[key] = value
+        
+        if st.button("예측 실행", type="primary"):
+            try:
+                payload = {
+                    "user_id": user_id,  # user_id 포함하여 user_features에서 조회
+                    "features": feature_dict
+                }
+                res = requests.post(f"{API_URL}/predict_churn", json=payload)
+                if res.status_code == 200:
+                    result = res.json()
+                    if result.get("success"):
+                        st.success("예측 완료!")
+                        col1, col2, col3 = st.columns(3)
+                        with col1:
+                            st.metric("이탈 확률", f"{result.get('churn_prob', 0):.2%}")
+                        with col2:
+                            risk_level = result.get("risk_level", "UNKNOWN")
+                            risk_color = {"LOW": "🟢", "MEDIUM": "🟡", "HIGH": "🔴"}.get(risk_level, "⚪")
+                            st.metric("위험도", f"{risk_color} {risk_level}")
+                        with col3:
+                            st.metric("모델", result.get("model_name", "default"))
+                    else:
+                        st.error(result.get("error", "예측 실패"))
+                else:
+                    st.error(f"API 오류: {res.status_code} {res.text}")
+            except Exception as e:
+                st.error(f"오류 발생: {str(e)}")
+
+def show_churn_prediction_bulk_page():
+    """배치 예측 화면"""
+    render_top_guide_banner("churn_bulk")
+    st.header("📊 배치 이탈 예측")
+    st.write("여러 유저의 이탈 확률을 한 번에 예측합니다.")
+    st.markdown("---")
+    
+    # CSV 업로드 또는 수동 입력
+    input_method = st.radio("입력 방법", ["CSV 업로드", "수동 입력"])
+    
+    if input_method == "CSV 업로드":
+        uploaded_file = st.file_uploader("CSV 파일 업로드", type=["csv"])
+        if uploaded_file:
+            df = pd.read_csv(uploaded_file)
+            
+            # NaN, inf, -inf 값 정리
+            df = df.replace([np.inf, -np.inf], np.nan)
+            
+            st.dataframe(df.head(20))
+            st.info(f"총 {len(df)}개 행이 로드되었습니다.")
+            
+            if st.button("배치 예측 실행", type="primary"):
+                try:
+                    # dict로 변환 시 NaN/None 값 처리
+                    # user_id만 포함하여 전송 (user_features 테이블에서 조회)
+                    rows = []
+                    for _, row in df.iterrows():
+                        # user_id만 포함 (나머지는 user_features 테이블에서 조회)
+                        user_id_val = row.get('user_id')
+                        if pd.notna(user_id_val):
+                            try:
+                                row_dict = {"user_id": int(user_id_val)}
+                                rows.append(row_dict)
+                            except:
+                                continue
+                    
+                    payload = {"rows": rows}
+                    res = requests.post(f"{API_URL}/predict_churn_bulk", json=payload)
+                    if res.status_code == 200:
+                        result = res.json()
+                        if result.get("success"):
+                            results_df = pd.DataFrame(result.get("results", []))
+                            st.success("배치 예측 완료!")
+                            
+                            # 에러가 있는 행 제외
+                            valid_results = results_df[~results_df.get('error').notna()] if 'error' in results_df.columns else results_df
+                            
+                            if len(valid_results) > 0 and 'churn_prob' in valid_results.columns:
+                                # 탭으로 테이블과 차트 분리
+                                tab1, tab2, tab3 = st.tabs(["📊 데이터 테이블", "📈 이탈 확률 분포", "🎯 위험도 분석"])
+                                
+                                with tab1:
+                                    st.dataframe(results_df, use_container_width=True)
+                                    
+                                    # 통계 요약
+                                    st.subheader("📊 통계 요약")
+                                    col1, col2, col3, col4 = st.columns(4)
+                                    with col1:
+                                        st.metric("총 예측 수", len(valid_results))
+                                    with col2:
+                                        avg_churn = valid_results['churn_prob'].mean() * 100
+                                        st.metric("평균 이탈 확률", f"{avg_churn:.1f}%")
+                                    with col3:
+                                        high_risk = len(valid_results[valid_results.get('risk_level') == 'HIGH']) if 'risk_level' in valid_results.columns else 0
+                                        st.metric("고위험 유저", high_risk)
+                                    with col4:
+                                        max_churn = valid_results['churn_prob'].max() * 100
+                                        st.metric("최대 이탈 확률", f"{max_churn:.1f}%")
+                                
+                                with tab2:
+                                    st.subheader("이탈 확률 분포")
+                                    
+                                    # 히스토그램
+                                    fig, axes = plt.subplots(1, 2, figsize=(12, 4))
+                                    
+                                    # 이탈 확률 히스토그램
+                                    axes[0].hist(valid_results['churn_prob'] * 100, bins=20, edgecolor='black', alpha=0.7, color='#ff6b6b')
+                                    axes[0].set_xlabel('이탈 확률 (%)')
+                                    axes[0].set_ylabel('유저 수')
+                                    axes[0].set_title('이탈 확률 분포')
+                                    axes[0].grid(True, alpha=0.3)
+                                    
+                                    # 상위 20명 바 차트
+                                    top_users = valid_results.nlargest(20, 'churn_prob')
+                                    axes[1].barh(range(len(top_users)), top_users['churn_prob'] * 100, color='#ee5a6f')
+                                    axes[1].set_yticks(range(len(top_users)))
+                                    axes[1].set_yticklabels([f"User {uid}" for uid in top_users.get('user_id', range(len(top_users)))], fontsize=8)
+                                    axes[1].set_xlabel('이탈 확률 (%)')
+                                    axes[1].set_title('상위 20명 이탈 확률')
+                                    axes[1].grid(True, alpha=0.3, axis='x')
+                                    
+                                    plt.tight_layout()
+                                    st.pyplot(fig)
+                                    
+                                    # 이탈 확률 구간별 분포
+                                    st.subheader("이탈 확률 구간별 분포")
+                                    bins = [0, 0.3, 0.5, 0.7, 1.0]
+                                    labels = ['낮음 (0-30%)', '보통 (30-50%)', '높음 (50-70%)', '매우 높음 (70-100%)']
+                                    valid_results['churn_category'] = pd.cut(valid_results['churn_prob'], bins=bins, labels=labels, include_lowest=True)
+                                    category_counts = valid_results['churn_category'].value_counts().sort_index()
+                                    
+                                    col1, col2 = st.columns([1, 2])
+                                    with col1:
+                                        st.dataframe(category_counts.reset_index().rename(columns={'index': '구간', 'churn_category': '유저 수'}))
+                                    with col2:
+                                        st.bar_chart(category_counts)
+                                
+                                with tab3:
+                                    st.subheader("위험도 분석")
+                                    
+                                    if 'risk_level' in valid_results.columns:
+                                        # 위험도별 분포
+                                        risk_counts = valid_results['risk_level'].value_counts()
+                                        
+                                        col1, col2 = st.columns(2)
+                                        
+                                        with col1:
+                                            st.write("위험도별 유저 수")
+                                            risk_df = risk_counts.reset_index()
+                                            risk_df.columns = ['위험도', '유저 수']
+                                            # 위험도 순서 정렬
+                                            risk_order = ['LOW', 'MEDIUM', 'HIGH']
+                                            risk_df['위험도'] = pd.Categorical(risk_df['위험도'], categories=risk_order, ordered=True)
+                                            risk_df = risk_df.sort_values('위험도')
+                                            st.dataframe(risk_df, use_container_width=True)
+                                        
+                                        with col2:
+                                            # 파이 차트
+                                            fig, ax = plt.subplots(figsize=(8, 8))
+                                            colors = {'LOW': '#51cf66', 'MEDIUM': '#ffd43b', 'HIGH': '#ff6b6b'}
+                                            risk_colors = [colors.get(risk, '#95a5a6') for risk in risk_counts.index]
+                                            ax.pie(risk_counts.values, labels=risk_counts.index, autopct='%1.1f%%', 
+                                                  colors=risk_colors, startangle=90)
+                                            ax.set_title('위험도 분포')
+                                            st.pyplot(fig)
+                                        
+                                        # 위험도별 평균 이탈 확률
+                                        st.subheader("위험도별 평균 이탈 확률")
+                                        risk_avg = valid_results.groupby('risk_level')['churn_prob'].mean() * 100
+                                        risk_avg_df = risk_avg.reset_index()
+                                        risk_avg_df.columns = ['위험도', '평균 이탈 확률 (%)']
+                                        risk_avg_df['위험도'] = pd.Categorical(risk_avg_df['위험도'], categories=risk_order, ordered=True)
+                                        risk_avg_df = risk_avg_df.sort_values('위험도')
+                                        
+                                        col1, col2 = st.columns([1, 2])
+                                        with col1:
+                                            st.dataframe(risk_avg_df, use_container_width=True)
+                                        with col2:
+                                            st.bar_chart(risk_avg.set_axis(risk_avg.index))
+                                    else:
+                                        st.info("위험도 정보가 없습니다.")
+                            else:
+                                st.dataframe(results_df, use_container_width=True)
+                                if len(valid_results) == 0:
+                                    st.warning("예측 결과가 없거나 모든 행에서 오류가 발생했습니다.")
+                        else:
+                            st.error(result.get("error", "예측 실패"))
+                    else:
+                        error_msg = f"API 오류: {res.status_code}"
+                        try:
+                            error_detail = res.json()
+                            if isinstance(error_detail, dict) and "error" in error_detail:
+                                error_msg += f"\n{error_detail['error']}"
+                            else:
+                                error_msg += f"\n{res.text[:200]}"
+                        except:
+                            error_msg += f"\n{res.text[:200]}"
+                        st.error(error_msg)
+                except Exception as e:
+                    st.error(f"오류 발생: {str(e)}")
+    else:
+        st.info("수동 입력 기능은 추후 구현 예정입니다.")
+
+def show_churn_prediction_6feat_page():
+    """6피처 시뮬레이터 화면"""
+    render_top_guide_banner("churn_6feat")
+    st.header("🎯 6피처 이탈 예측 시뮬레이터")
+    st.write("6개 핵심 피처만 사용하여 이탈 확률을 예측합니다.")
+    st.markdown("---")
+    
+    # 테이블 생성 안내 및 버튼
+    with st.expander("⚠️ 테이블이 없으면 먼저 생성하세요"):
+        if st.button("📊 User Prediction Table 생성", key="init_pred_table_2"):
+            try:
+                res = requests.get(f"{API_URL}/init_user_prediction_table")
+                if res.status_code == 200:
+                    st.success("테이블 생성 완료!")
+                else:
+                    st.error(f"테이블 생성 실패: {res.status_code}")
+            except Exception as e:
+                st.error(f"오류 발생: {str(e)}")
+    
+    user_id = st.number_input("User ID", min_value=1, value=1, step=1)
+    
+    st.subheader("6개 핵심 피처 입력")
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        app_crash_count_30d = st.number_input("앱 크래시 횟수 (30일)", min_value=0, value=0, step=1, key="crash")
+        skip_rate_increase_7d = st.number_input("스킵률 증가 (7일, %)", min_value=0.0, value=0.0, step=0.1, key="skip")
+        days_since_last_login = st.number_input("마지막 로그인 경과일", min_value=0, value=0, step=1, key="login_days")
+    
+    with col2:
+        listening_time_trend_7d = st.number_input("청취 시간 추세 (7일, %)", value=0.0, step=0.1, key="listening")
+        freq_of_use_trend_14d = st.number_input("사용 빈도 추세 (14일, %)", value=0.0, step=0.1, key="freq")
+        login_frequency_30d = st.number_input("로그인 빈도 (30일)", min_value=0, value=0, step=1, key="login_freq")
+    
+    if st.button("예측 실행", type="primary"):
+        try:
+            payload = {
+                "user_id": user_id,
+                "features": {
+                    "app_crash_count_30d": app_crash_count_30d,
+                    "skip_rate_increase_7d": skip_rate_increase_7d,
+                    "days_since_last_login": days_since_last_login,
+                    "listening_time_trend_7d": listening_time_trend_7d,
+                    "freq_of_use_trend_14d": freq_of_use_trend_14d,
+                    "login_frequency_30d": login_frequency_30d
+                }
+            }
+            res = requests.post(f"{API_URL}/predict_churn_6feat", json=payload)
+            if res.status_code == 200:
+                result = res.json()
+                if result.get("success"):
+                    st.success("예측 완료! (결과가 DB에 저장되었습니다)")
+                    col1, col2, col3 = st.columns(3)
+                    with col1:
+                        st.metric("이탈률", f"{result.get('churn_rate', 0)}%")
+                    with col2:
+                        risk_score = result.get("risk_score", "UNKNOWN")
+                        risk_color = {"LOW": "🟢", "MEDIUM": "🟡", "HIGH": "🔴"}.get(risk_score, "⚪")
+                        st.metric("위험도", f"{risk_color} {risk_score}")
+                    with col3:
+                        st.metric("업데이트 날짜", result.get("update_date", "N/A"))
+                else:
+                    st.error(result.get("error", "예측 실패"))
+            else:
+                st.error(f"API 오류: {res.status_code} {res.text}")
+        except Exception as e:
+            st.error(f"오류 발생: {str(e)}")
+
+def show_prediction_results_page():
+    """예측 결과 조회 화면"""
+    render_top_guide_banner("prediction_results")
+    st.header("📋 예측 결과 조회")
+    st.write("저장된 예측 결과를 조회합니다.")
+    st.markdown("---")
+    
+    # 테이블 생성 안내 및 버튼
+    with st.expander("⚠️ 테이블이 없으면 먼저 생성하세요"):
+        if st.button("📊 User Prediction Table 생성", key="init_pred_table_3"):
+            try:
+                res = requests.get(f"{API_URL}/init_user_prediction_table")
+                if res.status_code == 200:
+                    st.success("테이블 생성 완료!")
+                else:
+                    st.error(f"테이블 생성 실패: {res.status_code}")
+            except Exception as e:
+                st.error(f"오류 발생: {str(e)}")
+    
+    tab1, tab2 = st.tabs(["단일 유저 조회", "전체 조회"])
+    
+    with tab1:
+        user_id = st.number_input("User ID", min_value=1, value=1, step=1, key="result_user_id")
+        if st.button("조회", key="result_single"):
+            try:
+                res = requests.get(f"{API_URL}/user_prediction/{user_id}")
+                if res.status_code == 200:
+                    result = res.json()
+                    if result.get("success"):
+                        data = result.get("data", {})
+                        col1, col2, col3, col4 = st.columns(4)
+                        with col1:
+                            st.metric("User ID", data.get("user_id"))
+                        with col2:
+                            st.metric("이탈률", f"{data.get('churn_rate', 0)}%")
+                        with col3:
+                            risk_score = data.get("risk_score", "UNKNOWN")
+                            risk_color = {"LOW": "🟢", "MEDIUM": "🟡", "HIGH": "🔴"}.get(risk_score, "⚪")
+                            st.metric("위험도", f"{risk_color} {risk_score}")
+                        with col4:
+                            st.metric("업데이트 날짜", data.get("update_date", "N/A")[:10] if data.get("update_date") else "N/A")
+                    else:
+                        st.warning(result.get("error", "데이터를 찾을 수 없습니다."))
+                else:
+                    st.error(f"API 오류: {res.status_code}")
+            except Exception as e:
+                st.error(f"오류 발생: {str(e)}")
+    
+    with tab2:
+        user_ids_input = st.text_input("User IDs (쉼표로 구분, 비워두면 전체 조회)", value="")
+        if st.button("조회", key="result_all"):
+            try:
+                params = {}
+                if user_ids_input.strip():
+                    params["user_ids"] = user_ids_input.strip()
+                
+                res = requests.get(f"{API_URL}/user_prediction", params=params)
+                if res.status_code == 200:
+                    result = res.json()
+                    if result.get("success"):
+                        rows = result.get("rows", [])
+                        if rows:
+                            df = pd.DataFrame(rows)
+                            st.dataframe(df, use_container_width=True)
+                            
+                            # 통계
+                            st.subheader("통계")
+                            col1, col2, col3 = st.columns(3)
+                            with col1:
+                                st.metric("총 예측 수", len(rows))
+                            with col2:
+                                high_risk = sum(1 for r in rows if r.get("risk_score") == "HIGH")
+                                st.metric("고위험 유저", high_risk)
+                            with col3:
+                                avg_churn = sum(r.get("churn_rate", 0) for r in rows) / len(rows) if rows else 0
+                                st.metric("평균 이탈률", f"{avg_churn:.1f}%")
+                        else:
+                            st.info("조회된 결과가 없습니다.")
+                    else:
+                        st.error(result.get("error", "조회 실패"))
+                else:
+                    st.error(f"API 오류: {res.status_code}")
+            except Exception as e:
+                st.error(f"오류 발생: {str(e)}")
+
+def show_prediction_csv_page():
+    """CSV 업로드/다운로드 화면"""
+    render_top_guide_banner("prediction_csv")
+    st.header("📁 예측 결과 CSV 관리")
+    st.write("CSV 파일을 업로드하여 일괄 예측하거나, 예측 결과를 다운로드합니다.")
+    st.markdown("---")
+    
+    tab1, tab2 = st.tabs(["CSV 업로드 (일괄 예측)", "CSV 다운로드"])
+    
+    with tab1:
+        st.subheader("CSV 업로드")
+        st.write("""
+        **필수 컬럼:**
+        - user_id
+        - app_crash_count_30d
+        - skip_rate_increase_7d
+        - days_since_last_login
+        - listening_time_trend_7d
+        - freq_of_use_trend_14d
+        - login_frequency_30d
+        """)
+        
+        uploaded_file = st.file_uploader("CSV 파일 선택", type=["csv"], key="upload_csv")
+        if uploaded_file:
+            try:
+                df = pd.read_csv(uploaded_file)
+                st.dataframe(df.head(10))
+                
+                required_cols = [
+                    "user_id", "app_crash_count_30d", "skip_rate_increase_7d",
+                    "days_since_last_login", "listening_time_trend_7d",
+                    "freq_of_use_trend_14d", "login_frequency_30d"
+                ]
+                
+                missing_cols = [col for col in required_cols if col not in df.columns]
+                if missing_cols:
+                    st.error(f"필수 컬럼이 없습니다: {', '.join(missing_cols)}")
+                else:
+                    if st.button("일괄 예측 실행", type="primary"):
+                        try:
+                            files = {"file": (uploaded_file.name, uploaded_file.getvalue(), "text/csv")}
+                            res = requests.post(f"{API_URL}/upload_prediction_csv", files=files)
+                            if res.status_code == 200:
+                                result = res.json()
+                                if result.get("success"):
+                                    st.success(f"✅ {result.get('processed_rows', 0)}개 행 처리 완료!")
+                                else:
+                                    st.error(result.get("error", "처리 실패"))
+                            else:
+                                st.error(f"API 오류: {res.status_code} {res.text}")
+                        except Exception as e:
+                            st.error(f"오류 발생: {str(e)}")
+            except Exception as e:
+                st.error(f"CSV 파일 읽기 오류: {str(e)}")
+    
+    with tab2:
+        st.subheader("예측 결과 다운로드")
+        st.write("저장된 모든 예측 결과를 CSV 파일로 다운로드합니다.")
+        
+        if st.button("CSV 다운로드", type="primary"):
+            try:
+                res = requests.get(f"{API_URL}/download_prediction_csv")
+                if res.status_code == 200:
+                    st.download_button(
+                        label="다운로드",
+                        data=res.content,
+                        file_name="user_prediction.csv",
+                        mime="text/csv"
+                    )
+                    st.success("CSV 파일이 준비되었습니다. 다운로드 버튼을 클릭하세요.")
+                else:
+                    st.error(f"API 오류: {res.status_code}")
+            except Exception as e:
+                st.error(f"오류 발생: {str(e)}")
+
+# ----------------------------------------------------------
 # 사용자 데이터 관리 도구 (API 호출 기반)
 # ----------------------------------------------------------
 def show_user_admin_tools():
+    render_top_guide_banner("user_admin")
     st.header("🛠 사용자 데이터 관리 도구")
     st.write("Flask API(app.py)에서 제공하는 기능을 실행합니다.")
     st.markdown("---")
@@ -1136,13 +1961,124 @@ def show_user_admin_tools():
         else:
             st.error(res)
 
-    # CSV → DB Insert 실행
-    if st.button("📥 CSV → DB Insert 실행"):
+    # User Features 테이블 생성
+    if st.button("📊 User Features Table 생성"):
+        ok, res = call_api("init_user_features_table")
+        if ok:
+            st.success(res.get("message", "테이블 생성 완료"))
+        else:
+            st.error(res)
+
+    # User Prediction 테이블 생성
+    if st.button("📊 User Prediction Table 생성"):
+        ok, res = call_api("init_user_prediction_table")
+        if ok:
+            st.success(res.get("message", "테이블 생성 완료"))
+        else:
+            st.error(res)
+
+    # Log 테이블 생성
+    if st.button("📋 Log Table 생성"):
+        ok, res = call_api("init_log_table")
+        if ok:
+            st.success(res.get("message", "테이블 생성 완료"))
+        else:
+            st.error(res)
+
+    st.markdown("---")
+    st.subheader("CSV 데이터 Import")
+    
+    # CSV → DB Insert 실행 (users)
+    if st.button("📥 Users CSV → DB Insert 실행"):
         ok, res = call_api("import_users_from_csv")
         if ok:
             st.success(res.get("message", "CSV Import 완료"))
         else:
             st.error(res)
+
+    st.markdown("---")
+    st.subheader("User Features CSV Import")
+    
+    # CSV 파일 업로드 방식
+    uploaded_file = st.file_uploader(
+        "CSV 파일 업로드 (user_features 테이블에 데이터 삽입)",
+        type=["csv"],
+        help="user_id 컬럼이 포함된 CSV 파일을 업로드하세요."
+    )
+    
+    if uploaded_file is not None:
+        try:
+            # CSV 미리보기
+            df_preview = pd.read_csv(uploaded_file)
+            st.write("**업로드된 파일 미리보기:**")
+            st.dataframe(df_preview.head(10))
+            st.info(f"총 {len(df_preview)}개 행이 있습니다.")
+            
+            # 필수 컬럼 확인
+            if 'user_id' not in df_preview.columns:
+                st.error("❌ 'user_id' 컬럼이 필수입니다. CSV 파일에 user_id 컬럼이 있는지 확인하세요.")
+            else:
+                if st.button("📥 CSV 데이터 Import 실행", type="primary"):
+                    try:
+                        with st.spinner("CSV 데이터를 import하는 중..."):
+                            # 파일을 다시 읽어서 전송
+                            uploaded_file.seek(0)  # 파일 포인터를 처음으로
+                            files = {'file': (uploaded_file.name, uploaded_file, 'text/csv')}
+                            res = requests.post(f"{API_URL}/import_user_features_from_csv", files=files)
+                            
+                            if res.status_code == 200:
+                                result = res.json()
+                                if result.get("success"):
+                                    inserted = result.get("inserted_count", 0)
+                                    error_count = result.get("error_count", 0)
+                                    
+                                    st.success(f"✅ {result.get('message', 'CSV Import 완료')}")
+                                    
+                                    if error_count > 0:
+                                        st.warning(f"⚠️ {error_count}개 행에서 오류가 발생했습니다.")
+                                        errors = result.get("errors")
+                                        if errors:
+                                            with st.expander("오류 상세 보기"):
+                                                for error in errors:
+                                                    st.text(error)
+                                else:
+                                    st.error(result.get("error", "CSV Import 실패"))
+                            else:
+                                st.error(f"API 오류: {res.status_code} {res.text[:200]}")
+                    except Exception as e:
+                        st.error(f"오류 발생: {str(e)}")
+        except Exception as e:
+            st.error(f"CSV 파일 읽기 오류: {str(e)}")
+    
+    st.markdown("---")
+    st.write("**또는 기본 경로의 CSV 파일 사용:**")
+    
+    # 기본 경로 CSV Import (기존 기능)
+    if st.button("📥 기본 경로 CSV Import 실행 (data/enhanced_data_not_clean_FE_delete.csv)"):
+        try:
+            with st.spinner("CSV 데이터를 import하는 중..."):
+                res = requests.post(f"{API_URL}/import_user_features_from_csv")
+                if res.status_code == 200:
+                    result = res.json()
+                    if result.get("success"):
+                        inserted = result.get("inserted_count", 0)
+                        error_count = result.get("error_count", 0)
+                        
+                        st.success(f"✅ {result.get('message', 'CSV Import 완료')}")
+                        
+                        if error_count > 0:
+                            st.warning(f"⚠️ {error_count}개 행에서 오류가 발생했습니다.")
+                            errors = result.get("errors")
+                            if errors:
+                                with st.expander("오류 상세 보기"):
+                                    for error in errors:
+                                        st.text(error)
+                    else:
+                        st.error(result.get("error", "CSV Import 실패"))
+                else:
+                    st.error(f"API 오류: {res.status_code} {res.text[:200]}")
+        except Exception as e:
+            st.error(f"오류 발생: {str(e)}")
 
 
 # ----------------------------------------------------------
@@ -1157,6 +2093,7 @@ def show_main_page():
         st.stop()
 
     user = st.session_state.user_info
+    user_id = user.get("user_id")
     grade = user.get("grade")
     
     # ---------------------------
@@ -1181,9 +2118,43 @@ def show_main_page():
     
     # grade = 99 → 관리자
     if grade == "99":
-        menu_items.extend(["사용자 데이터 관리", "사용자 조회"])
+        menu_items.extend([
+            "사용자 데이터 관리", 
+            "사용자 조회",
+            "이탈 예측 (단일)",
+            "이탈 예측 (배치)",
+            "이탈 예측 (6피처)",
+            "예측 결과 조회",
+            "예측 CSV 관리",
+            "로그 조회"
+        ])
 
     menu = st.sidebar.radio("메뉴 선택", menu_items)
+    
+    # 화면 접근 로그 기록
+    if user_id:
+        try:
+            page_name_map = {
+                "홈": "홈",
+                "내 정보": "개인정보 수정",
+                "사용자 조회": "사용자 조회",
+                "기능 B": "기능 B",
+                "사용자 데이터 관리": "사용자 데이터 관리",
+                "이탈 예측 (단일)": "이탈 예측 (단일)",
+                "이탈 예측 (배치)": "이탈 예측 (배치)",
+                "이탈 예측 (6피처)": "이탈 예측 (6피처)",
+                "예측 결과 조회": "예측 결과 조회",
+                "예측 CSV 관리": "예측 CSV 관리",
+                "로그 조회": "로그 조회"
+            }
+            page_name = page_name_map.get(menu, menu)
+            requests.post(f"{API_URL}/log", json={
+                "user_id": user_id,
+                "action_type": "PAGE_VIEW",
+                "page_name": page_name
+            }, timeout=1)
+        except:
+            pass  # 로그 기록 실패해도 계속 진행
 
     if menu == "홈":
         show_home_page()
@@ -1199,6 +2170,36 @@ def show_main_page():
     elif menu == "사용자 데이터 관리":
         if grade == "99":
             show_user_admin_tools()
+        else:
+            st.error("권한이 없습니다.")
+    elif menu == "이탈 예측 (단일)":
+        if grade == "99":
+            show_churn_prediction_page()
+        else:
+            st.error("권한이 없습니다.")
+    elif menu == "이탈 예측 (배치)":
+        if grade == "99":
+            show_churn_prediction_bulk_page()
+        else:
+            st.error("권한이 없습니다.")
+    elif menu == "이탈 예측 (6피처)":
+        if grade == "99":
+            show_churn_prediction_6feat_page()
+        else:
+            st.error("권한이 없습니다.")
+    elif menu == "예측 결과 조회":
+        if grade == "99":
+            show_prediction_results_page()
+        else:
+            st.error("권한이 없습니다.")
+    elif menu == "예측 CSV 관리":
+        if grade == "99":
+            show_prediction_csv_page()
+        else:
+            st.error("권한이 없습니다.")
+    elif menu == "로그 조회":
+        if grade == "99":
+            show_logs_page()
         else:
             st.error("권한이 없습니다.")
 

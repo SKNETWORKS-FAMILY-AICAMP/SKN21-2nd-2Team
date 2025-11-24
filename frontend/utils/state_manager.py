@@ -1,4 +1,11 @@
 # utils/state_manager.py
+# ----------------------------------------------------------
+# 파일명: frontend/utils/state_manager.py
+# 설명: Streamlit 세션 상태 관리 유틸리티. Spotify 토큰 및 사용자 세션 초기화/저장을 담당합니다.
+# 작성일: 2025-11-24
+# 작성자: Antigravity (AI Assistant)
+# ----------------------------------------------------------
+
 import streamlit as st
 
 
