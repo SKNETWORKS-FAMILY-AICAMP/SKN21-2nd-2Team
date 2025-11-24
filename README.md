@@ -303,27 +303,27 @@ SKN21-2ND-2TEAM/
   - 전처리: `backend/preprocessing_pipeline.py` / `jy_model_test/preprocessing_pipeline.py` 의 `preprocess_and_split()`
   - 설정: `TEST_SIZE=0.2`, `RANDOM_STATE=42`, threshold 스캔(대부분 0.05~0.35/0.45, HGB는 0.05~0.45, step=0.005)
 
-    ## 📊 Model Performance Comparison
+      ## 📊 Model Performance Comparison
+      ### 🔸 F1 Score (정밀도·재현율 조화 평균)
+      <p align="center">
+        <img src="image/f1_score.jpg" width="600">
+      </p>
+      
+      ### 🔸 ROC-AUC (분류기 구분능력 지표) 
+      <p align="center">
+        <img src="image/ROC_AUC.jpg" width="600">
+      </p>
+      
+      ### 🔸 PR-AUC (양성 클래스 예측 성능 지표) 
+      <p align="center">
+        <img src="image/PR_AUC.jpg" width="600">
+      </p>
+      
+      ### 🔸 Recall (이탈자 탐지 성능)  
+      <p align="center">
+        <img src="image/Recall.jpg" width="600">
+      </p>
 
-      ### 🔸 F1 Score
-      <p align="left">
-        <img src="image/f1_score.jpg" width="450">
-      </p>
-      
-      ### 🔸 ROC-AUC
-      <p align="left">
-        <img src="image/ROC_AUC.jpg" width="450">
-      </p>
-      
-      ### 🔸 PR-AUC
-      <p align="left">
-        <img src="image/PR_AUC.jpg" width="450">
-      </p>
-      
-      ### 🔸 Recall (이탈자 탐지 성능)
-      <p align="left">
-        <img src="image/Recall.jpg" width="450">
-      </p>
 
      **모델별 best-run 성능 요약**
     
