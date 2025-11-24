@@ -83,7 +83,7 @@
   <br />
 <br />
 <h3 style="margin: 10px 0 5px 0;">신지용</h3>
-<p style="margin: 5px 0;">전처리 검증 + Feature튜닝</p>
+<p style="margin: 5px 0;">백앤드 + 전처리 검증 + Feature튜닝 + 모델링</p>
 <div style="margin-top: 10px;">
 <a href="https://github.com/sjy361872">
 <img src="https://img.shields.io/badge/GitHub-181717?style=flat-square&logo=GitHub&logoColor=white"/>
