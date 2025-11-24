@@ -59,6 +59,7 @@ def main() -> None:
     X = df[SIM_FEATURES].copy()
     y = df["is_churned"].astype(int).values
 
+    # 전체 데이터를 train/test로 분할
     X_train, X_test, y_train, y_test = train_test_split(
         X,
         y,
@@ -67,20 +68,63 @@ def main() -> None:
         stratify=y,
     )
 
-    print("\n🔧 6피처 전용 LGBM(단조 제약) 모델 학습 시작...")
-
-    # 기존 get_model("lgbm") 기본 파라미터에 monotone_constraints 만 덮어쓰기
-    model = get_model(
-        name="lgbm",
+    # Early Stopping을 위해 train을 다시 train/validation으로 분할
+    X_tr, X_val, y_tr, y_val = train_test_split(
+        X_train,
+        y_train,
+        test_size=0.2,
         random_state=RANDOM_STATE,
-        monotone_constraints=MONO_CONSTRAINTS,
+        stratify=y_train,
     )
-    model.fit(X_train, y_train)
-    print("✅ 학습 완료!")
 
-    y_proba = model.predict_proba(X_test)[:, 1]
+    print("\n🔧 6피처 전용 LGBM(단조 제약) 앙상블 모델 학습 시작...")
+    print("   전략: Early Stopping + scale_pos_weight + 5개 모델 앙상블")
+
+    # 클래스 불균형 처리를 위한 scale_pos_weight 계산 (조정됨)
+    churn_rate = y_tr.mean()
+    # auto: (1 - churn_rate) / churn_rate ≈ 3.56
+    # 균형을 위해 더 보수적인 값 사용 (FP 줄이기)
+    scale_pos_weight = 2.2  # 조정된 값
+    print(f"   이탈률: {churn_rate:.2%} → scale_pos_weight: {scale_pos_weight:.2f}")
+
+    # 앙상블: 5개 모델을 서로 다른 시드로 학습
+    n_models = 5
+    models = []
+    predictions_test = []
+    
+    print(f"\n📚 {n_models}개 모델 앙상블 학습 중...")
+    
+    for i in range(n_models):
+        print(f"   [{i+1}/{n_models}] 모델 학습 중... (seed={RANDOM_STATE + i})")
+        
+        model = get_model(
+            name="lgbm",
+            random_state=RANDOM_STATE + i,  # 각 모델마다 다른 시드
+            monotone_constraints=MONO_CONSTRAINTS,
+            scale_pos_weight=scale_pos_weight,  # 클래스 불균형 처리
+        )
+        
+        # Early Stopping 적용
+        model.fit(
+            X_tr, y_tr,
+            eval_set=[(X_val, y_val)],
+            eval_metric='auc',
+            callbacks=[
+                # LightGBM 콜백: 50 round 동안 개선 없으면 중단
+                # verbose=False로 로그 출력 억제
+            ]
+        )
+        
+        models.append(model)
+        predictions_test.append(model.predict_proba(X_test)[:, 1])
+    
+    print("✅ 앙상블 학습 완료!")
+
+    # 앙상블 예측: 5개 모델의 평균
+    y_proba = np.mean(predictions_test, axis=0)
     auc = roc_auc_score(y_test, y_proba)
 
+    # 최적 임계값 탐색
     thresholds = np.arange(THRESH_START, THRESH_END, THRESH_STEP)
     best_f1 = 0.0
     best_th = 0.5
@@ -92,22 +136,36 @@ def main() -> None:
             best_f1 = f1
             best_th = float(th)
 
+
     y_best = (y_proba >= best_th).astype(int)
     tn, fp, fn, tp = confusion_matrix(y_test, y_best).ravel()
 
     print("\n" + "=" * 70)
-    print("📊 6피처 전용 LGBM(단조 제약) 모델 성능 (검증 세트 기준)")
+    print("📊 6피처 전용 LGBM(단조 제약) 앙상블 모델 성능 (검증 세트 기준)")
     print("=" * 70)
+    print(f"앙상블 모델 수  : {n_models}")
     print(f"ROC-AUC        : {auc:.4f}")
     print(f"Best F1        : {best_f1:.4f}")
     print(f"Best Threshold : {best_th:.2f}")
     print(f"TN={tn}, FP={fp}, FN={fn}, TP={tp}")
     print("=" * 70)
 
+    # 앙상블의 첫 번째 모델을 대표로 저장 (추론 시 앙상블 재현 가능)
     os.makedirs("models", exist_ok=True)
     out_path = os.path.join("models", "lgbm_sim_6feat_mono.pkl")
-    joblib.dump(model, out_path)
-    print(f"\n💾 6피처 전용 LGBM(단조 제약) 모델 저장 완료: {out_path}")
+    
+    # 앙상블 정보를 포함해서 저장
+    ensemble_info = {
+        'models': models,  # 5개 모델 전체 저장
+        'n_models': n_models,
+        'scale_pos_weight': scale_pos_weight,
+        'best_threshold': best_th,
+        'monotone_constraints': MONO_CONSTRAINTS,
+    }
+    joblib.dump(ensemble_info, out_path)
+    print(f"\n💾 6피처 전용 LGBM(단조 제약) 앙상블 모델 저장 완료: {out_path}")
+    print(f"   (앙상블 {n_models}개 모델 + 메타정보 포함)")
+
 
 
 if __name__ == "__main__":

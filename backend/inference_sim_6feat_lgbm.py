@@ -47,7 +47,15 @@ def _load_sim_model() -> Any:
             f"먼저 backend/train_simulator_6feat_lgbm_mono.py 를 실행해 모델을 학습/저장하세요."
         )
 
-    _SIM_MODEL = joblib.load(MODEL_PATH)
+    loaded = joblib.load(MODEL_PATH)
+    
+    # 새로운 앙상블 형식인지 확인 (dict with 'models' key)
+    if isinstance(loaded, dict) and 'models' in loaded:
+        _SIM_MODEL = loaded  # 앙상블 정보 전체 저장
+    else:
+        # 레거시 단일 모델 형식
+        _SIM_MODEL = {'models': [loaded], 'n_models': 1}
+    
     return _SIM_MODEL
 
 
@@ -85,14 +93,19 @@ def predict_churn_6feat_lgbm(user_features: Mapping[str, Any]) -> Dict[str, Any]
         }
     """
     try:
-        model = _load_sim_model()
+        model_info = _load_sim_model()
 
         row: Dict[str, Any] = {}
         for col in SIM_FEATURES:
             row[col] = user_features.get(col, np.nan)
 
         X = pd.DataFrame([row], columns=SIM_FEATURES)
-        proba = float(model.predict_proba(X)[:, 1][0])
+        
+        # 앙상블 예측: 여러 모델의 평균
+        models = model_info['models']
+        predictions = [model.predict_proba(X)[:, 1][0] for model in models]
+        proba = float(np.mean(predictions))
+        
         level = _prob_to_risk_level(proba)
 
         return {
@@ -100,6 +113,7 @@ def predict_churn_6feat_lgbm(user_features: Mapping[str, Any]) -> Dict[str, Any]
             "churn_prob": proba,
             "risk_level": level,
             "used_features": row,
+            "ensemble_size": len(models),  # 앙상블 크기 정보 추가
         }
 
     except Exception as e:  # pragma: no cover
