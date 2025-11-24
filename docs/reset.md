@@ -2,7 +2,7 @@
 
 **작성일**: 2025-11-20  
 **담당자**: 3번 (Preprocessing Validation + Feature Tuning)  
-**상태**: 데이터 가공 완료, 내일 EDA부터 재시작 예정
+**상태**: 데이터 가공 완료 + 파이프라인 수령 후 backend 기준 모듈화 진행 중
 
 #### 노트북 타임라인 정리
 
@@ -35,8 +35,9 @@
 4. [Phase 3: 성능 개선 시도 (실패 기록)](#phase-3-성능-개선-시도-실패-기록)
 5. [Phase 4: 근본 원인 분석](#phase-4-근본-원인-분석)
 6. [Phase 5: 해결책 - 피처 추가 (데이터 가공)](#phase-5-해결책---피처-추가-데이터-가공)
-7. [최종 산출물](#최종-산출물)
-8. [내일 작업 계획 (재시작)](#내일-작업-계획-재시작)
+7. [Phase 6: 모듈화 설계 및 EDA 정책 확정](#phase-6-모듈화-설계-및-eda-정책-확정)
+8. [최종 산출물](#최종-산출물)
+9. [내일 작업 계획 (재시작)](#내일-작업-계획-재시작)
 
 ---
 
@@ -357,6 +358,112 @@ ads_listened_per_week      6.891          6.962        0.8393
 
 ---
 
+## Phase 6: 모듈화 설계 및 EDA 정책 확정
+
+### 📁 관련 파일
+- `backend/preprocessing.py`
+- `backend/train_with_pipeline.py`
+- `backend/models.py`
+- `notebooks/pipeline.ipynb`
+- `notebooks/preprocessing_validation_v2.ipynb`
+- `notebooks/eda_add.ipynb`
+- `data/enhanced_data_not_clean_FE_delete.csv`
+
+### 6-1. 파이프라인 기반 모듈화 (backend 기준, 2025-11-21 이후 업데이트 포함)
+- **배경**:
+  - 초기에는 `src/config.py`, `src/data_loader.py`, `src/models.py`, `src/train_eval.py`, `backend/run_baseline.py` 구조로  
+    `enhanced_data_clean_model.csv` + 15개 수치형 기준 baseline 모듈화를 시도했으나,
+  - 이후 **실제 전처리 파이프라인 파일(`backend/preprocessing.py`)을 전달받으면서, 전체 흐름을 파이프라인 기준으로 재설계**하기로 결정.
+  - 그 결과, `src/` 내부 모듈들은 최종 파이프라인 플로우에서 사용하지 않기로 하여 **정리(삭제)** 함.
+
+- **현재 모듈화 구조 (backend 기준, 2025-11-22 기준)**:
+  - `backend/preprocessing_pipeline.py`  
+    - 역할: **sklearn ColumnTransformer 기반 전처리 전용 모듈**  
+    - 단계:
+      1. 데이터 로드 (`load_data`)
+      2. 결측치 처리 (`clean_missing_values`)  
+         - `listening_time`, `songs_played_per_day` → median  
+         - `payment_failure_count`, `app_crash_count_30d` → 0  
+         - `customer_support_contact`, `promotional_email_click` → False  
+      3. 이상치 처리 (`handle_outliers_iqr`)  
+         - IQR 기반 clip, `user_id`, `is_churned` 제외
+      4. 전처리기 구성 (`build_preprocessor`)  
+         - 수치형: `SimpleImputer(strategy=\"median\")` + `StandardScaler()`  
+         - 범주형: `SimpleImputer(strategy=\"most_frequent\")` + `OneHotEncoder(handle_unknown=\"ignore\")`
+      5. Train/Test 분리 + 전처리 적용 (`preprocess_and_split`)  
+         - `is_churned` 타깃 기준 stratify,  
+         - `preprocessor.fit_transform(X_train)` / `preprocessor.transform(X_test)`  
+         - 반환: `X_train_processed, X_test_processed, y_train, y_test, preprocessor`
+      6. 전처리 결과/객체 저장·로딩 유틸 (`save_processed_data`, `load_processed_data`)  
+         - `X_train_processed.pkl`, `X_test_processed.pkl`, `y_train.pkl`, `y_test.pkl`, `preprocessor.pkl`
+  - `backend/models.py`  
+    - 역할: **모델 팩토리 + 레지스트리 모듈 (이름으로 모델 선택)**  
+    - `MODEL_REGISTRY`에 모델별 클래스와 기본 하이퍼파라미터를 정의  
+    - `get_model(name, random_state, **overrides)` 하나로 여러 모델을 선택적으로 생성
+    - 현재 기본 지원:
+      - `"rf"`: RandomForestClassifier (기본 실험용, `class_weight=\"balanced\"` 등 설정)
+      - `"logit"`: LogisticRegression (baseline 비교용)
+    - 추후 `"xgb"`, `"lgbm"` 등 이름을 `MODEL_REGISTRY`에 추가해 확장 가능
+  - `backend/config.py`  
+    - 역할: **실험 공통 설정 모듈**  
+    - `DATA_PATH`, `TEST_SIZE`, `RANDOM_STATE`, `DEFAULT_MODEL_NAME`,  
+      threshold 스캔 범위(`THRESH_START`, `THRESH_END`, `THRESH_STEP`),  
+      메트릭 저장 경로(`METRICS_PATH`) 등을 한 곳에서 관리
+  - `backend/train_experiments.py`  
+    - 역할: **모델 학습 + 다양한 지표 평가 + 메트릭 자동 저장 스크립트**  
+    - `preprocess_and_split()`으로 전처리 결과를 받아와 학습/평가 수행
+    - 평가 지표:
+      - F1, ROC-AUC, PR-AUC
+      - Best Threshold (F1 기준)
+      - Precision, Recall (Best Threshold 기준)
+      - Confusion Matrix (TN, FP, FN, TP)
+    - `models/metrics.json`에 실행 결과를 **리스트 형태로 누적 저장**  
+      - 모델 이름, 데이터 경로, test_size, random_state, threshold 범위, timestamp 등 메타 정보 포함
+
+- **모듈화 포인트**:
+  - **전처리 변경**: `backend/preprocessing.py`만 수정
+  - **모델/파라미터 변경**:  
+    - 모델 종류: `backend/train_with_pipeline.py`의 `MODEL_NAME` 변경 (`"rf"`, `"logit"` 등)  
+    - 개별 모델 세부 파라미터: `backend/models.py`의 `get_model()` 내부 수정
+  - **EDA/전처리 정책 문서화**: `preprocessing_validation_v2.ipynb`, `eda_add.ipynb`, `reset.md`가 역할 분담
+
+### 6-2. EDA 설계 및 FE 5개 제외 결정 (2025-11-21)
+- **핵심 결정**:  
+  - 합성으로 만든 **기본 FE 5개**  
+    - `engagement_score`, `songs_per_minute`, `skip_intensity`, `skip_rate_cap`, `ads_pressure`  
+  - 위 5개는 **최종 모델 입력에서 완전히 제외**하고,  
+  - EDA에서도 **“결측/이상치 처리 대상 피처”에서는 제외**하기로 확정
+
+- **EDA용 데이터 버전 정리**:
+  - `data/enhanced_data_not_clean_FE_delete.csv`  
+    - 기준: `enhanced_data.csv`에서 **FE 5개 컬럼을 제거만 하고, 결측/이상치는 그대로 둔 버전**  
+    - 용도:  
+      - `eda_add.ipynb` 등에서 **결측/이상치가 실제로 존재하는 상태**를 보여주기 위한 “raw+” 역할  
+      - 최종적으로 사용할 15개 수치형 피처의 분포, 결측/이상치 비율, IQR 기반 이상치 행 수 등을 EDA에서 설명
+  - `data/enhanced_data_clean.csv`  
+    - 위 원천 데이터(`enhanced_data.csv`)에 **결측/이상치 처리 규칙(섹션 4-2에서 기술)을 적용한 정제 버전**  
+    - EDA에서 **“전처리 이후의 안정된 분포”**를 보여줄 때 사용
+  - `data/enhanced_data_clean_model.csv`  
+    - `enhanced_data_clean.csv`에서 **FE 5개를 제거한 최종 모델 입력용 데이터**  
+    - 모듈화된 코드(`src/`)와 `run_baseline.py`는 이 파일을 기본 입력으로 사용
+
+- **전처리 검증 노트북 업데이트 (`preprocessing_validation_v2.ipynb`)**:
+  - 노트북 맨 마지막 셀에 `enhanced_data_not_clean_FE_delete.csv`를 로드하여:
+    - FE 5개 컬럼이 실제로 제거되었는지 여부 확인
+    - 전체/컬럼별 결측치 개수 확인
+    - IQR 기준 이상치 행 수 및 컬럼별 이상치 개수 Top 5 출력
+  - → 터미널에서 한 검증 과정을 **노트북 안에서 재현 가능**하게 정리
+
+- **최종 정책 요약 (2025-11-21 기준)**:
+  1. **FE 5개는 EDA·모델 모두에서 입력 피처로 사용하지 않음** (설명용/실험용으로만 남겨둘 수 있음)
+  2. EDA에서 결측/이상치 처리 설명 시,  
+     - “처리 전”: `enhanced_data_not_clean_FE_delete.csv`  
+     - “처리 후”: `enhanced_data_clean.csv`  
+     를 사용하는 흐름으로 설계
+  3. 모델 실험/튜닝은 **항상 `enhanced_data_clean_model.csv` + 15개 수치형 피처**를 기준으로 진행
+
+---
+
 ## 최종 산출물
 
 ### 📦 생성된 파일
@@ -575,10 +682,87 @@ ads_listened_per_week      6.891          6.962        0.8393
 ---
 
 **작성자**: 3번 (Preprocessing Validation + Feature Tuning)  
-**최종 업데이트**: 2025-11-20 23:00  
-**다음 작업 시작일**: 2025-11-21 (내일)
+**최종 업데이트**: 2025-11-22 23:00  
+**다음 작업 시작일**: 2025-11-23
 
 ---
 
+## 📅 2025-11-22 추가 업데이트
 
+### 1. 성능 진화 과정 문서화
+- **`docs/performance_evolution.md` 생성**  
+  - 초기 baseline (수치형 + FE)부터 시계열·고객접점 피처 추가 후 최종 모델까지 **성능 변화 타임라인**을 정리.  
+  - 각 단계별로 사용한 데이터 버전, 피처 세트, 모델 종류, 핵심 지표(F1, AUC, PR-AUC, Precision/Recall, Confusion Matrix)를 표 형태로 정리.
 
+### 2. Backend 실험 구조 및 튜닝 방법 정리
+- **`backend/models.py`**
+  - `MODEL_REGISTRY`와 `get_model(name, random_state, **overrides)` 구조 확정.  
+  - 각 모델(Logistic, RF, XGBoost, LightGBM, ExtraTrees 등)의 **기본 하이퍼파라미터(default_params)**는 “팀 공통 베이스”로만 사용하고,  
+    개별 튜닝용으로는 **직접 수정 금지**(ML 리드만 변경 가능)라는 규칙 정리.
+- **`backend/train_experiments.py`**
+  - `MODEL_PARAMS` 딕셔너리로 하이퍼파라미터 override 하는 패턴 정리:
+    - 예) RF 튜닝: `MODEL_PARAMS = {"n_estimators": 400, "max_depth": 8, "min_samples_leaf": 5}`  
+    - 예) XGB/LGBM 튜닝: `MODEL_PARAMS = {"learning_rate": 0.05, "n_estimators": 400, "max_depth": 6}`  
+  - 모델 생성 시 `model = get_model(name=MODEL_NAME, random_state=RANDOM_STATE, **MODEL_PARAMS)` 형태로만 사용하도록 통일.
+- **`backend/config.py`**
+  - Threshold 스캔 구간:
+    - 기본: `THRESH_START=0.05`, `THRESH_END=0.35`, `THRESH_STEP=0.01`  
+    - 이유: 이탈 예측에서 **Recall·Precision trade-off가 의미 있는 구간**(0.1~0.3 근처)에 집중하기 위함.  
+  - 필요 시 한 번 정도는 `0.01~0.60` 등으로 **넓게 sweep**해서, 진짜 최적 구간이 0.35 밖에 있는지 확인하도록 가이드.
+
+### 3. Git 충돌 방지 및 협업 규칙
+- **메트릭 파일 관리**
+  - `models/metrics.json`은 여러 번 실험이 누적되면서 **Git 충돌 위험이 크므로**,  
+    `models/metrics*.json` 형태로 `.gitignore`에 추가하고 **로컬 전용 로그**로만 사용하도록 제안.
+  - 필요 시 팀원별 파일명 예시: `metrics_jy.json`, `metrics_01.json` 등 → 그래도 전부 ignore.
+- **코어 파일 수정 권한**
+  - `backend/config.py`, `backend/train_experiments.py`, `backend/models.py`는
+    - **팀 공통 규칙 및 기본 구조**를 담는 파일 → 가능하면 **ML 리드만 PR/commit**  
+    - 팀원들은 로컬에서만 수정해 실험하고, **commit/push 전에는 원본으로 되돌리는 규칙** 합의.
+  - 옵션: `config_local.py` 패턴을 도입해, 개인 환경/일시적인 설정은 여기서만 바꾸고 Git에는 올리지 않도록 하는 구조 제안.
+
+### 4. 팀원용 튜닝 & 실험 가이드 (구두 정리)
+- **모델 선택 & 튜닝 방법**
+  - 공통 데이터: `enhanced_data_clean_model.csv` + 15개 수치형 피처(원본 6 + 시계열 5 + 고객접점 4).  
+  - 공통 전처리: `backend/preprocessing_pipeline.py`의 ColumnTransformer (수치형 StandardScaler, 범주형 OneHotEncoder(handle_unknown="ignore")).  
+  - 각자 맡은 모델별로:
+    - `config.py`의 `DEFAULT_MODEL_NAME` 또는 `train_experiments.py`의 `MODEL_NAME`만 변경해서 기본 성능 확인.
+    - 이후 `MODEL_PARAMS`에 몇 개 핵심 파라미터만 넣어 **2~3라운드 가벼운 튜닝** 진행, 결과는 시트/노션에 기록.
+- **파라미터 수정 원칙**
+  - **팀 공통 베이스 변경**: `backend/models.py`의 `default_params` (ML 리드만 수정).  
+  - **개인 실험/튜닝**: `backend/train_experiments.py`의 `MODEL_PARAMS`로 override.  
+  - 발표 전까지는, 모든 실험/결과 공유는 코드 수정이 아닌 **시트/문서 기반**으로 정리.
+
+---
+
+## 📅 2025-11-23 XGBoost 실험 요약 (3번, 개별 실험)
+
+- **실험 환경**:
+  - 데이터: `data/enhanced_data_not_clean_FE_delete.csv`
+  - 전처리: `backend/preprocessing_pipeline.py` / `jy_model_test/preprocessing_pipeline.py` 의 `preprocess_and_split()`
+  - 학습 스크립트: `backend/train_experiments.py`, `jy_model_test/train_experiments.py`
+  - 결과 로그: `models/metrics.json` (여러 모델/파라미터 조합의 F1/AUC/PR-AUC 기록)
+
+- **RF baseline (동일 데이터/파이프라인 기준)**:
+  - F1 ≈ **0.616**, AUC ≈ **0.791**, PR-AUC ≈ **0.662**
+
+- **XGB 1차 튜닝 (탐색)**:
+  - 범위: `n_estimators` 200~700, `max_depth` 3/4/5/7, `learning_rate` 0.03~0.15,  
+    `subsample`/`colsample_bytree` 0.7~0.9, `scale_pos_weight` 2.5~4.0
+  - 약 10개 조합 실험 결과:
+    - F1 ≈ 0.53~0.61, AUC ≈ 0.80~0.82 구간
+    - **깊이 3~5, lr 0.05~0.08, n_estimators 400~600, scale_pos_weight≈3** 근처가 가장 안정적
+
+- **XGB 2차 튜닝 (국소 탐색)**:
+  - Threshold 범위를 0.05~0.45로 확장, 1차에서 성능이 좋았던 구간만 4개 세트로 재탐색
+  - F1 ≈ **0.60~0.612**에서 수렴, AUC는 대부분 0.81±0.01 수준
+
+- **XGB 3차 튜닝 (미세 조정)**:
+  - 2차에서 좋은 세팅을 기준으로 `n_estimators`/`max_depth`/`learning_rate`/`scale_pos_weight`를 소폭 조정
+  - 최종적으로 F1 ≈ **0.620**, AUC ≈ **0.811**, PR-AUC ≈ **0.693**, Best Threshold ≈ **0.44** 수준의 런 확보
+
+- **RF vs XGB (최종, 개별 실험 기준)**:
+  - RF:  F1 ≈ **0.616**, AUC ≈ **0.791**, PR-AUC ≈ **0.662**
+  - XGB: F1 ≈ **0.620**, AUC ≈ **0.811**, PR-AUC ≈ **0.693**
+  - ⇒ **F1은 거의 비슷하거나 XGB가 근소 우위**, AUC/PR-AUC는 XGB가 명확히 우위  
+  - 현재 XGB 결과는 **3번 역할의 개별 실험 기록**이며, 추후 팀원들이 담당한 다른 모델(RF/ET/Logit/LGBM 등)과의 최종 비교는 별도 문서에서 정리 예정

@@ -549,7 +549,14 @@ def search_user():
     with filter_col2:
         search_user_id = st.text_input("User ID", placeholder="사용자 ID를 입력하세요")
     with filter_col3:
-        search_music = st.text_input("좋아하는 음악 조회", placeholder="음악 장르를 입력하세요")
+        # 좋아하는 음악을 selectbox로 변경
+        music_categories = get_music_categories()
+        music_filter_options = ["전체"] + music_categories
+        selected_music_filter = st.selectbox("좋아하는 음악", options=music_filter_options, key="search_music_filter")
+        if selected_music_filter == "전체":
+            search_music = ""
+        else:
+            search_music = selected_music_filter
     with filter_col4:
         # 등급을 selectbox로 변경
         grade_filter_options = ["전체", "01: 일반회원", "99: 관리자"]
@@ -992,4 +999,5 @@ def show_main_page():
     if st.sidebar.button("로그아웃"):
         st.session_state.logged_in = False
         st.session_state.user_info = None
+        st.session_state.page = "login"
         st.rerun()
