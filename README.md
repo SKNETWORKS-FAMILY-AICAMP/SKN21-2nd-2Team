@@ -187,7 +187,7 @@ SKN21-2ND-2TEAM/
 <br><br><br>
 
 
-## 📊 1)  Data & Baseline Setup
+## 1)  Data & Baseline Setup
 
 - **데이터 구조**: 8,000명 유저, 유저당 1행 스냅샷 (수치형 6개 + 범주형 4개, 타깃 `is_churned`)
      ### 🔹 `Original Dataset` — 원본 피처 테이블
@@ -225,7 +225,7 @@ SKN21-2ND-2TEAM/
 
 <br>
 
-## 🛠️ 2) Feature Engineering & Feature Selection 검증
+## 2) Feature Engineering & Feature Selection 검증
 - **FE 검증** (`FE_validation.ipynb`, `FE_add.ipynb`):
   - 여러 FE 세트(Set A~G) 및 추가 세그먼트/ratio/비선형 FE 후보를 실험
   - **결과**: 핵심 FE 4~5개만 남기는 것이 최선, 복잡한 교호작용·플래그를 더해도 성능 개선은 ΔF1≈0 수준
@@ -233,7 +233,7 @@ SKN21-2ND-2TEAM/
   - `gender`, `country`, `subscription_type`, `device_type` 및 파생 범주형을 One-Hot 인코딩해 포함
   - 수치형+FE(10~11개) vs 수치형+FE+범주형(30개 이상) 비교 시 **오히려 F1/AUC 소폭 하락 → 범주형 기여도 낮음**
 
-## 🎯 3) Model Tuning·SMOTE·앙상블 검증
+## 3) Model Tuning·SMOTE·앙상블 검증
 - **모델/파라미터 튜닝** (`feature_selection.ipynb`):
   - RandomForest 하이퍼파라미터(RandomizedSearchCV), K-Fold + threshold 튜닝, 소프트보팅 앙상블(RF+XGB+HGB) 등 적용
   - **결과**: 어떤 조합도 F1 0.41±0.01, AUC 0.52~0.54 범위를 크게 넘지 못함
@@ -241,7 +241,7 @@ SKN21-2ND-2TEAM/
   - SMOTE(오버샘플링 비율·test_size·scale_pos_weight 등 여러 버전), XGBoost GridSearchCV, RF+XGB+HGB 앙상블 시도
   - **결과**: Train에서는 F1↑지만 Test에서는 Baseline보다 낮거나 비슷한 수준 → **심한 과적합 & 실질적 개선 실패**
 
-## ⚠️ 4) Limitations & Root Cause Analysis(한계 원인 분석)
+## 4) Limitations & Root Cause Analysis(한계 원인 분석)
 - **통계·상관·Feature Importance 분석** (`feature_selection.ipynb` 6장, `improvement_proposal.md`):
   - 모든 피처에서 t-test p-value>0.05, 상관계수 |r|<0.02 → 이탈/비이탈 간 행동 차이가 통계적으로 거의 없음
   - RF Feature Importance & Permutation Importance도 특정 피처가 두드러지지 않고 8~14% 수준으로 고르게 분산
@@ -250,7 +250,7 @@ SKN21-2ND-2TEAM/
   - 모델 변경·튜닝·SMOTE만으로는 성능을 올리기 어렵고, **데이터/피처 자체를 바꾸는 방향이 필요**함
 
 
-## 💡 5) 시계열·고객 접점 Features 추가 및 성능 향상
+## 5) 시계열·고객 접점 Features 추가 및 성능 향상
 - **개선 아이디어 정리 (`improvement_proposal.md`)**:
   - Priority 1: 최근 7/14/30일 행동 변화를 담는 **시계열 피처 5개**
   - Priority 2: 고객센터 문의, 결제 실패, 프로모션 반응, 앱 크래시 등 **고객 접점 피처 4개**
@@ -280,39 +280,81 @@ SKN21-2ND-2TEAM/
     - `payment_failure_count`, `app_crash_count_30d` (고객 접점)
     - `freq_of_use_trend_14d`, `listening_time_trend_7d`, `skip_rate_increase_7d` (시계열)
 
-## 🧹 6) Preprocessing Pipeline Refinement
+## 6) Preprocessing Pipeline Refinement
+- **전처리 정책 및 데이터 버전** (`preprocessing_validation_v2.ipynb`, `reset.md`):
+  - 합성 피처 포함 데이터 `enhanced_data.csv` 생성 후,
+    - 결측/이상치 처리 버전: `enhanced_data_clean.csv`
+    - FE 5개를 제거한 최종 모델 입력용: `enhanced_data_clean_model.csv` (원본 수치형 6 + 시계열 5 + 고객 접점 4 = **총 15개 수치형**)
+  - EDA는 `enhanced_data_clean.csv`, 모델 학습은 `enhanced_data_clean_model.csv` 기준으로 사용
+- **백엔드 파이프라인 및 실험 구조** (`backend/preprocessing_pipeline.py`, `backend/models.py`, `backend/train_experiments.py`):
+  - sklearn `ColumnTransformer` 기반 전처리 파이프라인(결측/이상치 처리 + 수치형 스케일링 + 범주형 One-Hot)
+  - `get_model()` + `MODEL_REGISTRY` 구조로 모델 생성, `MODEL_PARAMS` 딕셔너리로 하이퍼파라미터 튜닝
+  - 실험 결과는 `models/metrics.json`에 누적 저장하도록 설계
+
+## 7) Final Summary & Key Takeaways
+- **현재 데이터(스냅샷)만 사용**했을 때는, 다양한 FE/FS/튜닝/SMOTE/XGBoost/앙상블을 모두 시도해도 **F1≈0.41, AUC≈0.53 근처에서 정체**됨.
+- **시계열 + 고객 접점 피처를 추가**한 `enhanced_data.csv` 실험에서는, 동일한 모델(RF)로도 **F1≈0.62, AUC≈0.79까지 성능이 크게 상승**하는 것을 확인함.
+- 이를 통해 **“모델을 바꾸는 것보다, 이탈 직전 행동 변화와 고객 접점을 담는 피처를 설계·수집하는 것이 핵심”**이라는 결론에 도달했고,
+  실제 서비스 환경에서는 로그·고객센터·결제/에러 데이터를 결합한 피처 설계를 가장 우선순위로 두어야 한다는 인사이트를 얻음.
+
+## 8) Final Model Comparison & Selection (HGB Selected)
+- **실험 공통 조건**
+  - 데이터: `data/enhanced_data_not_clean_FE_delete.csv` (원본 수치형 6 + 시계열 5 + 고객 접점 4 = **15개 수치형** 중심)
+  - 전처리: `backend/preprocessing_pipeline.py` / `jy_model_test/preprocessing_pipeline.py` 의 `preprocess_and_split()`
+  - 설정: `TEST_SIZE=0.2`, `RANDOM_STATE=42`, threshold 스캔(대부분 0.05~0.35/0.45, HGB는 0.05~0.45, step=0.005)
+
+    ## 📊 Model Performance Comparison
+
+      ### 🔸 F1 Score
+      <p align="left">
+        <img src="image/f1_score.jpg" width="450">
+      </p>
+      
+      ### 🔸 ROC-AUC
+      <p align="left">
+        <img src="image/ROC_AUC.jpg" width="450">
+      </p>
+      
+      ### 🔸 PR-AUC
+      <p align="left">
+        <img src="image/PR_AUC.jpg" width="450">
+      </p>
+      
+      ### 🔸 Recall (이탈자 탐지 성능)
+      <p align="left">
+        <img src="image/Recall.jpg" width="450">
+      </p>
+
+     **모델별 best-run 성능 요약**
+    
+      | Model                   | F1 Score    | ROC-AUC    | PR-AUC     | Best Threshold | Precision | Recall |
+      | ----------------------- | ----------- | ---------- | ---------- | -------------- | --------- | ------ |
+      | **HGB (Best)**          | **0.6427**  | 0.8093     | 0.6910     | 0.26           | 0.6381    | 0.6473 |
+      | **LGBM**                | **0.6414**  | **0.8158** | 0.6996     | 0.28           | 0.6501    | 0.6329 |
+      | **XGBoost**             | 0.6197      | 0.8105     | **0.6933** | 0.44           | 0.6027    | 0.6377 |
+      | **RandomForest**        | 0.6216      | 0.7932     | 0.6635     | 0.365          | 0.6732    | 0.5773 |
+      | **ExtraTrees**          | 0.6150      | 0.7881     | 0.6279     | 0.34           | 0.6165    | 0.6135 |
+      | **KNN**                 | 0.4908      | 0.6764     | 0.4244     | 0.26           | 0.4243    | 0.5821 |
+      | **Logistic Regression** | 0.4809      | 0.6874     | 0.4587     | 0.26           | 0.3974    | 0.6086 |
 
 
-## 🧩 7) Final Summary & Key Takeaways
+    - **모델 선택 근거 (왜 HGB를 최종 채택했는가)**  
+      - **F1 기준 팀 내 최고 모델**:  
+        - HGB F1 ≈ **0.643** > LGBM ≈ **0.641** > XGB ≈ **0.620** > RF ≈ **0.622**
+      - **균형 잡힌 Precision/Recall** (`hgb_test.md` 기준)
+        - HGB: Precision ≈ **0.638**, Recall ≈ **0.647** (밸런스형)
+        - XGB: Precision ≈ 0.603, Recall ≈ 0.638 (Recall 약간 높고 Precision 낮음)
+        - LGBM: Precision ≈ 0.650, Recall ≈ 0.633 (Precision 조금 더 높고 Recall 살짝 낮음)
+        - → HGB는 **과도한 FP/FN 없이 양쪽을 모두 잘 잡는 균형형 모델**로 해석 가능
+      - **AUC/PR-AUC 관점**
+        - AUC/PR-AUC 절대 최고는 LGBM/XGB 조합(LGBM AUC≈0.816, PR-AUC≈0.700 / XGB AUC≈0.811, PR-AUC≈0.693)
+        - 그러나 HGB도 AUC≈0.809, PR-AUC≈0.691 로 **성능 차이가 크지 않고, F1 기준으로는 팀 내 최고**
+      - **최종 결론**
+        - **서비스/보고서에서 “이탈/비이탈 둘 다 잘 맞추는 F1 중심 모델”을 우선시**하기로 하고,
+        - F1 최고 + Precision/Recall 균형이 가장 좋은 **HistGradientBoosting(HGB)** 을 최종 배포용/시연용 모델로 선정.
+        - AUC 중심 비교나 추가 실험에서는 XGB/LGBM도 보조 모델로 활용 가능.
 
 
-## 🏆 8) Final Model Comparison & Selection (HGB Selected)
-
-### 🔹 DB Schema Overview
-- **DBMS:** MySQL  
-- **Driver:** PyMySQL  
-- **사용 목적:**
-  - 사용자 관리 (가입/로그인)
-  - 예측 요청 기록 저장
-  - 향후 개선을 위한 사용자 행동 로그 관리
-
-<br>
-
-
-<br>
-
-
-<br>
-
-##### 4) `Customer Interaction Signalss`
-| 피처명 | 타입 | 설명 | 예상 기여도 |
-|--------|------|------|-------------|
-| `customer_support_contact` | bool | 최근 30일 내 고객센터 문의 여부 | 중간 |
-| `payment_failure_count` | int | 결제 실패 횟수 | 높음 |
-| `promotional_email_click` | bool | 프로모션 이메일 클릭 여부 | 낮음 |
-| `app_crash_count_30d` | int | 최근 30일 앱 크래시 횟수 | 중간 |
-
-<br><br><br>
 
 
 ## 💡 주요 기능 (Key Features)
