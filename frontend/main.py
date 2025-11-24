@@ -13,6 +13,8 @@ import streamlit as st
 import requests
 import pandas as pd
 import os
+import streamlit.components.v1 as components
+from utils.spotify_auth import get_login_url
 
 API_URL = "http://localhost:5000/api"
 
@@ -62,6 +64,9 @@ def get_music_categories():
 # ----------------------------------------------------------
 # API 호출 유틸 함수
 # ----------------------------------------------------------
+# ----------------------------------------------------------
+# API 호출 유틸 함수
+# ----------------------------------------------------------
 def call_api(endpoint: str):
     """
     Flask API(endpoint)를 GET 요청으로 호출하는 함수
@@ -79,11 +84,215 @@ def call_api_post(endpoint: str, payload: dict):
     except Exception as e:
         return False, {"error": str(e)}
 
+def search_tracks_api(query, limit=20, offset=0):
+    """
+    백엔드 API를 호출하여 트랙 검색
+    """
+    try:
+        headers = {"Authorization": f"Bearer {st.session_state.access_token}"}
+        params = {
+            "q": query,
+            "limit": limit,
+            "offset": offset
+        }
+        res = requests.get(f"{API_URL}/music/search", headers=headers, params=params)
+        
+        if res.status_code == 200:
+            return res.json().get("tracks", [])
+        else:
+            st.error(f"검색 실패: {res.text}")
+            return []
+    except Exception as e:
+        st.error(f"API 호출 중 오류: {str(e)}")
+        return []
+
 # ----------------------------------------------------------
 # 서브 페이지 함수들
 # ----------------------------------------------------------
 def show_home_page():
     render_top_guide_banner()
+    
+    st.markdown("## 🎵 Music Search & Player")
+    
+    # Spotify 토큰 확인 (필수)
+    if "access_token" not in st.session_state or not st.session_state.access_token:
+        st.error("⚠️ Spotify 인증이 필요합니다.")
+        st.info("로그인 화면으로 이동하여 Spotify 인증을 먼저 완료해주세요.")
+        if st.button("🔐 로그인 화면으로 이동"):
+            st.session_state.page = "login"
+            st.session_state.logged_in = False
+            st.rerun()
+        st.stop()
+
+    # 메인 컨텐츠 영역 (검색 및 플레이어)
+    col1, col2 = st.columns([2, 1])
+    
+    with col1:
+        st.subheader("음악 검색")
+        
+        # 검색 입력
+        search_query = st.text_input("검색어를 입력하세요", placeholder="곡명, 아티스트명 등...", key="search_input")
+        
+        # 상세 필터
+        with st.expander("🔍 상세 필터"):
+            col_filter1, col_filter2 = st.columns(2)
+            with col_filter1:
+                # 연도 필터
+                current_year = 2025
+                year_range = st.slider("발매 연도", 1950, current_year, (2000, current_year))
+                
+                # 인기도 필터
+                min_popularity = st.slider("최소 인기도", 0, 100, 0, help="0: 인기 없음, 100: 매우 인기 있음")
+            
+            with col_filter2:
+                # 장르 필터
+                genres = ["k-pop", "pop", "hip-hop", "r-b", "rock", "jazz", "classical", "electronic"]
+                selected_genres = st.multiselect("장르 선택", genres)
+                
+                # 태그 필터
+                st.markdown("###### 태그")
+                col_tag1, col_tag2 = st.columns(2)
+                with col_tag1:
+                    tag_new = st.checkbox("🔥 최신 발매 (New)", value=False)
+                with col_tag2:
+                    tag_hipster = st.checkbox("💎 숨겨진 명곡 (Hipster)", value=False)
+        
+        # 검색 버튼
+        search_button = st.button("🔍 검색", type="primary", use_container_width=True)
+
+        # 검색 실행 (검색 버튼 클릭 또는 필터 변경 시)
+        # 필터 변경 시 자동 검색을 원하면 아래 조건 유지, 아니면 search_button만 사용
+        should_search = search_button
+        
+        if should_search:
+            # 고급 검색 쿼리 생성
+            advanced_query = f"{search_query}" if search_query else ""
+            
+            if year_range:
+                advanced_query += f" year:{year_range[0]}-{year_range[1]}"
+            
+            if selected_genres:
+                for genre in selected_genres:
+                    advanced_query += f" genre:\"{genre}\""
+            
+            if tag_new:
+                advanced_query += " tag:new"
+            if tag_hipster:
+                advanced_query += " tag:hipster"
+            
+            if not advanced_query.strip():
+                st.warning("검색어 또는 필터를 입력해주세요.")
+            else:
+                st.session_state.last_query = advanced_query
+                st.session_state.search_offset = 0
+                st.session_state.search_results = []
+                st.session_state.has_more = True
+                
+                with st.spinner("검색 중..."):
+                    new_tracks = search_tracks_api(advanced_query, limit=20, offset=0)
+                    
+                    # 인기도 필터 적용
+                    if min_popularity > 0:
+                        new_tracks = [t for t in new_tracks if t.get("popularity", 0) >= min_popularity]
+                    
+                    st.session_state.search_results = new_tracks
+                    
+                    if len(new_tracks) < 20:
+                        st.session_state.has_more = False
+                    else:
+                        st.session_state.search_offset = 20
+
+        # 결과 표시
+        tracks = st.session_state.get("search_results", [])
+        
+        if tracks:
+            st.write(f"**{len(tracks)}개의 결과를 찾았습니다**")
+            
+            for idx, track in enumerate(tracks):
+                track_name = track.get("name", "알 수 없음")
+                artists = ", ".join([artist.get("name", "") for artist in track.get("artists", [])])
+                album = track.get("album", {}).get("name", "알 수 없음")
+                duration_ms = track.get("duration_ms", 0)
+                duration_str = f"{duration_ms // 60000}:{(duration_ms % 60000) // 1000:02d}"
+                
+                images = track.get("album", {}).get("images", [])
+                image_url = images[0].get("url") if images else None
+                track_uri = track.get("uri", "")
+                
+                with st.container(border=True):
+                    cols = st.columns([1, 4, 1])
+                    with cols[0]:
+                        if image_url:
+                            st.image(image_url, width=60)
+                        else:
+                            st.write("🎵")
+                    with cols[1]:
+                        st.markdown(f"**{track_name}**")
+                        st.caption(f"👤 {artists} | 💿 {album}")
+                        st.caption(f"⏱️ {duration_str}")
+                    with cols[2]:
+                        if st.button("▶", key=f"play_{idx}", help="이 곡 재생"):
+                            st.session_state.selected_track = {
+                                "uri": track_uri,
+                                "name": track_name,
+                                "artists": artists,
+                                "image_url": image_url
+                            }
+                            st.rerun()
+            
+            if st.session_state.get("has_more", False):
+                 if st.button("더 보기 (Load More)", key="load_more_btn", use_container_width=True):
+                     with st.spinner("추가 로딩 중..."):
+                         current_offset = st.session_state.get("search_offset", 0)
+                         query = st.session_state.get("last_query", "")
+                         
+                         new_tracks = search_tracks_api(query, limit=20, offset=current_offset)
+                         
+                         # 인기도 필터 적용
+                         if min_popularity > 0:
+                             new_tracks = [t for t in new_tracks if t.get("popularity", 0) >= min_popularity]
+                         
+                         st.session_state.search_results.extend(new_tracks)
+                         
+                         if len(new_tracks) < 20:
+                             st.session_state.has_more = False
+                         else:
+                             st.session_state.search_offset = current_offset + 20
+                     
+                     st.rerun()
+
+        elif st.session_state.get("last_query"):
+            st.info("검색 결과가 없습니다.")
+    
+    with col2:
+        st.subheader("플레이어")
+        
+        selected_track = st.session_state.get("selected_track")
+        
+        if selected_track:
+            # 플레이어 HTML 로드 (경로 수정: frontend/components/player.html)
+            player_html_path = os.path.join("frontend", "components", "player.html")
+            # 만약 실행 위치가 frontend 내부라면 components/player.html 일 수도 있음.
+            # 안전하게 절대 경로 또는 상대 경로 확인
+            if not os.path.exists(player_html_path):
+                 player_html_path = os.path.join("components", "player.html")
+
+            if os.path.exists(player_html_path):
+                with open(player_html_path, "r", encoding="utf-8") as f:
+                    player_html = f.read()
+                
+                player_html = player_html.replace("{{ACCESS_TOKEN}}", st.session_state.access_token)
+                player_html = player_html.replace("{{INITIAL_TRACK_URI}}", selected_track.get("uri", ""))
+                
+                components.html(player_html, height=400)
+                
+                st.write(f"**{selected_track.get('name', '알 수 없음')}**")
+                st.write(f"👤 {selected_track.get('artists', '알 수 없음')}")
+            else:
+                st.warning(f"플레이어 파일을 찾을 수 없습니다: {player_html_path}")
+        else:
+            st.info("재생할 트랙을 선택하세요.")
+            st.write("검색 결과에서 **▶ 재생** 버튼을 클릭하면 플레이어가 표시됩니다.")
 
 
 # ----------------------------------------------------------

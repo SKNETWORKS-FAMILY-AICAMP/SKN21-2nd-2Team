@@ -11,13 +11,17 @@ import sys
 import os
 import bcrypt
 import pandas as pd
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # -------------------------------------------------------------
 # 프로젝트 루트를 Python 경로에 추가 (utils import 가능)
 # -------------------------------------------------------------
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from flask import Flask, jsonify, request, Response
+from flask import Flask, jsonify, request, Response, redirect
+import requests
 from utils.constants import get_connection
 from utils.user_insert import load_users_from_csv
 from pymysql.cursors import DictCursor
@@ -1077,6 +1081,74 @@ def download_prediction_csv():
 
     except Exception as e:
         return jsonify({"success": False, "error": f"CSV 다운로드 중 오류: {str(e)}"}), 500
+
+
+# -------------------------------------------------------------
+# Spotify Callback
+# -------------------------------------------------------------
+@app.route('/spotify/callback')
+def spotify_callback():
+    """
+    Spotify 인증 콜백을 처리하고 Streamlit 앱으로 리다이렉트
+    """
+    code = request.args.get('code')
+    error = request.args.get('error')
+    
+    # Streamlit 앱 URL (환경 변수 또는 기본값)
+    STREAMLIT_URL = os.getenv("STREAMLIT_URL", "http://localhost:8501")
+    
+    if error:
+        return redirect(f"{STREAMLIT_URL}/?error={error}")
+    
+    if code:
+        return redirect(f"{STREAMLIT_URL}/?code={code}")
+    
+    return redirect(STREAMLIT_URL)
+
+# -------------------------------------------------------------
+# Spotify Search Proxy
+# -------------------------------------------------------------
+@app.route('/api/music/search', methods=['GET'])
+def search_music():
+    query = request.args.get('q')
+    access_token = request.headers.get('Authorization') # Bearer token expected
+    
+    if not query:
+        return jsonify({"error": "Query parameter 'q' is required"}), 400
+        
+    if not access_token:
+         # 헤더가 없으면 쿼리 파라미터에서 확인 (선택적)
+         access_token = request.args.get('token')
+         if access_token and not access_token.startswith("Bearer "):
+             access_token = "Bearer " + access_token
+
+    if not access_token:
+        return jsonify({"error": "Authorization header or token is required"}), 401
+
+    try:
+        # Spotify API 호출
+        spotify_url = "https://api.spotify.com/v1/search"
+        headers = {
+            "Authorization": access_token
+        }
+        params = {
+            "q": query,
+            "type": "track",
+            "limit": request.args.get('limit', 20),
+            "offset": request.args.get('offset', 0)
+        }
+        
+        res = requests.get(spotify_url, headers=headers, params=params)
+        
+        if res.status_code != 200:
+            return jsonify(res.json()), res.status_code
+            
+        data = res.json()
+        tracks = data.get("tracks", {}).get("items", [])
+        return jsonify({"tracks": tracks})
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 # -------------------------------------------------------------

@@ -10,6 +10,8 @@ Description
 import streamlit as st
 import requests
 from signup import show_signup_page
+from utils.spotify_auth import get_token_from_code, get_login_url
+from utils.state_manager import init_session, save_tokens
 
 API_URL = "http://localhost:5000/api"
 
@@ -38,7 +40,45 @@ def show_login_page():
     로그인 화면 페이지
     """
 
-    st.set_page_config(page_title="로그인", page_icon="🔐", layout="wide")
+    # set_page_config는 run_app.py에서 호출하므로 여기서는 제거
+
+    # Spotify 세션 초기화
+    init_session()
+
+    # ------------------------------
+    # Spotify 토큰 처리 (Redirect Callback)
+    # ------------------------------
+    query_params = st.query_params
+    if "code" in query_params:
+        code_value = query_params["code"]
+        # 리스트인 경우 첫 번째 값, 문자열인 경우 그대로 사용
+        code = code_value if isinstance(code_value, str) else (code_value[0] if code_value else None)
+        
+        if code:
+            # 이미 처리된 코드인지 확인 (중복 처리 방지)
+            processed_codes = st.session_state.get("processed_codes", set())
+            
+            if code not in processed_codes:
+                # 코드를 처리 중으로 표시
+                processed_codes.add(code)
+                st.session_state.processed_codes = processed_codes
+                
+                try:
+                    with st.spinner("Spotify 토큰 발급 중..."):
+                        token_data = get_token_from_code(code)
+                    save_tokens(token_data)
+                    st.success("✅ Spotify 연동 완료!")
+                    # 쿼리 파라미터 제거
+                    st.query_params.clear()
+                    
+                    # 로그인 화면에 머물러서 로그인 폼 표시
+                    # (다음 렌더링에서 access_token이 있으므로 로그인 폼이 표시됨)
+                    st.rerun()
+                    
+                except Exception as e:
+                    st.error(f"Spotify 로그인 에러: {str(e)}")
+                    processed_codes.discard(code)
+                    st.session_state.processed_codes = processed_codes
 
     # FHD 화면에 맞는 CSS 스타일 추가
     st.markdown("""
@@ -101,11 +141,44 @@ def show_login_page():
     with col_center:
         st.title("🔐 로그인 페이지")
         
-        # 세션 초기화 (최초 1회만)
+        # 세션 초기화 (최초 1회만, logged_in 상태는 유지)
         if "initialized" not in st.session_state:
             st.session_state.initialized = True
-            st.session_state.logged_in = False
-            st.session_state.user_info = None
+            if "logged_in" not in st.session_state:
+                st.session_state.logged_in = False
+            if "user_info" not in st.session_state:
+                st.session_state.user_info = None
+        
+        # 이미 로그인되어 있으면 Main으로 자동 이동
+        if st.session_state.get("logged_in"):
+            st.session_state.page = "main"
+            st.rerun()
+            return
+        
+        # Spotify 인증 여부에 따라 UI 분기
+        if not st.session_state.get("access_token"):
+            # Spotify 인증 안 됨 → Spotify 연동 안내
+            st.info("🎵 **음악 기능을 사용하려면 먼저 Spotify를 연동하세요**")
+            st.markdown("""
+            - Spotify Premium 계정이 필요합니다
+            - 연동 후 플랫폼 로그인을 진행합니다
+            - 로그인 후 바로 음악 검색 및 재생이 가능합니다
+            """)
+            st.markdown("---")
+            
+            col1, col2, col3 = st.columns([1, 2, 1])
+            with col2:
+                login_url = get_login_url()
+                st.markdown(f'<a href="{login_url}" target="_self" style="display: block; text-align: center; padding: 1rem 2rem; background-color: #1DB954; color: white; text-decoration: none; border-radius: 0.5rem; font-weight: bold; font-size: 1.1rem;">🎵 Spotify로 시작하기</a>', unsafe_allow_html=True)
+            
+            st.markdown("---")
+            st.caption("💡 Spotify 연동 없이 로그인하려면 관리자에게 문의하세요")
+            return
+        
+        # Spotify 인증 완료 → 로그인 폼 표시
+        st.success("✅ Spotify 연동 완료!")
+        st.info("이제 플랫폼 계정으로 로그인하세요")
+        st.markdown("---")
 
         st.subheader("로그인 정보를 입력해 주세요.")
         st.markdown("---")

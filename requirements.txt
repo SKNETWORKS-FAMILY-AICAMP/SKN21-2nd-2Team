@@ -20,3 +20,12 @@ seaborn==0.13.0
 
 # 모델 저장/로드
 joblib==1.5.2
+
+# 환경 변수 관리
+python-dotenv==1.0.0
+
+# HTTP 요청
+requests==2.31.0
+
+# Streamlit (프론트엔드)
+streamlit==1.29.0
