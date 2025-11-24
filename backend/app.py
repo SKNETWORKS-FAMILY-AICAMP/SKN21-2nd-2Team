@@ -567,12 +567,12 @@ def get_user_features(user_id):
 
 
 # -------------------------------------------------------------
-# 예측 API (전체 모델 이탈 확률 조회용 - 풀 피처)
+# 예측 API (전체 모델 이탈 확률 조회용 - 단일 행 / 풀 피처)
 # -------------------------------------------------------------
 @app.route("/api/predict_churn", methods=["POST"])
 def api_predict_churn():
     """
-    전체 피처 + 사용할 모델 이름을 받아
+    단일 유저(1행)의 전체 피처 + 사용할 모델 이름을 받아
     - 이탈 확률(churn_prob)
     - 위험도 레벨(risk_level)
     을 반환하는 API.
@@ -580,7 +580,7 @@ def api_predict_churn():
     내부적으로 backend.inference.predict_churn 를 사용하며,
     전처리 파이프라인 + config.DEFAULT_MODEL_NAME 기반의 "풀 모델"을 호출합니다.
 
-    Request JSON 예시:
+    Request JSON 예시 (단일 행):
     {
       "model_name": "hgb",        # 선택 사항 (미입력 시 config.DEFAULT_MODEL_NAME 사용)
       "features": {
@@ -620,6 +620,106 @@ def api_predict_churn():
 
     except Exception as e:
         return jsonify({"success": False, "error": f"예측 중 오류 발생: {str(e)}"}), 500
+
+
+# -------------------------------------------------------------
+# 예측 API (전체 모델 - 여러 행 / 배치 예측용)
+# -------------------------------------------------------------
+@app.route("/api/predict_churn_bulk", methods=["POST"])
+def api_predict_churn_bulk():
+    """
+    여러 행(여러 유저)의 피처 리스트를 받아
+    - 각 행의 이탈 확률(churn_prob)
+    - 위험도 레벨(risk_level)
+    을 한 번에 반환하는 배치 예측 API.
+
+    내부적으로 backend.inference.predict_churn 를 반복 호출합니다.
+
+    Request JSON 예시:
+    {
+      "model_name": "hgb",          # 선택 사항 (미입력 시 config.DEFAULT_MODEL_NAME 사용)
+      "rows": [
+        {
+          "user_id": 123,
+          "listening_time": 180,
+          "songs_played_per_day": 40,
+          "payment_failure_count": 1,
+          "app_crash_count_30d": 0,
+          "subscription_type": "Premium",
+          "customer_support_contact": 0
+        },
+        {
+          "user_id": 124,
+          "listening_time": 60,
+          "songs_played_per_day": 10,
+          "payment_failure_count": 0,
+          "app_crash_count_30d": 2,
+          "subscription_type": "Free",
+          "customer_support_contact": 1
+        }
+      ]
+    }
+
+    Response JSON 예시:
+    {
+      "success": true,
+      "model_name": "hgb",
+      "results": [
+        {
+          "index": 0,
+          "user_id": 123,
+          "churn_prob": 0.73,
+          "risk_level": "HIGH"
+        },
+        {
+          "index": 1,
+          "user_id": 124,
+          "churn_prob": 0.21,
+          "risk_level": "LOW"
+        }
+      ]
+    }
+    """
+    try:
+        payload = request.get_json(force=True) or {}
+        model_name = payload.get("model_name")
+        rows = payload.get("rows") or []
+
+        if not isinstance(rows, list):
+            return jsonify({"success": False, "error": "rows 필드는 리스트 형태여야 합니다."}), 400
+
+        from backend.inference import predict_churn as _predict_churn
+
+        results = []
+        for idx, row in enumerate(rows):
+            if not isinstance(row, dict):
+                continue
+
+            user_id = row.get("user_id")
+            res = _predict_churn(user_features=row, model_name=model_name)
+
+            if not res.get("success"):
+                results.append({
+                    "index": idx,
+                    "user_id": user_id,
+                    "error": res.get("error")
+                })
+            else:
+                results.append({
+                    "index": idx,
+                    "user_id": user_id,
+                    "churn_prob": res["churn_prob"],
+                    "risk_level": res["risk_level"]
+                })
+
+        return jsonify({
+            "success": True,
+            "model_name": (model_name or "default"),
+            "results": results
+        }), 200
+
+    except Exception as e:
+        return jsonify({"success": False, "error": f"배치 예측 중 오류 발생: {str(e)}"}), 500
 
 
 # -------------------------------------------------------------
@@ -705,20 +805,21 @@ def api_predict_churn_6feat():
         return jsonify({"success": False, "error": f"6피처 예측 중 오류 발생: {str(e)}"}), 500
 
 
+
 # -------------------------------------------------------------
-# user_prediction 조회 API (TB에서 위험도 및 userData 호출)
+# user_prediction 단일행 조회 API (TB에서 위험도 및 userData 호출)
 # -------------------------------------------------------------
 @app.route("/api/user_prediction/<int:user_id>", methods=["GET"])
 def get_user_prediction(user_id):
     """
-    user_prediction 테이블에서 특정 user_id의
+    user_prediction 테이블에서 특정 user_id(단일 행)의
     - user_id
     - churn_rate
     - risk_score
     - update_date
     를 조회해서 반환합니다.
 
-    화면에서 입력받은 User PK 값으로 호출하는 용도입니다.
+    화면에서 입력받은 User PK 값으로 단일 행을 조회할 때 사용합니다.
 
     Response 예시:
     {
@@ -762,6 +863,82 @@ def get_user_prediction(user_id):
 
     except Exception as e:
         return jsonify({"success": False, "error": f"user_prediction 조회 중 오류: {str(e)}"}), 500
+
+
+# -------------------------------------------------------------
+# user_prediction 다건/전체 조회 API
+# -------------------------------------------------------------
+@app.route("/api/user_prediction", methods=["GET"])
+def get_user_prediction_list():
+    """
+    user_prediction 테이블에서 여러 행 또는 전체 행을 조회합니다.
+
+    - 쿼리스트링에 user_ids 파라미터를 주면 해당 ID 들만 조회
+      예) /api/user_prediction?user_ids=1,5,10
+    - user_ids 를 생략하면 user_prediction 전체 행을 반환
+
+    Response 예시:
+    {
+      "success": true,
+      "rows": [
+        {
+          "user_id": 123,
+          "churn_rate": 45,
+          "risk_score": "MEDIUM",
+          "update_date": "2025-11-24"
+        },
+        ...
+      ]
+    }
+    """
+    try:
+        user_ids_param = request.args.get("user_ids", "").strip()
+
+        conn = get_connection()
+        cursor = conn.cursor(DictCursor)
+
+        if user_ids_param:
+            # user_ids=1,2,3 형태를 파싱
+            try:
+                id_list = [int(x) for x in user_ids_param.split(",") if x.strip()]
+            except ValueError:
+                return jsonify({"success": False, "error": "user_ids 는 쉼표로 구분된 정수 목록이어야 합니다."}), 400
+
+            if not id_list:
+                return jsonify({"success": True, "rows": []}), 200
+
+            placeholders = ",".join(["%s"] * len(id_list))
+            sql = f"""
+                SELECT user_id, churn_rate, risk_score, update_date
+                FROM user_prediction
+                WHERE user_id IN ({placeholders})
+                ORDER BY user_id ASC
+            """
+            cursor.execute(sql, tuple(id_list))
+        else:
+            # 전체 행 조회
+            cursor.execute(
+                """
+                SELECT user_id, churn_rate, risk_score, update_date
+                FROM user_prediction
+                ORDER BY user_id ASC
+                """
+            )
+
+        rows = cursor.fetchall()
+
+        cursor.close()
+        conn.close()
+
+        # DATE → 문자열 변환
+        for row in rows:
+            if "update_date" in row and row["update_date"] is not None:
+                row["update_date"] = row["update_date"].isoformat()
+
+        return jsonify({"success": True, "rows": rows}), 200
+
+    except Exception as e:
+        return jsonify({"success": False, "error": f"user_prediction 목록 조회 중 오류: {str(e)}"}), 500
 
 
 # -------------------------------------------------------------
