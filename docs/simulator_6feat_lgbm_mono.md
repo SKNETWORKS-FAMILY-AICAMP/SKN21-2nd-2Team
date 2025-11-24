@@ -70,7 +70,6 @@
 ---
 
 ### 3. 학습 스크립트 및 모델 설정
-### 3. 학습 스크립트 및 모델 설정
 
 - **학습 스크립트**: `backend/train_simulator_6feat_lgbm_mono.py`
 - **데이터**: `DATA_PATH = "data/enhanced_data_not_clean_FE_delete.csv"`
