@@ -1,6 +1,6 @@
 """
 models.py
-Auth: 신지용
+
 여러 종류의 모델을 이름으로 선택해서 생성하는 팩토리 모듈.
 
 사용 예시:
@@ -20,7 +20,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Dict, Mapping
 
-from sklearn.ensemble import ExtraTreesClassifier, RandomForestClassifier, HistGradientBoostingClassifier
+from sklearn.ensemble import ExtraTreesClassifier, RandomForestClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.neighbors import KNeighborsClassifier
 
@@ -66,6 +66,17 @@ MODEL_REGISTRY: Dict[ModelName, ModelSpec] = {
         },
         supports_random_state=True,
     ),
+    "knn": ModelSpec(
+        cls=KNeighborsClassifier,
+        default_params={
+            "n_neighbors": 25,
+            "weights": "distance",
+            "metric": "minkowski",
+            "p": 2,
+            "n_jobs": -1,
+        },
+        supports_random_state=False,
+    ),
     "logit": ModelSpec(
         cls=LogisticRegression,
         default_params={
@@ -87,28 +98,6 @@ MODEL_REGISTRY: Dict[ModelName, ModelSpec] = {
         },
         supports_random_state=True,
     ),
-    "knn": ModelSpec(
-        cls=KNeighborsClassifier,
-        default_params={
-            "n_neighbors": 25,
-            "weights": "distance",
-            "metric": "minkowski",
-            "p": 2,
-            "n_jobs": -1,
-        },
-        supports_random_state=False,
-    ),
-    "hgb": ModelSpec(
-        cls=HistGradientBoostingClassifier,
-        default_params={
-            "learning_rate": 0.06,
-            "max_depth": 3,
-            "max_bins": 255,
-            "l2_regularization": 0.3,
-            "min_samples_leaf": 20,
-        },
-        supports_random_state=True,
-    ),
     # 아래 두 모델은 해당 패키지가 설치된 경우에만 실제로 사용할 수 있습니다.
     # (xgboost, lightgbm 미설치 상태에서 호출하면 get_model()에서 에러가 발생합니다.)
     "xgb": ModelSpec(
@@ -127,10 +116,12 @@ MODEL_REGISTRY: Dict[ModelName, ModelSpec] = {
     "lgbm": ModelSpec(
         cls=LGBMClassifier if LGBMClassifier is not None else RandomForestClassifier,
         default_params={
-        "n_estimators": 700,
-        "learning_rate": 0.02,
-        "subsample": 0.85,
-        "colsample_bytree": 0.85,
+            "n_estimators": 300,
+            "learning_rate": 0.05,
+            "max_depth": -1,
+            "subsample": 0.8,
+            "colsample_bytree": 0.8,
+            "objective": "binary",
         },
         supports_random_state=True,
     ),

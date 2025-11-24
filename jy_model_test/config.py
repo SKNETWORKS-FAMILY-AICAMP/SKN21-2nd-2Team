@@ -1,6 +1,6 @@
 """
 config.py
-Auth: 신지용
+
 모델 학습/실험에서 공통으로 사용하는 설정 값을 모아둔 모듈입니다.
 다른 스크립트에서 직접 숫자를 하드코딩하지 말고,
 이 모듈의 상수를 import 해서 사용하도록 합니다.
@@ -23,7 +23,7 @@ DEFAULT_MODEL_NAME: str = "xgb"  # "rf", "logit" 등 models.py의 MODEL_REGISTRY
 # 평가 관련 설정 (Threshold 스캔 범위 등)
 # -----------------------------------------------------
 THRESH_START: float = 0.05
-THRESH_END: float = 0.45
+THRESH_END: float = 0.6  # 0.35 → 0.45 로 살짝만 확장
 THRESH_STEP: float = 0.01
 
 

@@ -1,6 +1,6 @@
 """
 train_experiments.py
-Auth: 신지용
+
 전처리 파이프라인(`backend/preprocessing.py`)을 호출해
 모델 학습 + 평가(F1, AUC, Best Threshold)를 수행하는 스크립트.
 
@@ -45,26 +45,17 @@ from preprocessing_pipeline import preprocess_and_split  # 같은 backend 디렉
 # =========================================================
 # 공통 설정 (팀원은 되도록 config.py만 수정)
 # =========================================================
-MODEL_NAME = "hgb"  # "rf", "logit", "hgb" 등 backend/models.py에서 지원하는 이름
+# 메인 실험에 사용할 모델 이름 (항상 전체 피처 사용)
+MODEL_NAME = "lgbm"
 
 # 선택: 하이퍼파라미터 override (기본은 빈 dict, 필요할 때만 수정)
 MODEL_PARAMS = {
-    # 예시) RandomForest/ExtraTrees 튜닝
-    # "n_estimators": 400,
-    # "max_depth": 8,
-    # "min_samples_leaf": 5,
-    #
-    # 예시) XGBoost / LightGBM 튜닝
-    # "learning_rate": 0.05,
-    # "n_estimators": 400,
-    # "max_depth": 6,
-    # "n_estimators": 600,
-    # "learning_rate": 0.03,
-    # "max_depth": 3,
-    # "subsample": 0.8,
-    # "colsample_bytree": 0.8,
-    # "scale_pos_weight": 3.0,
-
+    "n_estimators": 900,
+    "learning_rate": 0.02,
+    "subsample": 0.8,          # 살짝 줄임
+    "colsample_bytree": 0.8,
+    "num_leaves": 63,
+    "min_child_samples": 40,
 }
 
 
@@ -103,6 +94,7 @@ def main():
     # 1) 전처리 파이프라인 실행
     #    - 데이터 경로/비율/seed는 상단 CONFIG를 통해 제어
     #    - notebooks/pipeline.ipynb와 동일한 sklearn ColumnTransformer 파이프라인 사용
+    #    - 이 스크립트는 항상 **전체 피처**를 사용 (라이트 6개 피처 모드는 제거)
     X_train, X_test, y_train, y_test, _ = preprocess_and_split(
         path=DATA_PATH,
         test_size=TEST_SIZE,

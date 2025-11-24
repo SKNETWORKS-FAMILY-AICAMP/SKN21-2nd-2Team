@@ -1,6 +1,6 @@
 """
 preprocessing.py
-Auth: 신지용
+
 Spotify Churn Prediction - Sklearn Pipeline Version
 ---------------------------------------------------
 이 모듈은 `notebooks/pipeline.ipynb`에서 구현한 전처리 방식을
@@ -87,10 +87,6 @@ def handle_outliers_iqr(df: pd.DataFrame) -> pd.DataFrame:
     ]
 
     for col in num_cols:
-        # 결제 실패 / 앱 크래시 횟수는 위험도 신호 자체이므로
-        # IQR 클리핑에서 제외하여 원래 스케일을 최대한 보존한다.
-        if col in ["payment_failure_count", "app_crash_count_30d"]:
-            continue
 
         Q1 = df[col].quantile(0.25)
         Q3 = df[col].quantile(0.75)
@@ -150,9 +146,10 @@ def build_preprocessor(df: pd.DataFrame) -> ColumnTransformer:
 # 5. 전처리 + Train/Test Split (주요 진입점 함수)
 # =====================================================
 def preprocess_and_split(
-    path: str = "data/enhanced_data_not_clean_FE_delete.csv",
+    path: str = "data/enhanced_data_clean_model.csv",
     test_size: float = 0.2,
     random_state: int = 42,
+    feature_cols: list[str] | None = None,
 ) -> Tuple[np.ndarray, np.ndarray, pd.Series, pd.Series, ColumnTransformer]:
     """
     notebooks/pipeline.ipynb의 흐름을 그대로 따르는 메인 함수.
@@ -181,11 +178,20 @@ def preprocess_and_split(
     print("[3/6] Handling outliers (IQR clip)...")
     df = handle_outliers_iqr(df)
 
-    # 4) 전처리기 구성
+    # 4) 사용할 피처 서브셋 선택 (라이트 모델 등)
+    if feature_cols is not None:
+        keep = [c for c in feature_cols if c in df.columns]
+        if "is_churned" not in df.columns:
+            raise KeyError("컬럼 'is_churned'가 데이터에 없습니다.")
+        keep.append("is_churned")
+        df = df[keep]
+        print(f"      [INFO] Using light feature set: {keep}")
+
+    # 5) 전처리기 구성
     print("[4/6] Building ColumnTransformer preprocessor...")
     preprocessor = build_preprocessor(df)
 
-    # 5) Train/Test Split
+    # 6) Train/Test Split
     print("[5/6] Train/Test split...")
     X = df.drop(columns=["is_churned"])
     y = df["is_churned"]
@@ -198,7 +204,7 @@ def preprocess_and_split(
         stratify=y,
     )
 
-    # 6) 전처리 적용
+    # 7) 전처리 적용
     print("[6/6] Fitting preprocessor and transforming data...")
     X_train_processed = preprocessor.fit_transform(X_train, y_train)
     X_test_processed = preprocessor.transform(X_test)

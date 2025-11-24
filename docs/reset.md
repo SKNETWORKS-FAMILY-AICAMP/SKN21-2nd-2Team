@@ -682,10 +682,87 @@ ads_listened_per_week      6.891          6.962        0.8393
 ---
 
 **작성자**: 3번 (Preprocessing Validation + Feature Tuning)  
-**최종 업데이트**: 2025-11-21 23:00  
-**다음 작업 시작일**: 2025-11-22
+**최종 업데이트**: 2025-11-22 23:00  
+**다음 작업 시작일**: 2025-11-23
 
 ---
 
+## 📅 2025-11-22 추가 업데이트
 
+### 1. 성능 진화 과정 문서화
+- **`docs/performance_evolution.md` 생성**  
+  - 초기 baseline (수치형 + FE)부터 시계열·고객접점 피처 추가 후 최종 모델까지 **성능 변화 타임라인**을 정리.  
+  - 각 단계별로 사용한 데이터 버전, 피처 세트, 모델 종류, 핵심 지표(F1, AUC, PR-AUC, Precision/Recall, Confusion Matrix)를 표 형태로 정리.
 
+### 2. Backend 실험 구조 및 튜닝 방법 정리
+- **`backend/models.py`**
+  - `MODEL_REGISTRY`와 `get_model(name, random_state, **overrides)` 구조 확정.  
+  - 각 모델(Logistic, RF, XGBoost, LightGBM, ExtraTrees 등)의 **기본 하이퍼파라미터(default_params)**는 “팀 공통 베이스”로만 사용하고,  
+    개별 튜닝용으로는 **직접 수정 금지**(ML 리드만 변경 가능)라는 규칙 정리.
+- **`backend/train_experiments.py`**
+  - `MODEL_PARAMS` 딕셔너리로 하이퍼파라미터 override 하는 패턴 정리:
+    - 예) RF 튜닝: `MODEL_PARAMS = {"n_estimators": 400, "max_depth": 8, "min_samples_leaf": 5}`  
+    - 예) XGB/LGBM 튜닝: `MODEL_PARAMS = {"learning_rate": 0.05, "n_estimators": 400, "max_depth": 6}`  
+  - 모델 생성 시 `model = get_model(name=MODEL_NAME, random_state=RANDOM_STATE, **MODEL_PARAMS)` 형태로만 사용하도록 통일.
+- **`backend/config.py`**
+  - Threshold 스캔 구간:
+    - 기본: `THRESH_START=0.05`, `THRESH_END=0.35`, `THRESH_STEP=0.01`  
+    - 이유: 이탈 예측에서 **Recall·Precision trade-off가 의미 있는 구간**(0.1~0.3 근처)에 집중하기 위함.  
+  - 필요 시 한 번 정도는 `0.01~0.60` 등으로 **넓게 sweep**해서, 진짜 최적 구간이 0.35 밖에 있는지 확인하도록 가이드.
+
+### 3. Git 충돌 방지 및 협업 규칙
+- **메트릭 파일 관리**
+  - `models/metrics.json`은 여러 번 실험이 누적되면서 **Git 충돌 위험이 크므로**,  
+    `models/metrics*.json` 형태로 `.gitignore`에 추가하고 **로컬 전용 로그**로만 사용하도록 제안.
+  - 필요 시 팀원별 파일명 예시: `metrics_jy.json`, `metrics_01.json` 등 → 그래도 전부 ignore.
+- **코어 파일 수정 권한**
+  - `backend/config.py`, `backend/train_experiments.py`, `backend/models.py`는
+    - **팀 공통 규칙 및 기본 구조**를 담는 파일 → 가능하면 **ML 리드만 PR/commit**  
+    - 팀원들은 로컬에서만 수정해 실험하고, **commit/push 전에는 원본으로 되돌리는 규칙** 합의.
+  - 옵션: `config_local.py` 패턴을 도입해, 개인 환경/일시적인 설정은 여기서만 바꾸고 Git에는 올리지 않도록 하는 구조 제안.
+
+### 4. 팀원용 튜닝 & 실험 가이드 (구두 정리)
+- **모델 선택 & 튜닝 방법**
+  - 공통 데이터: `enhanced_data_clean_model.csv` + 15개 수치형 피처(원본 6 + 시계열 5 + 고객접점 4).  
+  - 공통 전처리: `backend/preprocessing_pipeline.py`의 ColumnTransformer (수치형 StandardScaler, 범주형 OneHotEncoder(handle_unknown="ignore")).  
+  - 각자 맡은 모델별로:
+    - `config.py`의 `DEFAULT_MODEL_NAME` 또는 `train_experiments.py`의 `MODEL_NAME`만 변경해서 기본 성능 확인.
+    - 이후 `MODEL_PARAMS`에 몇 개 핵심 파라미터만 넣어 **2~3라운드 가벼운 튜닝** 진행, 결과는 시트/노션에 기록.
+- **파라미터 수정 원칙**
+  - **팀 공통 베이스 변경**: `backend/models.py`의 `default_params` (ML 리드만 수정).  
+  - **개인 실험/튜닝**: `backend/train_experiments.py`의 `MODEL_PARAMS`로 override.  
+  - 발표 전까지는, 모든 실험/결과 공유는 코드 수정이 아닌 **시트/문서 기반**으로 정리.
+
+---
+
+## 📅 2025-11-23 XGBoost 실험 요약 (3번, 개별 실험)
+
+- **실험 환경**:
+  - 데이터: `data/enhanced_data_not_clean_FE_delete.csv`
+  - 전처리: `backend/preprocessing_pipeline.py` / `jy_model_test/preprocessing_pipeline.py` 의 `preprocess_and_split()`
+  - 학습 스크립트: `backend/train_experiments.py`, `jy_model_test/train_experiments.py`
+  - 결과 로그: `models/metrics.json` (여러 모델/파라미터 조합의 F1/AUC/PR-AUC 기록)
+
+- **RF baseline (동일 데이터/파이프라인 기준)**:
+  - F1 ≈ **0.616**, AUC ≈ **0.791**, PR-AUC ≈ **0.662**
+
+- **XGB 1차 튜닝 (탐색)**:
+  - 범위: `n_estimators` 200~700, `max_depth` 3/4/5/7, `learning_rate` 0.03~0.15,  
+    `subsample`/`colsample_bytree` 0.7~0.9, `scale_pos_weight` 2.5~4.0
+  - 약 10개 조합 실험 결과:
+    - F1 ≈ 0.53~0.61, AUC ≈ 0.80~0.82 구간
+    - **깊이 3~5, lr 0.05~0.08, n_estimators 400~600, scale_pos_weight≈3** 근처가 가장 안정적
+
+- **XGB 2차 튜닝 (국소 탐색)**:
+  - Threshold 범위를 0.05~0.45로 확장, 1차에서 성능이 좋았던 구간만 4개 세트로 재탐색
+  - F1 ≈ **0.60~0.612**에서 수렴, AUC는 대부분 0.81±0.01 수준
+
+- **XGB 3차 튜닝 (미세 조정)**:
+  - 2차에서 좋은 세팅을 기준으로 `n_estimators`/`max_depth`/`learning_rate`/`scale_pos_weight`를 소폭 조정
+  - 최종적으로 F1 ≈ **0.620**, AUC ≈ **0.811**, PR-AUC ≈ **0.693**, Best Threshold ≈ **0.44** 수준의 런 확보
+
+- **RF vs XGB (최종, 개별 실험 기준)**:
+  - RF:  F1 ≈ **0.616**, AUC ≈ **0.791**, PR-AUC ≈ **0.662**
+  - XGB: F1 ≈ **0.620**, AUC ≈ **0.811**, PR-AUC ≈ **0.693**
+  - ⇒ **F1은 거의 비슷하거나 XGB가 근소 우위**, AUC/PR-AUC는 XGB가 명확히 우위  
+  - 현재 XGB 결과는 **3번 역할의 개별 실험 기록**이며, 추후 팀원들이 담당한 다른 모델(RF/ET/Logit/LGBM 등)과의 최종 비교는 별도 문서에서 정리 예정
