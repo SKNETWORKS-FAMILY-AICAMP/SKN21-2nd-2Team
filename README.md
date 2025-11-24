@@ -1,11 +1,10 @@
 ## <span style="color:green">SKN21-2nd-2Team</span>
-
-<br>
-
 # Spotipy 이탈 예측 어플리케이션 (Spotify Churn Prediction App)
+
 <br>
 
 <img src="image/스포티파이.svg" alt="프로젝트 로고" width="500">
+
 
 <br><br><br>
 
@@ -189,22 +188,22 @@ SKN21-2ND-2TEAM/
 
 ## 1)  Data & Baseline Setup
 
-- **데이터 구조**: 8,000명 유저, 유저당 1행 스냅샷 (수치형 6개 + 범주형 4개, 타깃 `is_churned`)
-     ### 🔹 `Original Dataset` — 원본 피처 테이블
-    | 컬럼명                   | 타입        | 설명               | 
-    | --------------------- | --------- | ---------------- |
-    | `user_id`              | INT       | 사용자 고유 ID        | 
-    | `gender`                | VARCHAR   | 성별 (Male/Female) | 
-    | `age`                   | INT       | 사용자 나이           | 
-    | `country`               | VARCHAR   | 접속 국가            | 
-    | `subscription_type`     | VARCHAR   | 요금제 종류           |
-    | `listening_time`        | FLOAT     | 하루 음악 청취 시간(분)   | 
-    | `songs_played_per_day`  | FLOAT     | 하루 재생 곡수         |
-    | `skip_rate`             | FLOAT     | 스킵률              |
-    | `device_type`           | VARCHAR   | 기기 종류            |
-    | `ads_listened_per_week` | INT       | 주간 광고 시청 수       |
-    | `offline_listening`     | INT (0/1) | 오프라인 재생 기능 여부    |
-    | **`is_churned`**            | INT(0/1)  | 이탈 여부            |
+  - **데이터 구조**: 8,000명 유저, 유저당 1행 스냅샷 (수치형 6개 + 범주형 4개, 타깃 `is_churned`)
+       ### 🔹 `Original Dataset` — 원본 피처 테이블
+      | 컬럼명                   | 타입        | 설명               | 
+      | --------------------- | --------- | ---------------- |
+      | `user_id`              | INT       | 사용자 고유 ID        | 
+      | `gender`                | VARCHAR   | 성별 (Male/Female) | 
+      | `age`                   | INT       | 사용자 나이           | 
+      | `country`               | VARCHAR   | 접속 국가            | 
+      | `subscription_type`     | VARCHAR   | 요금제 종류           |
+      | `listening_time`        | FLOAT     | 하루 음악 청취 시간(분)   | 
+      | `songs_played_per_day`  | FLOAT     | 하루 재생 곡수         |
+      | `skip_rate`             | FLOAT     | 스킵률              |
+      | `device_type`           | VARCHAR   | 기기 종류            |
+      | `ads_listened_per_week` | INT       | 주간 광고 시청 수       |
+      | `offline_listening`     | INT (0/1) | 오프라인 재생 기능 여부    |
+      | **`is_churned`**            | INT(0/1)  | 이탈 여부            |
 
 <br>
 
@@ -218,6 +217,8 @@ SKN21-2ND-2TEAM/
     | `skip_intensity`     | FLOAT   | skip_rate × songs_played_per_day  |
     | `skip_rate_cap`         | FLOAT   | skip_rate.clip(0, 1.5) |
     | `ads_pressure`         | FLOAT   | ads_listened_per_week / listening_time |
+
+<br>
 
   - **모델**: RandomForestClassifier(class_weight='balanced') + threshold 튜닝
   - **성능**: F1≈0.41, AUC≈0.54 수준에서 정체
@@ -233,6 +234,8 @@ SKN21-2ND-2TEAM/
   - `gender`, `country`, `subscription_type`, `device_type` 및 파생 범주형을 One-Hot 인코딩해 포함
   - 수치형+FE(10~11개) vs 수치형+FE+범주형(30개 이상) 비교 시 **오히려 F1/AUC 소폭 하락 → 범주형 기여도 낮음**
 
+<br>
+
 ## 3) Model Tuning·SMOTE·앙상블 검증
 - **모델/파라미터 튜닝** (`feature_selection.ipynb`):
   - RandomForest 하이퍼파라미터(RandomizedSearchCV), K-Fold + threshold 튜닝, 소프트보팅 앙상블(RF+XGB+HGB) 등 적용
@@ -240,6 +243,8 @@ SKN21-2ND-2TEAM/
 - **SMOTE + XGBoost + 앙상블** (`SMOTE_XGB_RF.ipynb`):
   - SMOTE(오버샘플링 비율·test_size·scale_pos_weight 등 여러 버전), XGBoost GridSearchCV, RF+XGB+HGB 앙상블 시도
   - **결과**: Train에서는 F1↑지만 Test에서는 Baseline보다 낮거나 비슷한 수준 → **심한 과적합 & 실질적 개선 실패**
+
+<br>
 
 ## 4) Limitations & Root Cause Analysis(한계 원인 분석)
 - **통계·상관·Feature Importance 분석** (`feature_selection.ipynb` 6장, `improvement_proposal.md`):
@@ -249,6 +254,7 @@ SKN21-2ND-2TEAM/
   - 현재 구조(유저당 1행 스냅샷 + 단일 시점 피처)에서는 **F1≈0.41, AUC≈0.53이 사실상 상한**
   - 모델 변경·튜닝·SMOTE만으로는 성능을 올리기 어렵고, **데이터/피처 자체를 바꾸는 방향이 필요**함
 
+<br>
 
 ## 5) 시계열·고객 접점 Features 추가 및 성능 향상
 - **개선 아이디어 정리 (`improvement_proposal.md`)**:
@@ -280,6 +286,8 @@ SKN21-2ND-2TEAM/
     - `payment_failure_count`, `app_crash_count_30d` (고객 접점)
     - `freq_of_use_trend_14d`, `listening_time_trend_7d`, `skip_rate_increase_7d` (시계열)
 
+<br>
+
 ## 6) Preprocessing Pipeline Refinement
 - **전처리 정책 및 데이터 버전** (`preprocessing_validation_v2.ipynb`, `reset.md`):
   - 합성 피처 포함 데이터 `enhanced_data.csv` 생성 후,
@@ -291,11 +299,15 @@ SKN21-2ND-2TEAM/
   - `get_model()` + `MODEL_REGISTRY` 구조로 모델 생성, `MODEL_PARAMS` 딕셔너리로 하이퍼파라미터 튜닝
   - 실험 결과는 `models/metrics.json`에 누적 저장하도록 설계
 
+<br>
+
 ## 7) Final Summary & Key Takeaways
 - **현재 데이터(스냅샷)만 사용**했을 때는, 다양한 FE/FS/튜닝/SMOTE/XGBoost/앙상블을 모두 시도해도 **F1≈0.41, AUC≈0.53 근처에서 정체**됨.
 - **시계열 + 고객 접점 피처를 추가**한 `enhanced_data.csv` 실험에서는, 동일한 모델(RF)로도 **F1≈0.62, AUC≈0.79까지 성능이 크게 상승**하는 것을 확인함.
 - 이를 통해 **“모델을 바꾸는 것보다, 이탈 직전 행동 변화와 고객 접점을 담는 피처를 설계·수집하는 것이 핵심”**이라는 결론에 도달했고,
   실제 서비스 환경에서는 로그·고객센터·결제/에러 데이터를 결합한 피처 설계를 가장 우선순위로 두어야 한다는 인사이트를 얻음.
+
+<br>
 
 ## 8) Final Model Comparison & Selection (HGB Selected)
 - **실험 공통 조건**
@@ -337,25 +349,47 @@ SKN21-2ND-2TEAM/
       | **KNN**                 | 0.4908      | 0.6764     | 0.4244     | 0.26           | 0.4243    | 0.5821 |
       | **Logistic Regression** | 0.4809      | 0.6874     | 0.4587     | 0.26           | 0.3974    | 0.6086 |
 
+<br><br>
+  
+  > ### 💡 **모델 선택 근거 — Why HGB?**
+  > 
+  > #### - **F1 기준 팀 내 최고 성능**
+  > - HGB F1 ≈ **0.643**
+  > - LGBM ≈ 0.641  
+  > - XGB ≈ 0.620  
+  > - RF ≈ 0.622  
+  > → **전체 모델 중 가장 높은 F1 스코어 기록**
+  >
+  > 
+  >
+  > #### - **Precision · Recall 균형성 측면 (hgb_test.md 기준)**
+  > - **HGB** → Precision ≈ **0.638**, Recall ≈ **0.647** → *균형 잡힌 모델*
+  > - XGB → Precision ≈ 0.603, Recall ≈ 0.638 → *Recall ↑, Precision ↓*
+  > - LGBM → Precision ≈ 0.650, Recall ≈ 0.633 → *Precision ↑, Recall ↓*
+  > - **HGB는 FP(거짓 양성) / FN(거짓 음성) 모두 과도하게 늘지 않는 안정적 구조**
+  >
+  > 
+  >
+  > #### - **AUC / PR-AUC 전체 비교**
+  > - LGBM AUC ≈ **0.816**, PR-AUC ≈ **0.700**  → *절대수치 최고*
+  > - XGB AUC ≈ 0.811, PR-AUC ≈ 0.693  → *상위권*
+  > - HGB AUC ≈ **0.809**, PR-AUC ≈ **0.691** → *큰 차이 없이 매우 우수*
+  > → **HGB는 AUC 기준으로도 상위권이며 F1 성능까지 고려하면 종합 점수 최상**
+  >
+  > 
+  >
+  > ### 💡 **최종 결론 — Why HGB as Final Model?**
+  > - 서비스 목적상 **이탈/비이탈 모두 잘 맞추는 F1 중심 평가 기준**을 채택  
+  > - HGB는 **F1 최고 + Precision/Recall 균형 최적**  
+  > - 과대적합 위험 낮고, threshold 민감도도 낮아 **실전 안정성 높음**  
+  > - LGBM/XGB는 AUC는 높지만, 운영 목적(균형 예측) 대비 변동성 존재  
+  >
+  > 
+  > 👉 **따라서 HGB(HistGradientBoostingClassifier)를 최종 배포/시연용 모델로 선정.**  
+  > 👉 AUC 중심 실험 또는 보조 모델이 필요할 때는 XGB/LGBM을 함께 사용 가능.
 
-    - **모델 선택 근거 (왜 HGB를 최종 채택했는가)**  
-      - **F1 기준 팀 내 최고 모델**:  
-        - HGB F1 ≈ **0.643** > LGBM ≈ **0.641** > XGB ≈ **0.620** > RF ≈ **0.622**
-      - **균형 잡힌 Precision/Recall** (`hgb_test.md` 기준)
-        - HGB: Precision ≈ **0.638**, Recall ≈ **0.647** (밸런스형)
-        - XGB: Precision ≈ 0.603, Recall ≈ 0.638 (Recall 약간 높고 Precision 낮음)
-        - LGBM: Precision ≈ 0.650, Recall ≈ 0.633 (Precision 조금 더 높고 Recall 살짝 낮음)
-        - → HGB는 **과도한 FP/FN 없이 양쪽을 모두 잘 잡는 균형형 모델**로 해석 가능
-      - **AUC/PR-AUC 관점**
-        - AUC/PR-AUC 절대 최고는 LGBM/XGB 조합(LGBM AUC≈0.816, PR-AUC≈0.700 / XGB AUC≈0.811, PR-AUC≈0.693)
-        - 그러나 HGB도 AUC≈0.809, PR-AUC≈0.691 로 **성능 차이가 크지 않고, F1 기준으로는 팀 내 최고**
-      - **최종 결론**
-        - **서비스/보고서에서 “이탈/비이탈 둘 다 잘 맞추는 F1 중심 모델”을 우선시**하기로 하고,
-        - F1 최고 + Precision/Recall 균형이 가장 좋은 **HistGradientBoosting(HGB)** 을 최종 배포용/시연용 모델로 선정.
-        - AUC 중심 비교나 추가 실험에서는 XGB/LGBM도 보조 모델로 활용 가능.
 
-
-
+<br><br>
 
 ## 💡 주요 기능 (Key Features)
 
