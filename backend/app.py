@@ -10,6 +10,7 @@ Description:
 import sys
 import os
 import bcrypt
+import pandas as pd
 
 # -------------------------------------------------------------
 # 프로젝트 루트를 Python 경로에 추가 (utils import 가능)
@@ -490,6 +491,76 @@ def check_user_id():
     conn.close()
 
     return jsonify({"success": True, "exists": cnt > 0})
+
+
+# -------------------------------------------------------------
+# ML 데이터 조회 API (관리자 시뮬레이션용)
+# -------------------------------------------------------------
+@app.route("/api/user_features/<int:user_id>", methods=["GET"])
+def get_user_features(user_id):
+    """
+    특정 user_id의 ML 학습용 전체 피처 데이터를 CSV에서 조회해 반환합니다.
+    관리자 페이지에서 '불러오기' 후 '수치 조정(시뮬레이션)'을 할 때 사용합니다.
+    """
+    try:
+        # 1순위: churn_prob.py 로 생성된 최신 분석 결과 파일
+        csv_path = os.path.join("data", "enhanced_data_with_lgbm_churn_prob.csv")
+        
+        # 2순위: 학습에 쓰인 원본 데이터
+        if not os.path.exists(csv_path):
+            csv_path = os.path.join("data", "enhanced_data_not_clean_FE_delete.csv")
+            
+        if not os.path.exists(csv_path):
+             return jsonify({"success": False, "error": "ML 데이터 파일이 없습니다."}), 404
+
+        # CSV 로드 (운영 환경에선 DB 조회가 더 적합)
+        df = pd.read_csv(csv_path)
+        
+        # user_id 검색
+        user_row = df[df["user_id"] == user_id]
+        
+        if user_row.empty:
+             return jsonify({"success": False, "error": f"ML 데이터에서 user_id={user_id}를 찾을 수 없습니다."}), 404
+             
+        # dict로 변환 (NaN -> 0 or null)
+        user_data = user_row.fillna(0).iloc[0].to_dict()
+        
+        return jsonify({"success": True, "data": user_data})
+        
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+# -------------------------------------------------------------
+# 예측 API (모델 이탈 확률 조회용)
+# -------------------------------------------------------------
+@app.route("/api/predict_churn", methods=["POST"])
+def api_predict_churn():
+    """
+    유저 피처 + 사용할 모델 이름을 받아
+    - 이탈 확률(churn_prob)
+    - 위험도 레벨(risk_level)
+    을 반환하는 API.
+    """
+    try:
+        # get_json(force=True)는 Content-Type 헤더가 application/json이 아니어도 파싱 시도
+        payload = request.get_json(force=True) or {}
+        model_name = payload.get("model_name")
+        features = payload.get("features") or {}
+
+        if not isinstance(features, dict):
+            return jsonify({"success": False, "error": "features 필드는 dict 형태여야 합니다."}), 400
+
+        # backend.inference 모듈의 predict_churn 함수 사용
+        from backend.inference import predict_churn as _predict_churn
+
+        result = _predict_churn(user_features=features, model_name=model_name)
+
+        status_code = 200 if result.get("success") else 500
+        return jsonify(result), status_code
+
+    except Exception as e:
+        return jsonify({"success": False, "error": f"예측 중 오류 발생: {str(e)}"}), 500
 
 
 # -------------------------------------------------------------

@@ -1,6 +1,6 @@
 """
 check_rate.py
-Auth: 신지용용
+Auth: 신지용
 
 역할:
 - 학습에 사용한 CSV(`data/enhanced_data_not_clean_FE_delete.csv`)를 전체 로드하고

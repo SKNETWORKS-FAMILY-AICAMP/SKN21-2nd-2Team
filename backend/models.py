@@ -69,10 +69,11 @@ MODEL_REGISTRY: Dict[ModelName, ModelSpec] = {
     "logit": ModelSpec(
         cls=LogisticRegression,
         default_params={
-            "max_iter": 1000,
-            "n_jobs": -1,
-            # 클래스 불균형을 고려하고 싶다면 아래 주석을 해제:
-            # "class_weight": "balanced",
+            "C": 0.01,          # 규제 강도 (작을수록 규제 강함) → 이 데이터에서는 0.01이 F1 최고
+            "penalty": "l2",    # L2 정규화 (기본값)
+            "solver": "lbfgs",  # 다차원/연속 피처에 안정적인 해법
+            "max_iter": 1000,   # 수렴 여유
+            "class_weight": None  # 'balanced'는 이 데이터에서 F1 떨어졌음
         },
         supports_random_state=True,
     ),
@@ -114,13 +115,12 @@ MODEL_REGISTRY: Dict[ModelName, ModelSpec] = {
     "xgb": ModelSpec(
         cls=XGBClassifier if XGBClassifier is not None else RandomForestClassifier,
         default_params={
-            "n_estimators": 300,
-            "learning_rate": 0.1,
-            "max_depth": 5,
-            "subsample": 0.8,
-            "colsample_bytree": 0.8,
-            "eval_metric": "logloss",
-            "n_jobs": -1,
+        "n_estimators": 500,
+        "learning_rate": 0.06,
+        "max_depth": 5,
+        "subsample": 0.85,
+        "colsample_bytree": 0.85,
+        "scale_pos_weight": 3.0,
         },
         supports_random_state=True,
     ),
