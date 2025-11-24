@@ -32,7 +32,45 @@
 
 ---
 
-### 2. 학습 스크립트 및 모델 설정
+### 2. 왜 이 6개 피처를 선택했는가?
+
+#### 2-1. Feature Importance + 영향도 분석 기반
+
+- `verification.md`, `hgb_test.md`, `lgbm_test.md` 등에서 **Feature Importance**를 비교했을 때,
+  - `payment_failure_count`, `app_crash_count_30d`, `freq_of_use_trend_14d`, `listening_time_trend_7d`, `skip_rate_increase_7d` 등이 상위권에 위치.
+- `backend/find_good_sim_features.py` 에서 각 피처에 대해
+  - **값 변화 vs 예측 확률**의 단조성(스피어만 상관) + 변화폭(effect)을 점수로 계산함.
+  - 그 결과, `app_crash_count_30d`가 가장 높은 점수를 받았고,
+    `days_since_last_login`, `listening_time_trend_7d`, `freq_of_use_trend_14d`, `login_frequency_30d`도 일정 수준 이상의 영향력을 보였음.
+
+#### 2-2. 시뮬레이터에서의 “부드러운 반응”과 해석 용이성
+
+- `backend/analyze_model_behavior.py`, `backend/test_scenario_lgbm.py` 로 여러 시나리오를 테스트한 결과,
+  - **크래시 / 잠수 / 사용량 추세 3개**는 값을 조정했을 때 이탈 확률이 **크고 직관적으로** 변함.
+  - `skip_rate_increase_7d`, `freq_of_use_trend_14d`, `login_frequency_30d` 는 단독으로는 영향이 약하지만,
+    - “사용량/빈도/참여도”의 질적인 변화를 보조적으로 표현해 주는 축으로 유용.
+- 너무 많은 피처를 시뮬레이터에 노출하면
+  - 관리자 입장에서 “무엇을 어떻게 조절해야 하는지” 이해가 어려워지므로,
+  - **“설명 가능한 6개 레버”**로 제한하는 것이 UX 측면에서 더 적절하다고 판단.
+
+#### 2-3. 데이터 가용성과 현실성
+
+- 선택된 6개는 모두 **실제 서비스에서 수집하기 상대적으로 쉬운 로그/카운트/추세 정보**에 해당:
+  - 크래시 로그, 로그인 로그, 재생/스킵 로그 등.
+- 향후 실제 서비스에 적용할 때도,
+  - 별도의 복잡한 FE 없이도 **데이터 엔지니어링으로 충분히 확보 가능한 컬럼들**이라는 점을 고려.
+
+#### 2-4. 정리
+
+- 위 실험과 제약 조건들을 종합해서,
+  - **“위험도를 크게 좌우하면서도, 관리자에게 설명하기 쉬운 최소 피처 집합”**으로
+  - `app_crash_count_30d`, `skip_rate_increase_7d`, `days_since_last_login`,
+    `listening_time_trend_7d`, `freq_of_use_trend_14d`, `login_frequency_30d` 6개를 최종 선택.
+
+---
+
+### 3. 학습 스크립트 및 모델 설정
+### 3. 학습 스크립트 및 모델 설정
 
 - **학습 스크립트**: `backend/train_simulator_6feat_lgbm_mono.py`
 - **데이터**: `DATA_PATH = "data/enhanced_data_not_clean_FE_delete.csv"`
@@ -57,7 +95,7 @@
 
 ---
 
-### 3. 추론 함수 및 위험도 매핑
+### 4. 추론 함수 및 위험도 매핑
 
 - **추론 모듈**: `backend/inference_sim_6feat_lgbm.py`
 - **메인 엔트리**: `predict_churn_6feat_lgbm(user_features: Mapping[str, Any]) -> Dict[str, Any]`
@@ -75,7 +113,7 @@
 
 ---
 
-### 4. 시나리오 테스트 결과 요약 (`backend/test_scenario_lgbm.py`)
+### 5. 시나리오 테스트 결과 요약 (`backend/test_scenario_lgbm.py`)
 
 `backend/test_scenario_lgbm.py` 에서 대표적인 10개 시나리오를 정의해 LGBM 단조제약 모델로 예측:
 
@@ -117,7 +155,7 @@
 
 ---
 
-### 5. 활용 가이드 (시뮬레이터 / 관리자 기능)
+### 6. 활용 가이드 (시뮬레이터 / 관리자 기능)
 
 - **입력 스펙**: 프론트/관리자는 위 6개 피처만 입력 받아 `/api/...` 등으로 전달
   - 나머지 전체 피처는 사용하지 않으며, 이 모델은 **완전히 6개 피처 전용 모델**임.

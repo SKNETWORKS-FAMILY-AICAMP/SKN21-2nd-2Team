@@ -45,7 +45,7 @@ from preprocessing_pipeline import preprocess_and_split  # 같은 backend 디렉
 # =========================================================
 # 공통 설정 (팀원은 되도록 config.py만 수정)
 # =========================================================
-MODEL_NAME = "logit"  # "rf", "logit", "hgb" 등 backend/models.py에서 지원하는 이름
+MODEL_NAME = DEFAULT_MODEL_NAME  # "rf", "logit", "hgb" 등 backend/models.py에서 지원하는 이름
 
 # 선택: 하이퍼파라미터 override (기본은 빈 dict, 필요할 때만 수정)
 MODEL_PARAMS = {
