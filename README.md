@@ -337,7 +337,7 @@ SKN21-2ND-2TEAM/
 - **실험 공통 조건**
   - 데이터: `data/enhanced_data_not_clean_FE_delete.csv` (원본 수치형 6 + 시계열 5 + 고객 접점 4 = **15개 수치형** 중심)
   - 전처리: `backend/preprocessing_pipeline.py` / `jy_model_test/preprocessing_pipeline.py` 의 `preprocess_and_split()`
-  - 설정: `TEST_SIZE=0.2`, `RANDOM_STATE=42`, threshold 스캔(대부분 0.05~0.35/0.45, HGB는 0.05~0.45, step=0.005)
+  - 설정: `TEST_SIZE=0.2`, `RANDOM_STATE=42`, threshold 스캔(대부분 0.05~0.35or0.45, HGB는 0.05~0.45, step=0.005)
 
       ### 📊 Model Performance Comparison
       #### 🔸 F1 Score (정밀도·재현율 조화 평균)
