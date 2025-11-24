@@ -1,19 +1,23 @@
 ## <span style="color:green">SKN21-2nd-2Team</span>
-
-<br>
-
 # Spotipy 이탈 예측 어플리케이션 (Spotify Churn Prediction App)
+
 <br>
 
-<img src="image/스포티파이.svg" alt="프로젝트 로고" width="500">
+ <p align="center">
+        <img src="image/스포티파이.svg" alt="프로젝트 로고" width="500">
+      </p>
 
 <br><br><br>
-
+    
 
 ## 📌 프로젝트 개요
 
-<img src="image/spotify_naver.png" alt="네이버-스포티파이기사" width="600">
-<img src="image/spotify_naver2.png" alt="사진" width="500">
+   <p align="center">
+        <img src="image/spotify_naver.png" alt="네이버-스포티파이기사" width="600">
+      </p>
+  <p align="center">
+        <img src="image/spotify_naver2.png" alt="사진" width="500">
+      </p>
 
 <br>
 
@@ -23,11 +27,15 @@
 
 <br>
 
-<img src="image/spotifyfree.png" alt="사진" width="600">
-<div style="display:flex; gap:20px; justify-content:center;">
-  <img src="image/spotifyfree2.png" alt="사진" width="200">
-  <img src="image/spotify추세.jpg" alt="사진" width="200">
-  <img src="image/멜론잡겠다.jpg" alt="사진" width="200">
+ <p align="center">
+        <img src="image/spotifyfree.png" alt="사진" width="600">
+      </p>
+<p align="center">
+  <img src="image/spotifyfree2.png" width="250">
+  <img src="image/spotify추세.jpg" width="250">
+  <img src="image/멜론잡겠다.jpg" width="250">
+</p>
+
 </div>
 
 <br>
@@ -159,86 +167,7 @@
 
 <div> 
 
-## 📁 Project Structure
-
-본 프로젝트는 5인의 역할 분담을 통해 단계별로 **데이터 분석 → 전처리 → 모델링 → 서비스 UI**까지  
-효율적으로 구축되었습니다. 아래는 각 역할 흐름을 기반으로 정리한 프로젝트 구조입니다.
-
 <br>
-
-### 🔹 1. 데이터 분석 & 파이프라인 설계  
-**담당:** 데이터 분석 + 파이프라인 설계 리더  
-**역할 요약:** 데이터 구조 파악 및 전체 전처리 설계
-
-- 원본 데이터 구조 분석 (`info()`, `describe()`)
-- 수치형/범주형 변수 파악
-- Feature 사용/제거 기준 설정
-- 스케일링/인코딩 방식 결정
-- Feature Engineering 아이디어 제안
-- **산출물:**  
-  - `docs/pipeline_design.md`  
-  - Feature 리스트 문서
-
-<br>
-
-### 🔹 2. 전처리 파이프라인 구현  
-**담당:** 백엔드 + 파이프라인 구현  
-**역할 요약:** 전처리를 실제 코드로 완성시키는 역할
-
-- 결측치 처리, 인코딩, 스케일링 코드 구현
-- Train/Test Split 함수화
-- DataFrame → X, y 변환 함수 제작
-- 최종 파이프라인 실행 함수 완성
-- **산출물:**  
-  - `preprocessing.py`  
-  - `X_train.pkl`, `X_test.pkl`  
-  - `y_train.pkl`, `y_test.pkl`
-
-<br>
-
-### 🔹 3. 전처리 검증 + Feature 튜닝  
-**담당:** FE Engineer + QA  
-**역할 요약:** 전처리 품질 검사 및 Feature 개선
-
-- 전처리 파이프라인 품질 체크
-- Feature 타당성 검증
-- 성능 영향을 주는 변수 탐색
-- 개선된 Feature 리스트 작성
-- **산출물:**  
-  - `preprocessing_validation.ipynb`  
-  - FE 개선안 문서
-
-<br>
-
-
-### 🔹 4. 모델 템플릿 제작 + Baseline 학습  
-**담당:** ML Engineer  
-**역할 요약:** 모델링 구조를 잡고 베이스라인 모델 제작
-
-- 공통 모델 템플릿 개발
-- Logistic Regression 등 Baseline 학습
-- 성능 평가 함수 제작
-- 전체 팀이 공유할 수 있는 모델 구조 제공
-- **산출물:**  
-  - `train_template.py`  
-  - `model_lr.pkl`
-
-<br>
-
-### 🔹 5. Streamlit UI 제작 + 최종 통합  
-**담당:** Frontend + Integrator  
-**역할 요약:** 최종 서비스를 UI로 구현하고 발표용으로 정리
-
-- Streamlit 기반 UI 개발
-- 최종 모델 로드 및 예측 기능 구현
-- 모델 비교 후 최종 선정
-- 발표 자료 / README.md 구성
-- **산출물:**  
-  - `frontend/run_app.py`  
-  - 발표 자료  
-  - `README.md`
-
-<br><br><br>
 
 
 
@@ -266,78 +195,225 @@ SKN21-2ND-2TEAM/
 <br><br><br>
 
 
-## 🗄️ Database Structure
+## 1)  Data & Baseline Setup
 
-본 프로젝트는 Flask API 서버와 MySQL 데이터베이스를 연동하여  
-사용자 로그인, 예측 기록 저장을 처리합니다.  
-데이터베이스는 PyMySQL 기반으로 연결되며 아래와 같은 구조로 설계되었습니다.
-
-<br>
-
-### 🔹 DB Schema Overview
-- **DBMS:** MySQL  
-- **Driver:** PyMySQL  
-- **사용 목적:**
-  - 사용자 관리 (가입/로그인)
-  - 예측 요청 기록 저장
-  - 향후 개선을 위한 사용자 행동 로그 관리
-
-<br>
-
-### 🔹 주요 테이블 구조
-
-### 1) `Original Dataset` — 원본 피처 테이블
-| 컬럼명                   | 타입        | 설명               | 
-| --------------------- | --------- | ---------------- |
-| `user_id`              | INT       | 사용자 고유 ID        | 
-| `gender`                | VARCHAR   | 성별 (Male/Female) | 
-| `age`                   | INT       | 사용자 나이           | 
-| `country`               | VARCHAR   | 접속 국가            | 
-| `subscription_type`     | VARCHAR   | 요금제 종류           |
-| `listening_time`        | FLOAT     | 하루 음악 청취 시간(분)   | 
-| `songs_played_per_day`  | FLOAT     | 하루 재생 곡수         |
-| `skip_rate`             | FLOAT     | 스킵률              |
-| `device_type`           | VARCHAR   | 기기 종류            |
-| `ads_listened_per_week` | INT       | 주간 광고 시청 수       |
-| `offline_listening`     | INT (0/1) | 오프라인 재생 기능 여부    |
-| `is_churned`            | INT(0/1)  | 이탈 여부            |
+  - **데이터 구조**: 8,000명 유저, 유저당 1행 스냅샷 (수치형 6개 + 범주형 4개, 타깃 `is_churned`)
+       ### 🔹 `Original Dataset` — 원본 피처 테이블
+      | 컬럼명                   | 타입        | 설명               | 
+      | --------------------- | --------- | ---------------- |
+      | `user_id`              | INT       | 사용자 고유 ID        | 
+      | `gender`                | VARCHAR   | 성별 (Male/Female) | 
+      | `age`                   | INT       | 사용자 나이           | 
+      | `country`               | VARCHAR   | 접속 국가            | 
+      | `subscription_type`     | VARCHAR   | 요금제 종류           |
+      | `listening_time`        | FLOAT     | 하루 음악 청취 시간(분)   | 
+      | `songs_played_per_day`  | FLOAT     | 하루 재생 곡수         |
+      | `skip_rate`             | FLOAT     | 스킵률              |
+      | `device_type`           | VARCHAR   | 기기 종류            |
+      | `ads_listened_per_week` | INT       | 주간 광고 시청 수       |
+      | `offline_listening`     | INT (0/1) | 오프라인 재생 기능 여부    |
+      | **`is_churned`**            | INT(0/1)  | 이탈 여부            |
 
 <br>
 
-### 2) ❌❌❌❌❌`Feature Engineering` — 파생 변수 테이블
-| 컬럼명                | 타입      | 설명                                |
-| --------------------- | --------- | ------------------------------------ |
-| `engagement_score`   | FLOAT   | listening_time × songs_played_per_day             |
-| `songs_per_minute` | FLOAT | songs_played_per_day / listening_time               |
-| `skip_intensity`     | FLOAT   | skip_rate × songs_played_per_day  |
-| `skip_rate_cap`         | FLOAT   | skip_rate.clip(0, 1.5) |
-| `ads_pressure`         | FLOAT   | ads_listened_per_week / listening_time |
+- **초기 베이스라인** (`preprocessing_validation.ipynb`, `FE_validation.ipynb`):
+  - 수치형 6개 + 핵심 FE 5개(engagement_score, songs_per_minute, skip_intensity, skip_rate_cap, ads_pressure) 조합(Set D)
+     ### 🔹`Feature Engineering` — 파생 변수 테이블
+    | 컬럼명                | 타입      | 설명                                |
+    | --------------------- | --------- | ------------------------------------ |
+    | `engagement_score`   | FLOAT   | listening_time × songs_played_per_day             |
+    | `songs_per_minute` | FLOAT | songs_played_per_day / listening_time               |
+    | `skip_intensity`     | FLOAT   | skip_rate × songs_played_per_day  |
+    | `skip_rate_cap`         | FLOAT   | skip_rate.clip(0, 1.5) |
+    | `ads_pressure`         | FLOAT   | ads_listened_per_week / listening_time |
 
 <br>
 
-### 3) 💡 Improvement Proposal
+  - **모델**: RandomForestClassifier(class_weight='balanced') + threshold 튜닝
+  - **성능**: **F1≈0.41, AUC≈0.54** 수준에서 정체
 
-##### 3) `Time-Series Behavioral Trends` -
-| 피처명 | 타입 | 설명 | 예상 기여도 |
-|--------|------|------|-------------|
-| `listening_time_trend_7d` | float | 최근 7일 청취 시간 변화율 (%) | 높음 |
-| `login_frequency_30d` | int | 최근 30일 로그인 횟수 | 높음 |
-| `days_since_last_login` | int | 마지막 로그인 후 경과 일수 | 높음 |
-| `skip_rate_increase_7d` | float | 최근 1주 vs 이전 1주 스킵률 증가율 | 중간 |
-| `freq_of_use_trend_14d` | float | 최근 2주 사용 빈도 변화율 (%) | 높음 |
 
 <br>
 
-##### 4) `Customer Interaction Signalss`
-| 피처명 | 타입 | 설명 | 예상 기여도 |
-|--------|------|------|-------------|
-| `customer_support_contact` | bool | 최근 30일 내 고객센터 문의 여부 | 중간 |
-| `payment_failure_count` | int | 결제 실패 횟수 | 높음 |
-| `promotional_email_click` | bool | 프로모션 이메일 클릭 여부 | 낮음 |
-| `app_crash_count_30d` | int | 최근 30일 앱 크래시 횟수 | 중간 |
+## 2) Feature Engineering & Feature Selection 검증
+- **FE 검증** (`FE_validation.ipynb`, `FE_add.ipynb`):
+  - 여러 FE 세트(Set A~G) 및 추가 세그먼트/ratio/비선형 FE 후보를 실험
+  - **결과**: 핵심 FE 4~5개만 남기는 것이 최선, 복잡한 교호작용·플래그를 더해도 성능 개선은 ΔF1≈0 수준
 
-<br><br><br>
+ <br>
+ 
+- **범주형 및 FS 검증** (`feature_selection.ipynb`):
+  - `gender`, `country`, `subscription_type`, `device_type` 및 파생 범주형을 One-Hot 인코딩해 포함
+  - 수치형+FE(10~11개) vs 수치형+FE+범주형(30개 이상) 비교 시 **오히려 F1/AUC 소폭 하락 → 범주형 기여도 낮음**
 
+<br>
+
+## 3) Model Tuning·SMOTE·앙상블 검증
+- **모델/파라미터 튜닝** (`feature_selection.ipynb`):
+  - RandomForest 하이퍼파라미터(RandomizedSearchCV), K-Fold + threshold 튜닝, 소프트보팅 앙상블(RF+XGB+HGB) 등 적용
+  - **결과**: 어떤 조합도 F1 0.41±0.01, AUC 0.52~0.54 범위를 크게 넘지 못함
+ 
+<br>
+  
+- **SMOTE + XGBoost + 앙상블** (`SMOTE_XGB_RF.ipynb`):
+  - SMOTE(오버샘플링 비율·test_size·scale_pos_weight 등 여러 버전), XGBoost GridSearchCV, RF+XGB+HGB 앙상블 시도
+  - **결과**: Train에서는 F1↑지만 Test에서는 Baseline보다 낮거나 비슷한 수준 → **심한 과적합 & 실질적 개선 실패**
+
+<br>
+
+## 4) Limitations & Root Cause Analysis(한계 원인 분석)
+- **통계·상관·Feature Importance 분석** (`feature_selection.ipynb` 6장, `improvement_proposal.md`):
+  - 모든 피처에서 t-test p-value>0.05, 상관계수 |r|<0.02 → 이탈/비이탈 간 행동 차이가 통계적으로 거의 없음
+  - RF Feature Importance & Permutation Importance도 특정 피처가 두드러지지 않고 8~14% 수준으로 고르게 분산
+
+<br>
+
+- **결론**:
+  - 현재 구조(유저당 1행 스냅샷 + 단일 시점 피처)에서는 **F1≈0.41, AUC≈0.53이 사실상 상한**
+  - 모델 변경·튜닝·SMOTE만으로는 성능을 올리기 어렵고, **데이터/피처 자체를 바꾸는 방향이 필요**함
+
+<br>
+
+## 5) 시계열·고객 접점 Features 추가 및 성능 향상
+- **개선 아이디어 정리 (`improvement_proposal.md`)**:
+  - Priority 1: 최근 7/14/30일 행동 변화를 담는 **시계열 피처 5개**
+  - Priority 2: 고객센터 문의, 결제 실패, 프로모션 반응, 앱 크래시 등 **고객 접점 피처 4개**
+     ### 🔹 `Time-Series Behavioral Trends` - 시계열features(5개)
+      | 피처명 | 타입 | 설명 | 예상 기여도 |
+      |--------|------|------|-------------|
+      | `listening_time_trend_7d` | float | 최근 7일 청취 시간 변화율 (%) | 높음 |
+      | `login_frequency_30d` | int | 최근 30일 로그인 횟수 | 높음 |
+      | `days_since_last_login` | int | 마지막 로그인 후 경과 일수 | 높음 |
+      | `skip_rate_increase_7d` | float | 최근 1주 vs 이전 1주 스킵률 증가율 | 중간 |
+      | `freq_of_use_trend_14d` | float | 최근 2주 사용 빈도 변화율 (%) | 높음 |
+     ### 🔹 `Customer Interaction Signalss` - 고객접점features(4개)
+      | 피처명 | 타입 | 설명 | 예상 기여도 |
+      |--------|------|------|-------------|
+      | `customer_support_contact` | bool | 최근 30일 내 고객센터 문의 여부 | 중간 |
+      | `payment_failure_count` | int | 결제 실패 횟수 | 높음 |
+      | `promotional_email_click` | bool | 프로모션 이메일 클릭 여부 | 낮음 |
+      | `app_crash_count_30d` | int | 최근 30일 앱 크래시 횟수 | 중간 |
+  - 실제 로그 수집이 어려운 환경을 가정해, 위 피처들을 **현실적인 분포를 가진 합성 특성**으로 먼저 실험
+
+<br>
+
+- **합성 피처 생성 및 검증** (`feature_engineering_advanced.ipynb`):
+  - 원본 베이스라인(수치형 6 + FE 5, 총 11개) 대비, **시계열 5개 + 고객 접점 4개**를 추가한 `enhanced_data.csv` 생성
+  - RandomForest 기반 실험 결과:
+    - Baseline: F1≈0.42, AUC≈0.54
+    - +시계열 피처: F1≈0.49, AUC≈0.73
+    - +시계열+고객접점(최종): **F1≈0.62, AUC≈0.79** (ΔF1 +0.20 이상, ΔAUC +0.25 이상)
+  - **Feature Importance 기준 핵심 기여 피처**:
+    - `payment_failure_count`, `app_crash_count_30d` (고객 접점)
+    - `freq_of_use_trend_14d`, `listening_time_trend_7d`, `skip_rate_increase_7d` (시계열)
+
+<br>
+
+## 6) Preprocessing Pipeline Refinement
+- **전처리 정책 및 데이터 버전** (`preprocessing_validation_v2.ipynb`, `reset.md`):
+  - 합성 피처 포함 데이터 `enhanced_data.csv` 생성 후,
+    - 결측/이상치 처리 버전: `enhanced_data_clean.csv`
+    - FE 5개를 제거한 최종 모델 입력용: `enhanced_data_clean_model.csv` (원본 수치형 6 + 시계열 5 + 고객 접점 4 = **총 15개 수치형**)
+  - EDA는 `enhanced_data_clean.csv`, 모델 학습은 `enhanced_data_clean_model.csv` 기준으로 사용
+
+<br>
+
+- **백엔드 파이프라인 및 실험 구조** (`backend/preprocessing_pipeline.py`, `backend/models.py`, `backend/train_experiments.py`):
+  - sklearn `ColumnTransformer` 기반 전처리 파이프라인(결측/이상치 처리 + 수치형 스케일링 + 범주형 One-Hot)
+  - `get_model()` + `MODEL_REGISTRY` 구조로 모델 생성, `MODEL_PARAMS` 딕셔너리로 하이퍼파라미터 튜닝
+  - 실험 결과는 `models/metrics.json`에 누적 저장하도록 설계
+
+<br>
+
+## 7) Final Summary & Key Takeaways
+- **현재 데이터(스냅샷)만 사용**했을 때는, 다양한 FE/FS/튜닝/SMOTE/XGBoost/앙상블을 모두 시도해도 **F1≈0.41, AUC≈0.53 근처에서 정체**됨.
+- **시계열 + 고객 접점 피처를 추가**한 `enhanced_data.csv` 실험에서는, 동일한 모델(RF)로도 **F1≈0.62, AUC≈0.79까지 성능이 크게 상승**하는 것을 확인함.
+- 이를 통해 **“모델을 바꾸는 것보다, 이탈 직전 행동 변화와 고객 접점을 담는 피처를 설계·수집하는 것이 핵심”**이라는 결론에 도달했고,
+  실제 서비스 환경에서는 로그·고객센터·결제/에러 데이터를 결합한 피처 설계를 가장 우선순위로 두어야 한다는 인사이트를 얻음.
+
+<br>
+
+## 8) Final Model Comparison & Selection (HGB Selected)
+- **실험 공통 조건**
+  - 데이터: `data/enhanced_data_not_clean_FE_delete.csv` (원본 수치형 6 + 시계열 5 + 고객 접점 4 = **15개 수치형** 중심)
+  - 전처리: `backend/preprocessing_pipeline.py` / `jy_model_test/preprocessing_pipeline.py` 의 `preprocess_and_split()`
+  - 설정: `TEST_SIZE=0.2`, `RANDOM_STATE=42`, threshold 스캔(대부분 0.05~0.35/0.45, HGB는 0.05~0.45, step=0.005)
+
+      ### 📊 Model Performance Comparison
+      #### 🔸 F1 Score (정밀도·재현율 조화 평균)
+      <p align="center">
+        <img src="image/f1_score.jpg" width="600">
+      </p>
+      
+      #### 🔸 ROC-AUC (분류기 구분능력 지표) 
+      <p align="center">
+        <img src="image/ROC_AUC.jpg" width="600">
+      </p>
+      
+      #### 🔸 PR-AUC (양성 클래스 예측 성능 지표) 
+      <p align="center">
+        <img src="image/PR_AUC.jpg" width="600">
+      </p>
+      
+      #### 🔸 Recall (이탈자 탐지 성능)  
+      <p align="center">
+        <img src="image/Recall.jpg" width="600">
+      </p>
+
+
+     **모델별 best-run 성능 요약**
+    
+      | Model                   | F1 Score    | ROC-AUC    | PR-AUC     | Best Threshold | Precision | Recall |
+      | ----------------------- | ----------- | ---------- | ---------- | -------------- | --------- | ------ |
+      | **HGB (Best)**          | **0.6427**  | 0.8093     | 0.6910     | 0.26           | 0.6381    | **0.6473** |
+      | **LGBM**                | **0.6414**  | **0.8158** | 0.6996     | 0.28           | 0.6501    | 0.6329 |
+      | **XGBoost**             | 0.6197      | 0.8105     | **0.6933** | 0.44           | 0.6027    | 0.6377 |
+      | **RandomForest**        | 0.6216      | 0.7932     | 0.6635     | 0.365          | 0.6732    | 0.5773 |
+      | **ExtraTrees**          | 0.6150      | 0.7881     | 0.6279     | 0.34           | 0.6165    | 0.6135 |
+      | **KNN**                 | 0.4908      | 0.6764     | 0.4244     | 0.26           | 0.4243    | 0.5821 |
+      | **Logistic Regression** | 0.4809      | 0.6874     | 0.4587     | 0.26           | 0.3974    | 0.6086 |
+
+<br> 
+
+  > ### 💡 **모델 선택 근거 — Why HGB?**
+  > 
+  > #### - **F1 기준 팀 내 최고 성능**
+  > - HGB F1 ≈ **0.643**
+  > - LGBM ≈ 0.641  
+  > - XGB ≈ 0.620  
+  > - RF ≈ 0.622  
+  > → **전체 모델 중 가장 높은 F1 스코어 기록**
+  >
+  > 
+  >
+  > #### - **Precision · Recall 균형성 측면 (hgb_test.md 기준)**
+  > - **HGB** → Precision ≈ **0.638**, Recall ≈ **0.647** → *균형 잡힌 모델*
+  > - XGB → Precision ≈ 0.603, Recall ≈ 0.638 → *Recall ↑, Precision ↓*
+  > - LGBM → Precision ≈ 0.650, Recall ≈ 0.633 → *Precision ↑, Recall ↓*
+  > - **HGB는 FP(거짓 양성) / FN(거짓 음성) 모두 과도하게 늘지 않는 안정적 구조**
+  >
+  > 
+  >
+  > #### - **AUC / PR-AUC 전체 비교**
+  > - LGBM AUC ≈ **0.816**, PR-AUC ≈ **0.700**  → *절대수치 최고*
+  > - XGB AUC ≈ 0.811, PR-AUC ≈ 0.693  → *상위권*
+  > - HGB AUC ≈ **0.809**, PR-AUC ≈ **0.691** → *큰 차이 없이 매우 우수*
+  > → **HGB는 AUC 기준으로도 상위권이며 F1 성능까지 고려하면 종합 점수 최상**
+  >
+  > 
+  >
+  > ### 💡 **최종 결론 — Why HGB as Final Model?**
+  > - 서비스 목적상 **이탈/비이탈 모두 잘 맞추는 F1 중심 평가 기준**을 채택  
+  > - HGB는 **F1 최고 + Precision/Recall 균형 최적**  
+  > - 과대적합 위험 낮고, threshold 민감도도 낮아 **실전 안정성 높음**  
+  > - LGBM/XGB는 AUC는 높지만, 운영 목적(균형 예측) 대비 변동성 존재  
+  >
+  > 
+  > 👉 **따라서 HGB(HistGradientBoostingClassifier)를 최종 배포/시연용 모델로 선정.**  
+  > 👉 AUC 중심 실험 또는 보조 모델이 필요할 때는 XGB/LGBM을 함께 사용 가능.
+
+
+<br><br>
 
 ## 💡 주요 기능 (Key Features)
 
