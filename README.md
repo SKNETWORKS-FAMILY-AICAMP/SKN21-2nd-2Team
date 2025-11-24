@@ -3,16 +3,21 @@
 
 <br>
 
-<img src="image/스포티파이.svg" alt="프로젝트 로고" width="500">
-
+ <p align="center">
+        <img src="image/스포티파이.svg" alt="프로젝트 로고" width="500">
+      </p>
 
 <br><br><br>
-
+    
 
 ## 📌 프로젝트 개요
 
-<img src="image/spotify_naver.png" alt="네이버-스포티파이기사" width="600">
-<img src="image/spotify_naver2.png" alt="사진" width="500">
+   <p align="center">
+        <img src="image/spotify_naver.png" alt="네이버-스포티파이기사" width="600">
+      </p>
+  <p align="center">
+        <img src="image/spotify_naver2.png" alt="사진" width="500">
+      </p>
 
 <br>
 
@@ -22,11 +27,15 @@
 
 <br>
 
-<img src="image/spotifyfree.png" alt="사진" width="600">
-<div style="display:flex; gap:20px; justify-content:center;">
-  <img src="image/spotifyfree2.png" alt="사진" width="200">
-  <img src="image/spotify추세.jpg" alt="사진" width="200">
-  <img src="image/멜론잡겠다.jpg" alt="사진" width="200">
+ <p align="center">
+        <img src="image/spotifyfree.png" alt="사진" width="600">
+      </p>
+<p align="center">
+  <img src="image/spotifyfree2.png" width="250">
+  <img src="image/spotify추세.jpg" width="250">
+  <img src="image/멜론잡겠다.jpg" width="250">
+</p>
+
 </div>
 
 <br>
@@ -221,7 +230,7 @@ SKN21-2ND-2TEAM/
 <br>
 
   - **모델**: RandomForestClassifier(class_weight='balanced') + threshold 튜닝
-  - **성능**: F1≈0.41, AUC≈0.54 수준에서 정체
+  - **성능**: **F1≈0.41, AUC≈0.54** 수준에서 정체
 
 
 <br>
@@ -230,6 +239,9 @@ SKN21-2ND-2TEAM/
 - **FE 검증** (`FE_validation.ipynb`, `FE_add.ipynb`):
   - 여러 FE 세트(Set A~G) 및 추가 세그먼트/ratio/비선형 FE 후보를 실험
   - **결과**: 핵심 FE 4~5개만 남기는 것이 최선, 복잡한 교호작용·플래그를 더해도 성능 개선은 ΔF1≈0 수준
+
+ <br>
+ 
 - **범주형 및 FS 검증** (`feature_selection.ipynb`):
   - `gender`, `country`, `subscription_type`, `device_type` 및 파생 범주형을 One-Hot 인코딩해 포함
   - 수치형+FE(10~11개) vs 수치형+FE+범주형(30개 이상) 비교 시 **오히려 F1/AUC 소폭 하락 → 범주형 기여도 낮음**
@@ -240,6 +252,9 @@ SKN21-2ND-2TEAM/
 - **모델/파라미터 튜닝** (`feature_selection.ipynb`):
   - RandomForest 하이퍼파라미터(RandomizedSearchCV), K-Fold + threshold 튜닝, 소프트보팅 앙상블(RF+XGB+HGB) 등 적용
   - **결과**: 어떤 조합도 F1 0.41±0.01, AUC 0.52~0.54 범위를 크게 넘지 못함
+ 
+<br>
+  
 - **SMOTE + XGBoost + 앙상블** (`SMOTE_XGB_RF.ipynb`):
   - SMOTE(오버샘플링 비율·test_size·scale_pos_weight 등 여러 버전), XGBoost GridSearchCV, RF+XGB+HGB 앙상블 시도
   - **결과**: Train에서는 F1↑지만 Test에서는 Baseline보다 낮거나 비슷한 수준 → **심한 과적합 & 실질적 개선 실패**
@@ -250,6 +265,9 @@ SKN21-2ND-2TEAM/
 - **통계·상관·Feature Importance 분석** (`feature_selection.ipynb` 6장, `improvement_proposal.md`):
   - 모든 피처에서 t-test p-value>0.05, 상관계수 |r|<0.02 → 이탈/비이탈 간 행동 차이가 통계적으로 거의 없음
   - RF Feature Importance & Permutation Importance도 특정 피처가 두드러지지 않고 8~14% 수준으로 고르게 분산
+
+<br>
+
 - **결론**:
   - 현재 구조(유저당 1행 스냅샷 + 단일 시점 피처)에서는 **F1≈0.41, AUC≈0.53이 사실상 상한**
   - 모델 변경·튜닝·SMOTE만으로는 성능을 올리기 어렵고, **데이터/피처 자체를 바꾸는 방향이 필요**함
@@ -276,6 +294,9 @@ SKN21-2ND-2TEAM/
       | `promotional_email_click` | bool | 프로모션 이메일 클릭 여부 | 낮음 |
       | `app_crash_count_30d` | int | 최근 30일 앱 크래시 횟수 | 중간 |
   - 실제 로그 수집이 어려운 환경을 가정해, 위 피처들을 **현실적인 분포를 가진 합성 특성**으로 먼저 실험
+
+<br>
+
 - **합성 피처 생성 및 검증** (`feature_engineering_advanced.ipynb`):
   - 원본 베이스라인(수치형 6 + FE 5, 총 11개) 대비, **시계열 5개 + 고객 접점 4개**를 추가한 `enhanced_data.csv` 생성
   - RandomForest 기반 실험 결과:
@@ -294,6 +315,9 @@ SKN21-2ND-2TEAM/
     - 결측/이상치 처리 버전: `enhanced_data_clean.csv`
     - FE 5개를 제거한 최종 모델 입력용: `enhanced_data_clean_model.csv` (원본 수치형 6 + 시계열 5 + 고객 접점 4 = **총 15개 수치형**)
   - EDA는 `enhanced_data_clean.csv`, 모델 학습은 `enhanced_data_clean_model.csv` 기준으로 사용
+
+<br>
+
 - **백엔드 파이프라인 및 실험 구조** (`backend/preprocessing_pipeline.py`, `backend/models.py`, `backend/train_experiments.py`):
   - sklearn `ColumnTransformer` 기반 전처리 파이프라인(결측/이상치 처리 + 수치형 스케일링 + 범주형 One-Hot)
   - `get_model()` + `MODEL_REGISTRY` 구조로 모델 생성, `MODEL_PARAMS` 딕셔너리로 하이퍼파라미터 튜닝
@@ -315,23 +339,23 @@ SKN21-2ND-2TEAM/
   - 전처리: `backend/preprocessing_pipeline.py` / `jy_model_test/preprocessing_pipeline.py` 의 `preprocess_and_split()`
   - 설정: `TEST_SIZE=0.2`, `RANDOM_STATE=42`, threshold 스캔(대부분 0.05~0.35/0.45, HGB는 0.05~0.45, step=0.005)
 
-      ## 📊 Model Performance Comparison
-      ### 🔸 F1 Score (정밀도·재현율 조화 평균)
+      ### 📊 Model Performance Comparison
+      #### 🔸 F1 Score (정밀도·재현율 조화 평균)
       <p align="center">
         <img src="image/f1_score.jpg" width="600">
       </p>
       
-      ### 🔸 ROC-AUC (분류기 구분능력 지표) 
+      #### 🔸 ROC-AUC (분류기 구분능력 지표) 
       <p align="center">
         <img src="image/ROC_AUC.jpg" width="600">
       </p>
       
-      ### 🔸 PR-AUC (양성 클래스 예측 성능 지표) 
+      #### 🔸 PR-AUC (양성 클래스 예측 성능 지표) 
       <p align="center">
         <img src="image/PR_AUC.jpg" width="600">
       </p>
       
-      ### 🔸 Recall (이탈자 탐지 성능)  
+      #### 🔸 Recall (이탈자 탐지 성능)  
       <p align="center">
         <img src="image/Recall.jpg" width="600">
       </p>
@@ -349,8 +373,8 @@ SKN21-2ND-2TEAM/
       | **KNN**                 | 0.4908      | 0.6764     | 0.4244     | 0.26           | 0.4243    | 0.5821 |
       | **Logistic Regression** | 0.4809      | 0.6874     | 0.4587     | 0.26           | 0.3974    | 0.6086 |
 
-<br><br>
-  
+<br> 
+
   > ### 💡 **모델 선택 근거 — Why HGB?**
   > 
   > #### - **F1 기준 팀 내 최고 성능**
