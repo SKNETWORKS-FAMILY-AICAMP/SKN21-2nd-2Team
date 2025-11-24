@@ -63,7 +63,7 @@
 - 이를 통해 **“모델을 바꾸는 것보다, 이탈 직전 행동 변화와 고객 접점을 담는 피처를 설계·수집하는 것이 핵심”**이라는 결론에 도달했고,
   실제 서비스 환경에서는 로그·고객센터·결제/에러 데이터를 결합한 피처 설계를 가장 우선순위로 두어야 한다는 인사이트를 얻음.
 
-### 8. XGBoost 모델 실험 요약 (3번 역할)
+### 8. XGBoost 모델 실험 요약 
 
 - **실험 환경**:
   - 데이터: `data/enhanced_data_not_clean_FE_delete.csv`
@@ -86,3 +86,43 @@
   - XGB: F1 ≈ **0.620**, AUC ≈ **0.811**, PR-AUC ≈ **0.693**
   - ⇒ **F1은 거의 비슷하거나 XGB가 근소 우위**, AUC/PR-AUC는 XGB가 명확히 우위  
   - 팀 전체 모델 비교(다른 팀원의 모델)는 아직 진행 중이며, XGB 결과는 **3번 역할의 개별 실험 결과**로 README에 정리 예정
+
+
+### 9. 모델별 최종 비교 및 선택 (HGB 최종 채택)
+
+- **실험 공통 조건**
+  - 데이터: `data/enhanced_data_not_clean_FE_delete.csv` (원본 수치형 6 + 시계열 5 + 고객 접점 4 = **15개 수치형** 중심)
+  - 전처리: `backend/preprocessing_pipeline.py` / `jy_model_test/preprocessing_pipeline.py` 의 `preprocess_and_split()`
+  - 설정: `TEST_SIZE=0.2`, `RANDOM_STATE=42`, threshold 스캔(대부분 0.05~0.35/0.45, HGB는 0.05~0.45, step=0.005)
+
+- **모델별 best-run 성능 요약**
+  - **LogisticRegression (logit)** (`logit_test.md`)
+    - F1 ≈ **0.481**, AUC ≈ **0.687**, PR-AUC ≈ **0.459**
+  - **KNN** (`knn_test.md`)
+    - F1 ≈ **0.491**, AUC ≈ **0.676**, PR-AUC ≈ **0.425**
+  - **RandomForest (RF)** (`rf_test.md`)
+    - F1 ≈ **0.622**, AUC ≈ **0.793**, PR-AUC ≈ **0.664**
+  - **ExtraTrees (ET)** (`et_test.md`)
+    - F1 ≈ **0.615**, AUC ≈ **0.788**, PR-AUC ≈ **0.628**
+  - **XGBoost (XGB)** (`xgb_test.md`)
+    - F1 ≈ **0.620**, AUC ≈ **0.811**, PR-AUC ≈ **0.693**
+  - **LightGBM (LGBM)** (`lgbm_test.md`)
+    - F1 ≈ **0.641**, AUC ≈ **0.816**, PR-AUC ≈ **0.700**
+  - **HistGradientBoosting (HGB)** (`hgb_test.md`)
+    - F1 ≈ **0.643**, AUC ≈ **0.809**, PR-AUC ≈ **0.691**
+
+- **모델 선택 근거 (왜 HGB를 최종 채택했는가)**  
+  - **F1 기준 팀 내 최고 모델**:  
+    - HGB F1 ≈ **0.643** > LGBM ≈ **0.641** > XGB ≈ **0.620** > RF ≈ **0.622**
+  - **균형 잡힌 Precision/Recall** (`hgb_test.md` 기준)
+    - HGB: Precision ≈ **0.638**, Recall ≈ **0.647** (밸런스형)
+    - XGB: Precision ≈ 0.603, Recall ≈ 0.638 (Recall 약간 높고 Precision 낮음)
+    - LGBM: Precision ≈ 0.650, Recall ≈ 0.633 (Precision 조금 더 높고 Recall 살짝 낮음)
+    - → HGB는 **과도한 FP/FN 없이 양쪽을 모두 잘 잡는 균형형 모델**로 해석 가능
+  - **AUC/PR-AUC 관점**
+    - AUC/PR-AUC 절대 최고는 LGBM/XGB 조합(LGBM AUC≈0.816, PR-AUC≈0.700 / XGB AUC≈0.811, PR-AUC≈0.693)
+    - 그러나 HGB도 AUC≈0.809, PR-AUC≈0.691 로 **성능 차이가 크지 않고, F1 기준으로는 팀 내 최고**
+  - **최종 결론**
+    - **서비스/보고서에서 “이탈/비이탈 둘 다 잘 맞추는 F1 중심 모델”을 우선시**하기로 하고,
+    - F1 최고 + Precision/Recall 균형이 가장 좋은 **HistGradientBoosting(HGB)** 을 최종 배포용/시연용 모델로 선정.
+    - AUC 중심 비교나 추가 실험에서는 XGB/LGBM도 보조 모델로 활용 가능.
