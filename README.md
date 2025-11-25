@@ -248,7 +248,7 @@ SKN21-2ND-2TEAM/
   - `gender`, `country`, `subscription_type`, `device_type` 및 파생 범주형을 One-Hot 인코딩해 포함
   - 수치형+FE(10~11개) vs 수치형+FE+범주형(30개 이상) 비교 시 **오히려 F1/AUC 소폭 하락 → 범주형 기여도 낮음**
  <p align="center">
-        <img src="image/visualizations/04_feature_category_impact.png" alt="feature_category_impact" width="500">
+        <img src="image/visualizations/04_feature_category_impact.png" alt="feature_category_impact" width="600">
       </p>
 
 <br>
@@ -276,20 +276,31 @@ SKN21-2ND-2TEAM/
 ## 4) Limitations & Root Cause Analysis(한계 원인 분석)
 - **통계·상관·Feature Importance 분석** (`feature_selection.ipynb` 6장, `improvement_proposal.md`):
   - 모든 피처에서 t-test p-value>0.05, 상관계수 |r|<0.02 → 이탈/비이탈 간 행동 차이가 통계적으로 거의 없음
-  - RF Feature Importance & Permutation Importance도 특정 피처가 두드러지지 않고 8~14% 수준으로 고르게 분산
+<p align="center">
+  <img src="image/visualizations/05_ttest_pvalues.png" width="450">
+  <img src="image/visualizations/06_correlation_analysis.png" width="450">
+</p>
 
+  - RF Feature Importance & Permutation Importance도 특정 피처가 두드러지지 않고 8~14% 수준으로 고르게 분산
+<p align="center">
+        <img src="image/visualizations/07_feature_importance.png" alt="feature_importance" width="580">
+      </p>
+      
 <br>
 
 - **결론**:
   - 현재 구조(유저당 1행 스냅샷 + 단일 시점 피처)에서는 **F1≈0.41, AUC≈0.53이 사실상 상한**
-  - 모델 변경·튜닝·SMOTE만으로는 성능을 올리기 어렵고, **데이터/피처 자체를 바꾸는 방향이 필요**함
+  <p align="center">
+        <img src="image/visualizations/08_performance_ceiling.png" alt="performance_ceiling" width="550">
+      </p>
+ - 모델 변경·튜닝·SMOTE만으로는 성능을 올리기 어렵고, **데이터/피처 자체를 바꾸는 방향이 필요**함
 
 <br>
 
 ## 5) 시계열·고객 접점 Features 추가 및 성능 향상
 - **개선 아이디어 정리 (`improvement_proposal.md`)**:
-  - Priority 1: 최근 7/14/30일 행동 변화를 담는 **시계열 피처 5개**
-  - Priority 2: 고객센터 문의, 결제 실패, 프로모션 반응, 앱 크래시 등 **고객 접점 피처 4개**
+  - `Priority 1`: 최근 7/14/30일 행동 변화를 담는 **시계열 피처 5개**
+  - `Priority 2`: 고객센터 문의, 결제 실패, 프로모션 반응, 앱 크래시 등 **고객 접점 피처 4개**
      ### 🔹 `Time-Series Behavioral Trends` - 시계열features(5개)
       | 피처명 | 타입 | 설명 | 예상 기여도 |
       |--------|------|------|-------------|
@@ -315,9 +326,15 @@ SKN21-2ND-2TEAM/
     - Baseline: F1≈0.42, AUC≈0.54
     - +시계열 피처: F1≈0.49, AUC≈0.73
     - +시계열+고객접점(최종): **F1≈0.62, AUC≈0.79** (ΔF1 +0.20 이상, ΔAUC +0.25 이상)
+  <p align="center">
+        <img src="image/visualizations/advanced_fe_performance.png" alt="advanced_fe_performance" width="500">
+      </p>      
   - **Feature Importance 기준 핵심 기여 피처**:
     - `payment_failure_count`, `app_crash_count_30d` (고객 접점)
     - `freq_of_use_trend_14d`, `listening_time_trend_7d`, `skip_rate_increase_7d` (시계열)
+  <p align="center">
+        <img src="image/visualizations/advanced_fe_top_importances_highlight.png" alt="advanced_fe_top" width="500">
+      </p>      
 
 <br>
 
@@ -414,15 +431,26 @@ SKN21-2ND-2TEAM/
   >
   > 
   >
-  > ### 💡 **최종 결론 — Why HGB as Final Model?**
-  > - 서비스 목적상 **이탈/비이탈 모두 잘 맞추는 F1 중심 평가 기준**을 채택  
-  > - HGB는 **F1 최고 + Precision/Recall 균형 최적**  
-  > - 과대적합 위험 낮고, threshold 민감도도 낮아 **실전 안정성 높음**  
-  > - LGBM/XGB는 AUC는 높지만, 운영 목적(균형 예측) 대비 변동성 존재  
-  >
-  > 
-  > 👉 **따라서 HGB(HistGradientBoostingClassifier)를 최종 배포/시연용 모델로 선정.**  
-  > 👉 AUC 중심 실험 또는 보조 모델이 필요할 때는 XGB/LGBM을 함께 사용 가능.
+   ### 💡 **최종 결론 — Why HGB as Final Model?**
+   - 서비스 목적상 **이탈/비이탈 모두 잘 맞추는 F1 중심 평가 기준**을 채택  
+   - HGB는 **F1 최고 + Precision/Recall 균형 최적**  
+   - 과대적합 위험 낮고, threshold 민감도도 낮아 **실전 안정성 높음**  
+   - LGBM/XGB는 AUC는 높지만, 운영 목적(균형 예측) 대비 변동성 존재  
+  
+   
+   👉 **따라서 HGB(HistGradientBoostingClassifier)를 최종 배포/시연용 모델로 선정.**  
+   👉 AUC 중심 실험 또는 보조 모델이 필요할 때는 XGB/LGBM을 함께 사용 가능.
+
+### 모델 성능·최종 선택 요약
+> **스냅샷 + FE/튜닝만으로는 F1 0.41, AUC 0.53에서 막혀 있었지만,  
+> “시계열 + 고객접점” 신호를 추가하면서 F1 0.62+, AUC 0.79+까지 끌어올렸고,  
+> 이후에는 하이퍼파라미터 튜닝을하여 F1 0.63+ AUC 0.81+까지 올렸다. 풀 모델(HGB)과 6피처 LGBM 단조제약 앙상블을 각각  
+> 메인 서비스 모델과 관리자용 시뮬레이터로 분리해 완성도를 높였다.**
+
+### 최종 F1 / AUC 수치 요약
+- **F1**: **0.33 → 0.41 → 0.62+ → 0.63+**
+- **AUC**: **0.49 → 0.53 → 0.79+ → 0.81+**
+  - (초기 원본 스냅샷 → FE 추가 → 시계열·고객접점 추가 RF → 최종 풀 모델(HGB))
 
 
 <br><br>
