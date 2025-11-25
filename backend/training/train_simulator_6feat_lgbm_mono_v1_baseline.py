@@ -68,7 +68,7 @@ def main() -> None:
     if "is_churned" not in df.columns:
         raise ValueError("'is_churned' 타깃 컬럼을 찾을 수 없습니다.")
 
-    print(f"✅ 데이터 로드 완료: {df.shape}")
+    print(f"데이터 로드 완료: {df.shape}")
     print(f"   이탈률: {df['is_churned'].mean():.2%}")
 
     X = df[SIM_FEATURES].copy()
@@ -91,7 +91,7 @@ def main() -> None:
         monotone_constraints=MONO_CONSTRAINTS,
     )
     model.fit(X_train, y_train)
-    print("✅ 학습 완료!")
+    print("학습 완료!")
 
     y_proba = model.predict_proba(X_test)[:, 1]
     auc = roc_auc_score(y_test, y_proba)
@@ -111,7 +111,7 @@ def main() -> None:
     tn, fp, fn, tp = confusion_matrix(y_test, y_best).ravel()
 
     print("\n" + "=" * 70)
-    print("📊 6피처 전용 LGBM(단조 제약) 기본 모델 성능 (검증 세트 기준)")
+    print("6피처 전용 LGBM(단조 제약) 기본 모델 성능 (검증 세트 기준)")
     print("=" * 70)
     print(f"ROC-AUC        : {auc:.4f}")
     print(f"Best F1        : {best_f1:.4f}")
@@ -122,7 +122,7 @@ def main() -> None:
     os.makedirs("models", exist_ok=True)
     out_path = os.path.join("models", "lgbm_sim_6feat_mono_v1_baseline.pkl")
     joblib.dump(model, out_path)
-    print(f"\n💾 6피처 전용 LGBM(단조 제약) 기본 모델 저장 완료: {out_path}")
+    print(f"\n6피처 전용 LGBM(단조 제약) 기본 모델 저장 완료: {out_path}")
     print("   (v1 기본 버전 - 단조 제약만 적용)")
 
 

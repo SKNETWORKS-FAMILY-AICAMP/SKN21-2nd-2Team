@@ -74,4 +74,4 @@ print(preview.to_string(index=False))
 # 4) churn_prob / risk_level 이 포함된 CSV 저장
 output_path = "data/processed/enhanced_data_with_lgbm_churn_prob.csv"
 df.to_csv(output_path, index=False, encoding="utf-8-sig")
-print(f"\n✅ 예측 결과 저장 완료: {output_path}")
+print(f"\n예측 결과 저장 완료: {output_path}")

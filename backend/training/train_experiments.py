@@ -127,7 +127,7 @@ def main():
     y_pred_best = (y_proba >= best_th).astype(int)
     tn, fp, fn, tp = confusion_matrix(y_test, y_pred_best).ravel()
 
-    print("📊 Evaluation with sklearn preprocessing pipeline")
+    print("Evaluation with sklearn preprocessing pipeline")
     print(f"- Model         : {MODEL_NAME}")
     print(f"- F1 Score      : {best_f1:.4f}")
     print(f"- AUC           : {auc:.4f}")
