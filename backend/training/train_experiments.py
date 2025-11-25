@@ -1,17 +1,22 @@
 """
 train_experiments.py
 Auth: 신지용
-전처리 파이프라인(`backend/preprocessing.py`)을 호출해
-모델 학습 + 평가(F1, AUC, Best Threshold)를 수행하는 스크립트.
+
+전처리 파이프라인(`backend/preprocessing_pipeline.py`)을 호출해
+- 모델 학습
+- 평가(F1, AUC, Best Threshold)
+- 학습이 끝난 최종 모델을 pkl(`backend.config.MODEL_PKL_PATH`)로 저장
+까지 수행하는 스크립트입니다.
 
 현재 전처리 로직은 `notebooks/pipeline.ipynb`에서 정의된
 sklearn ColumnTransformer 기반 파이프라인을 그대로 옮긴
 `preprocess_and_split` 함수를 사용합니다.
 
 역할 분리:
-- 전처리 수정        → `backend/preprocessing.py`
+- 전처리 수정        → `backend/preprocessing_pipeline.py`
 - 모델 종류/파라미터 → `backend/models.py`의 `get_model()`
-- 데이터 경로/seed/비율 → 아래 CONFIG 상수만 수정
+- 데이터 경로/seed/비율 → `backend/config.py`의 상수들
+- 최종 모델 저장 경로 → `backend.config.MODEL_PKL_PATH`
 """
 
 import json
@@ -19,6 +24,7 @@ import os
 from datetime import datetime
 import sys
 
+import joblib
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 import numpy as np
 from sklearn.metrics import (
@@ -39,6 +45,7 @@ from backend.config import (
     THRESH_END,
     THRESH_STEP,
     METRICS_PATH,
+    MODEL_PKL_PATH,
 )
 from backend.models import get_model
 from backend.preprocessing_pipeline import preprocess_and_split  # 같은 backend 디렉터리 기준 import
@@ -155,6 +162,16 @@ def main():
         n_train=len(y_train),
         n_test=len(y_test),
     )
+
+    # 5) 학습된 최종 모델 pkl 저장
+    #    - 서비스에서 inference.py 가 MODEL_PKL_PATH 를 통해 이 모델을 사용
+    try:
+        model_save_path = MODEL_PKL_PATH
+        os.makedirs(os.path.dirname(model_save_path), exist_ok=True) if os.path.dirname(model_save_path) else None
+        joblib.dump(model, model_save_path)
+        print(f"💾 Trained model saved to {model_save_path}")
+    except Exception as e:
+        print(f"⚠️  모델 저장 중 오류가 발생했지만, 학습/평가 자체는 완료되었습니다: {e}")
 
 
 def save_metrics(

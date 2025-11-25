@@ -1,17 +1,23 @@
 """
 inference.py
 Auth: 신지용
+
 전처리 파이프라인(`backend/preprocessing_pipeline.py`)과
 모델 팩토리(`backend/models.py`)를 조합해, 단일 유저의
-이탈 확률(churn_prob)을 계산하는 추론 모듈.
+이탈 확률(churn_prob)을 계산하는 추론 모듈입니다.
 
-현재 로직은 `data/processed`에 저장된 전처리 아티팩트
-(`preprocess_and_split` + `save_processed_data`)를 로드한 뒤,
-요청 시 모델을 학습/캐싱하여 예측에 사용합니다.
+현재 로직은:
+- `data/processed`에 저장된 전처리 아티팩트
+  (`preprocess_and_split` + `save_processed_data`)에서 preprocessor 를 로드하고,
+- 서비스용 최종 모델 pkl(`backend.config.MODEL_PKL_PATH`)이 있으면
+  이를 `joblib.load` 해서 메모리에 캐시한 뒤 예측에 사용합니다.
+- pkl 이 없는 경우에만, 전처리된 학습 데이터(`X_train_processed`, `y_train`)를 이용해
+  모델을 1회 학습한 후 캐시하여 사용합니다.
 
 역할 분리:
 - 전처리/아티팩트 저장 → `backend/preprocessing_pipeline.py`
 - 모델 종류/파라미터   → `backend/models.py`의 `get_model()`
+- 최종 모델 경로       → `backend.config.MODEL_PKL_PATH`
 - 단일/배치 예측 API   → 이 모듈의 `predict_churn` 및 `backend/app.py`의 관련 엔드포인트
 
 간단 사용 예시:
@@ -34,10 +40,12 @@ from __future__ import annotations
 
 from typing import Any, Dict, Mapping, Optional
 
+import os
+import joblib
 import numpy as np
 import pandas as pd
 
-from backend.config import DEFAULT_MODEL_NAME, RANDOM_STATE
+from backend.config import DEFAULT_MODEL_NAME, RANDOM_STATE, MODEL_PKL_PATH
 from backend.models import get_model
 from backend.preprocessing_pipeline import load_processed_data
 
@@ -48,7 +56,6 @@ from backend.preprocessing_pipeline import load_processed_data
 _ARTIFACTS_LOADED: bool = False
 _PREPROCESSOR = None
 _MODEL_CACHE: Dict[str, Any] = {}
-
 
 def _load_artifacts_if_needed() -> None:
     """
@@ -73,11 +80,12 @@ def _load_artifacts_if_needed() -> None:
 def _get_or_train_model(model_name: str) -> Any:
     """
     요청된 모델 이름에 해당하는 분류 모델을 메모리에서 가져오거나,
-    없으면 data/processed/X_train_processed.pkl, y_train.pkl 기준으로 1회 학습합니다.
+    없으면 (백업용으로) data/processed/X_train_processed.pkl, y_train.pkl 기준으로 1회 학습합니다.
 
     주의:
-        - 서비스 환경에서는 별도 model.pkl 로 저장해 두는 것이 이상적이나,
-          현재 프로젝트 구조에서는 전처리된 행렬을 재활용해 간단히 재학습하는 패턴을 사용합니다.
+        - 서비스 환경에서는 별도 model.pkl 로 저장해 두는 것이 이상적이며,
+          우선적으로 MODEL_PKL_PATHS 에 정의된 pkl 파일을 joblib.load 해서 사용합니다.
+        - 해당 pkl 이 없을 때만, 이전처럼 전처리된 행렬을 이용해 1회 학습하는 패턴을 사용합니다.
     """
     global _MODEL_CACHE
 
@@ -85,7 +93,13 @@ def _get_or_train_model(model_name: str) -> Any:
     if key in _MODEL_CACHE:
         return _MODEL_CACHE[key]
 
-    # 전처리 아티팩트 로딩 (여기서는 preprocessor 외에 X_train, y_train도 재사용)
+    # 1) 우선: 서비스용 최종 모델 pkl 이 있으면 그걸 로드해서 사용
+    if os.path.exists(MODEL_PKL_PATH):
+        loaded_model = joblib.load(MODEL_PKL_PATH)
+        _MODEL_CACHE[key] = loaded_model
+        return loaded_model
+
+    # 2) 백업: pkl 이 없으면 이전 방식대로 한 번만 학습해서 캐시
     from backend.preprocessing_pipeline import load_processed_data as _load_processed_data
 
     X_train, _, y_train, _, _ = _load_processed_data(save_dir="data/processed")

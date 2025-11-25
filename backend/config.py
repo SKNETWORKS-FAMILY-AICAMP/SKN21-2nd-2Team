@@ -35,10 +35,15 @@ THRESH_STEP: float = 0.01
 
 
 # -----------------------------------------------------
-# 메트릭 저장 위치
+# 메트릭 및 최종 모델 저장 위치
 # -----------------------------------------------------
 # 여러 실험 결과를 누적해서 저장할 JSON 파일 경로
 METRICS_PATH: str = "models/metrics.json"
+
+# 서비스에서 사용할 최종 학습 모델 pkl 경로
+# - inference.py 와 training/train_experiments.py 가 공통으로 사용
+# - models 디렉토리 아래에 저장
+MODEL_PKL_PATH: str = "models/model_lk.pkl"
 
 
 __all__ = [
@@ -50,6 +55,7 @@ __all__ = [
     "THRESH_END",
     "THRESH_STEP",
     "METRICS_PATH",
+    "MODEL_PKL_PATH",
 ]
 
 
