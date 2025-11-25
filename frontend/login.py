@@ -202,20 +202,20 @@ def show_login_page():
             st.rerun()
         
         if login_button:
-            st.write("🔍 [LOG] 로그인 버튼 클릭 감지됨")
-            st.write(f"🔍 [LOG] 입력된 아이디: '{user_id_input}'")
-            st.write(f"🔍 [LOG] 입력된 비밀번호 길이: {len(password)}")
+            # st.write("🔍 [LOG] 로그인 버튼 클릭 감지됨")
+            # st.write(f"🔍 [LOG] 입력된 아이디: '{user_id_input}'")
+            # st.write(f"🔍 [LOG] 입력된 비밀번호 길이: {len(password)}")
 
             # ------------------------------
             # 임시 로그인 공통 처리
             # ------------------------------
             if user_id_input.strip() in temp_accounts:
-                st.write(f"🔍 [LOG] 임시 계정 체크: '{user_id_input.strip()}' 발견됨")
+                # st.write(f"🔍 [LOG] 임시 계정 체크: '{user_id_input.strip()}' 발견됨")
                 acc = temp_accounts[user_id_input.strip()]
 
                 if password.strip() == acc["password"]:
-                    st.write("🔍 [LOG] 임시 계정 비밀번호 일치 확인")
-                    st.write(f"🔍 [LOG] 계정 정보: user_id={acc['user_id']}, name={acc['name']}, grade={acc['grade']}")
+                    # st.write("🔍 [LOG] 임시 계정 비밀번호 일치 확인")
+                    # st.write(f"🔍 [LOG] 계정 정보: user_id={acc['user_id']}, name={acc['name']}, grade={acc['grade']}")
                     
                     st.session_state.logged_in = True
                     st.session_state.user_info = {
@@ -226,22 +226,23 @@ def show_login_page():
                     }
                     st.session_state.page = "main"  # 페이지 상태 변경 추가
                     
-                    st.write("🔍 [LOG] 세션 상태 설정 완료")
-                    st.write(f"🔍 [LOG] logged_in: {st.session_state.logged_in}")
-                    st.write(f"🔍 [LOG] user_info: {st.session_state.user_info}")
-                    st.write(f"🔍 [LOG] page: {st.session_state.page}")
+                    # st.write("🔍 [LOG] 세션 상태 설정 완료")
+                    # st.write(f"🔍 [LOG] logged_in: {st.session_state.logged_in}")
+                    # st.write(f"🔍 [LOG] user_info: {st.session_state.user_info}")
+                    # st.write(f"🔍 [LOG] page: {st.session_state.page}")
                     
                     st.success("임시 계정으로 로그인되었습니다.")
-                    st.write("🔍 [LOG] st.rerun() 호출 전")
+                    # st.write("🔍 [LOG] st.rerun() 호출 전")
                     st.rerun()
-                    st.write("🔍 [LOG] st.rerun() 호출 후 (이 메시지는 보이지 않아야 함)")
+                    # st.write("🔍 [LOG] st.rerun() 호출 후 (이 메시지는 보이지 않아야 함)")
                     return
                 else:
-                    st.write("🔍 [LOG] 임시 계정 비밀번호 불일치")
+                    # st.write("🔍 [LOG] 임시 계정 비밀번호 불일치")
                     st.error("비밀번호가 일치하지 않습니다.")
                     return
             else:
-                st.write(f"🔍 [LOG] 임시 계정 아님: '{user_id_input.strip()}'")
+                # st.write(f"🔍 [LOG] 임시 계정 아님: '{user_id_input.strip()}'")
+                pass
 
             # ------------------------------
             # 실제 API 로그인 로직 (숫자 user_id 전용)
@@ -254,29 +255,29 @@ def show_login_page():
 
             # 숫자 형식 검증 (임시 계정이 아닌 경우에만)
             if not user_id_input.strip().isdigit():
-                st.write("🔍 [LOG] 숫자 형식 검증 실패")
+                # st.write("🔍 [LOG] 숫자 형식 검증 실패")
                 st.error("아이디는 숫자만 입력 가능합니다. (또는 임시 계정: test1/test2)")
                 return
 
-            st.write("🔍 [LOG] 숫자 형식 검증 통과")
+            # st.write("🔍 [LOG] 숫자 형식 검증 통과")
             try:
                 user_id = int(user_id_input.strip())
-                st.write(f"🔍 [LOG] user_id 변환 완료: {user_id}")
+                # st.write(f"🔍 [LOG] user_id 변환 완료: {user_id}")
             except ValueError as e:
-                st.write(f"🔍 [LOG] user_id 변환 실패: {e}")
+                # st.write(f"🔍 [LOG] user_id 변환 실패: {e}")
                 st.error("아이디는 숫자만 입력 가능합니다.")
                 return
 
             try:
-                st.write(f"🔍 [LOG] API 요청 시작: {API_URL}/login")
-                st.write(f"🔍 [LOG] 요청 데이터: user_id={user_id}, password 길이={len(password)}")
+                # st.write(f"🔍 [LOG] API 요청 시작: {API_URL}/login")
+                # st.write(f"🔍 [LOG] 요청 데이터: user_id={user_id}, password 길이={len(password)}")
                 
                 # API 요청
                 res = requests.post(
                     f"{API_URL}/login",
                     json={"user_id": user_id, "password": password}
                 )
-                st.write(f"🔍 [LOG] API 요청 완료: status_code={res.status_code}")
+                # st.write(f"🔍 [LOG] API 요청 완료: status_code={res.status_code}")
 
                 try:
                     data = res.json()
@@ -289,15 +290,15 @@ def show_login_page():
                 # 로그인 성공 여부 판정
                 # 백엔드 응답 구조: {"success": True, "user_id": ..., "name": ..., "grade": ...}
                 # ------------------------------
-                st.write(f"🔍 [LOG] API 응답 상태 코드: {res.status_code}")
-                st.write(f"🔍 [LOG] API 응답 데이터: {data}")
+                # st.write(f"🔍 [LOG] API 응답 상태 코드: {res.status_code}")
+                # st.write(f"🔍 [LOG] API 응답 데이터: {data}")
                 
                 if res.status_code == 200 and data.get("success") == True:
-                    st.write("🔍 [LOG] API 로그인 성공 조건 만족")
+                    # st.write("🔍 [LOG] API 로그인 성공 조건 만족")
                     # 필수 필드 검증
                     required_fields = ["user_id", "name", "grade"]
                     if all(field in data for field in required_fields):
-                        st.write("🔍 [LOG] 필수 필드 검증 통과")
+                        # st.write("🔍 [LOG] 필수 필드 검증 통과")
                         st.session_state.logged_in = True
                         st.session_state.user_info = {
                             "user_id": data["user_id"],
@@ -306,20 +307,20 @@ def show_login_page():
                         }
                         st.session_state.page = "main"  # 페이지 상태 변경 추가
                         
-                        st.write("🔍 [LOG] 세션 상태 설정 완료")
-                        st.write(f"🔍 [LOG] logged_in: {st.session_state.logged_in}")
-                        st.write(f"🔍 [LOG] user_info: {st.session_state.user_info}")
-                        st.write(f"🔍 [LOG] page: {st.session_state.page}")
+                        # st.write("🔍 [LOG] 세션 상태 설정 완료")
+                        # st.write(f"🔍 [LOG] logged_in: {st.session_state.logged_in}")
+                        # st.write(f"🔍 [LOG] user_info: {st.session_state.user_info}")
+                        # st.write(f"🔍 [LOG] page: {st.session_state.page}")
                         
                         st.success("로그인 성공!")
-                        st.write("🔍 [LOG] st.rerun() 호출 전")
+                        # st.write("🔍 [LOG] st.rerun() 호출 전")
                         st.rerun()
-                        st.write("🔍 [LOG] st.rerun() 호출 후 (이 메시지는 보이지 않아야 함)")
+                        # st.write("🔍 [LOG] st.rerun() 호출 후 (이 메시지는 보이지 않아야 함)")
                     else:
-                        st.write(f"🔍 [LOG] 필수 필드 검증 실패. 누락된 필드: {[f for f in required_fields if f not in data]}")
+                        # st.write(f"🔍 [LOG] 필수 필드 검증 실패. 누락된 필드: {[f for f in required_fields if f not in data]}")
                         st.error("로그인 실패: 서버 응답 형식 오류")
                 else:
-                    st.write(f"🔍 [LOG] API 로그인 실패: status_code={res.status_code}, success={data.get('success')}")
+                    # st.write(f"🔍 [LOG] API 로그인 실패: status_code={res.status_code}, success={data.get('success')}")
                     # 백엔드에서 반환한 에러 메시지 표시
                     error_msg = data.get("message", "아이디 또는 비밀번호를 확인해 주세요.")
                     st.error(f"로그인 실패: {error_msg}")

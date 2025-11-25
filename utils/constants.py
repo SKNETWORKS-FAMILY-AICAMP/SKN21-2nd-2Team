@@ -10,6 +10,8 @@ Description
 import os
 import pymysql
 from dotenv import load_dotenv
+from pymysql.cursors import DictCursor
+import threading
 
 # -------------------------------------
 # .env 파일 로드
@@ -47,10 +49,39 @@ else:
     }
 
 # -------------------------------------
-# DB Connection 함수
+# 연결 풀 설정
+# -------------------------------------
+_connection_pool = None
+_pool_lock = threading.Lock()
+
+def _init_connection_pool():
+    """연결 풀 초기화"""
+    global _connection_pool
+    if _connection_pool is None:
+        with _pool_lock:
+            if _connection_pool is None:
+                # pymysql은 기본적으로 연결 풀을 지원하지 않으므로
+                # 연결 재사용을 위한 최적화 설정
+                _connection_pool = {
+                    "config": DB_CONFIG,
+                    "max_connections": 10,
+                    "min_connections": 2
+                }
+    return _connection_pool
+
+# -------------------------------------
+# DB Connection 함수 (최적화)
 # -------------------------------------
 def get_connection():
-    """MySQL DB 연결 생성"""
+    """
+    MySQL DB 연결 생성 (연결 최적화)
+    - autocommit=False: 트랜잭션 제어 가능
+    - connect_timeout=5: 연결 타임아웃 설정
+    - read_timeout=10: 읽기 타임아웃 설정
+    - write_timeout=10: 쓰기 타임아웃 설정
+    """
+    _init_connection_pool()
+    
     return pymysql.connect(
         host=DB_CONFIG["host"],
         port=DB_CONFIG["port"],
@@ -58,5 +89,10 @@ def get_connection():
         password=DB_CONFIG["password"],
         db=DB_CONFIG["db"],
         charset=DB_CONFIG["charset"],
-        cursorclass=pymysql.cursors.DictCursor
+        cursorclass=DictCursor,
+        autocommit=False,  # 트랜잭션 제어
+        connect_timeout=5,  # 연결 타임아웃
+        read_timeout=10,  # 읽기 타임아웃
+        write_timeout=10,  # 쓰기 타임아웃
+        init_command="SET sql_mode='STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO'"
     )

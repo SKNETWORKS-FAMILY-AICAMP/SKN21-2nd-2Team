@@ -24,6 +24,15 @@ plt.rcParams['axes.unicode_minus'] = False  # 마이너스 기호 깨짐 방지
 
 API_URL = "http://localhost:5000/api"
 
+# ----------------------------------------------------------
+# 플레이어 HTML 파일 로드 (캐싱)
+# ----------------------------------------------------------
+@st.cache_resource
+def _load_player_html(file_path):
+    """플레이어 HTML 파일을 캐싱하여 로드"""
+    with open(file_path, "r", encoding="utf-8") as f:
+        return f.read()
+
 # selectbox input field 편집 불가 처리
 st.markdown("""
 <style>
@@ -40,11 +49,10 @@ div[data-baseweb="select"] input {
 </style>
 """, unsafe_allow_html=True)
 
-value = st.selectbox("옵션 선택", ["A", "B", "C"])
-
 # ----------------------------------------------------------
 # 음악 카테고리 목록 로드 함수
 # ----------------------------------------------------------
+@st.cache_data(ttl=3600)  # 1시간 캐싱
 def get_music_categories():
     """
     user_data.csv에서 음악 카테고리 목록을 읽어옴
@@ -57,7 +65,8 @@ def get_music_categories():
                 categories = sorted(df["Favorite_Music"].dropna().unique().tolist())
                 return categories
     except Exception as e:
-        st.write(f"🔍 [LOG] 음악 카테고리 로드 오류: {e}")
+        # st.write(f"🔍 [LOG] 음악 카테고리 로드 오류: {e}")
+        pass
     
     # 기본값 (CSV 로드 실패 시)
     return [
@@ -97,27 +106,35 @@ def call_api_post(endpoint: str, payload: dict):
     except Exception as e:
         return False, {"error": str(e)}
 
-def search_tracks_api(query, limit=20, offset=0):
+@st.cache_data(ttl=300, show_spinner=False)  # 5분 캐싱, 검색 결과는 캐싱
+def search_tracks_api_cached(query, limit, offset, access_token):
     """
-    백엔드 API를 호출하여 트랙 검색
+    백엔드 API를 호출하여 트랙 검색 (캐싱 적용)
     """
     try:
-        headers = {"Authorization": f"Bearer {st.session_state.access_token}"}
+        headers = {"Authorization": f"Bearer {access_token}"}
         params = {
             "q": query,
             "limit": limit,
             "offset": offset
         }
-        res = requests.get(f"{API_URL}/music/search", headers=headers, params=params)
+        res = requests.get(f"{API_URL}/music/search", headers=headers, params=params, timeout=10)
         
         if res.status_code == 200:
             return res.json().get("tracks", [])
         else:
-            st.error(f"검색 실패: {res.text}")
             return []
     except Exception as e:
-        st.error(f"API 호출 중 오류: {str(e)}")
         return []
+
+def search_tracks_api(query, limit=20, offset=0):
+    """
+    백엔드 API를 호출하여 트랙 검색 (캐싱 래퍼)
+    """
+    if "access_token" not in st.session_state:
+        return []
+    
+    return search_tracks_api_cached(query, limit, offset, st.session_state.access_token)
 
 # ----------------------------------------------------------
 # 서브 페이지 함수들
@@ -256,14 +273,15 @@ def show_user_home_page():
                         st.caption(f"👤 {artists} | 💿 {album}")
                         st.caption(f"⏱️ {duration_str}")
                     with cols[2]:
-                        if st.button("▶", key=f"play_{idx}", help="이 곡 재생"):
-                            st.session_state.selected_track = {
+                        col_play, col_add = st.columns(2)
+                        with col_play:
+                            if st.button("▶", key=f"play_{idx}", help="이 곡 재생", use_container_width=True):
+                                st.session_state.selected_track = {
                                 "uri": track_uri,
                                 "name": track_name,
                                 "artists": artists,
                                 "image_url": image_url
                             }
-                            
                             st.rerun()
             
             if st.session_state.get("has_more", False):
@@ -304,17 +322,24 @@ def show_user_home_page():
                  player_html_path = os.path.join("components", "player.html")
 
             if os.path.exists(player_html_path):
-                with open(player_html_path, "r", encoding="utf-8") as f:
-                    player_html = f.read()
+                # 플레이어 HTML 파일 캐싱
+                player_html = _load_player_html(player_html_path)
                 
                 # 사용자 ID와 API URL 추가
                 user_id = st.session_state.user_info.get("user_id") if st.session_state.get("user_info") else ""
                 api_url = API_URL
                 
+                initial_track_uri = selected_track.get("uri", "") if selected_track else ""
+                
                 player_html = player_html.replace("{{ACCESS_TOKEN}}", st.session_state.access_token)
-                player_html = player_html.replace("{{INITIAL_TRACK_URI}}", selected_track.get("uri", ""))
+                player_html = player_html.replace("{{INITIAL_TRACK_URI}}", initial_track_uri)
                 player_html = player_html.replace("{{USER_ID}}", str(user_id))
                 player_html = player_html.replace("{{API_URL}}", api_url)
+                
+                # 재생 목록 정보 제거 (기본값으로 설정)
+                player_html = player_html.replace("{{PLAYLIST_MODE}}", "false")
+                player_html = player_html.replace("{{PLAYLIST_TRACKS}}", "[]")
+                player_html = player_html.replace("{{PLAYLIST_CURRENT_INDEX}}", "0")
                 
                 components.html(player_html, height=400)
                 
@@ -327,16 +352,25 @@ def show_user_home_page():
             st.write("검색 결과에서 **▶ 재생** 버튼을 클릭하면 플레이어가 표시됩니다.")
 
 
+@st.cache_data(ttl=60, show_spinner=False)  # 1분 캐싱
+def _fetch_user_predictions():
+    """유저 예측 데이터 조회 (캐싱)"""
+    try:
+        res = requests.get(f"{API_URL}/user_prediction", timeout=10)
+        if res.status_code == 200:
+            return res.json()
+        return None
+    except:
+        return None
+
 def show_admin_home_page():
     """관리자(99) 홈 화면 - 유저 위험도 및 이탈률 통계"""
     st.markdown("## 📊 유저 위험도 및 이탈률 통계")
     
     try:
-        # 전체 유저 예측 데이터 조회
-        res = requests.get(f"{API_URL}/user_prediction")
-        if res.status_code == 200:
-            data = res.json()
-            if data.get("success"):
+        # 전체 유저 예측 데이터 조회 (캐싱 적용)
+        data = _fetch_user_predictions()
+        if data and data.get("success"):
                 predictions = data.get("rows", [])
                 
                 if predictions:
@@ -500,13 +534,10 @@ def show_admin_home_page():
                     st.dataframe(display_df, use_container_width=True, height=400)
                 else:
                     st.info("예측 데이터가 없습니다. 먼저 이탈 예측을 실행해주세요.")
-            else:
-                st.error(f"데이터 조회 실패: {data.get('error', '알 수 없는 오류')}")
+        elif data:
+            st.error(f"데이터 조회 실패: {data.get('error', '알 수 없는 오류')}")
         else:
-            if res.status_code == 404:
-                st.info("user_prediction 테이블이 존재하지 않습니다. 먼저 테이블을 생성해주세요.")
-            else:
-                st.error(f"API 오류: {res.status_code}")
+            st.info("user_prediction 테이블이 존재하지 않거나 데이터를 불러올 수 없습니다.")
     except requests.exceptions.ConnectionError:
         st.error("백엔드 서버에 연결할 수 없습니다. 서버가 실행 중인지 확인해주세요.")
     except Exception as e:
@@ -525,7 +556,7 @@ def render_top_guide_banner(page_name="default"):
     Args:
         page_name: 화면 이름 ("home", "profile", "logs", "churn_single", "churn_bulk", 
                    "churn_6feat", "prediction_results", "prediction_csv", "user_admin", 
-                   "user_search", "feature_b", "default")
+                   "user_search", "default")
     """
     guides = {
         "home": """
@@ -604,10 +635,6 @@ def render_top_guide_banner(page_name="default"):
             • 사용자의 위험도(이탈 위험도)를 확인할 수 있습니다.<br>
             • 페이징 기능을 사용하여 많은 사용자 데이터를 효율적으로 조회할 수 있습니다.
         """,
-        "feature_b": """
-            <b style="font-size:17px;">⚙️ 기능 B 이용 가이드</b><br>
-            • 기능 B의 내용을 여기에 작성하세요.
-        """,
         "achievements": """
             <b style="font-size:17px;">🏆 도전과제 이용 가이드</b><br>
             • 특정 노래나 장르의 노래를 일정 횟수 이상 들으면 도전과제를 달성할 수 있습니다.<br>
@@ -634,9 +661,8 @@ def render_top_guide_banner(page_name="default"):
     
     guide_text = guides.get(page_name, guides["default"])
     
-    st.markdown(
-        f"""
-        <div style="
+    # HTML을 제대로 렌더링하기 위해 f-string 대신 직접 결합
+    html_content = f"""<div style="
             background-color: #1f2937;
             padding: 15px 20px;
             border-radius: 10px;
@@ -644,12 +670,9 @@ def render_top_guide_banner(page_name="default"):
             color: white;
             font-size: 16px;
             border-left: 5px solid #3b82f6;
-        ">
-            {guide_text}
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
+        ">{guide_text.strip()}</div>"""
+    
+    st.markdown(html_content, unsafe_allow_html=True)
 
 # ----------------------------------------------------------
 # 개인정보 수정 함수
@@ -659,7 +682,7 @@ def show_profile_page():
     개인 정보 확인 및 수정 페이지
     """
     render_top_guide_banner("profile")
-    # 화면 접근 로그 기록
+    # 화면 접근 로그 기록 (비동기 - 화면 전환 속도에 영향 없음)
     user = st.session_state.user_info
     user_id = user.get("user_id") if user else None
     if user_id:
@@ -668,7 +691,7 @@ def show_profile_page():
                 "user_id": user_id,
                 "action_type": "PAGE_VIEW",
                 "page_name": "개인정보 수정"
-            })
+            }, timeout=0.5)  # 짧은 타임아웃으로 비동기 처리
         except:
             pass  # 로그 기록 실패해도 계속 진행
 
@@ -750,7 +773,7 @@ def show_profile_page():
                 st.session_state.user_info["favorite_music"] = current_fav_music
                 st.session_state.user_info["grade"] = current_grade
                 
-                st.write("🔍 [LOG] API에서 최신 사용자 정보 조회 완료")
+                # st.write("🔍 [LOG] API에서 최신 사용자 정보 조회 완료")
             else:
                 # API 조회 실패 시 세션 정보 사용
                 st.warning("⚠️ 최신 정보를 불러오지 못했습니다. 세션 정보를 사용합니다.")
@@ -1072,7 +1095,7 @@ def show_profile_page():
                 "grade": new_grade,
             }
 
-            st.write("🔍 [LOG] 수정 요청 데이터:", payload)
+            # st.write("🔍 [LOG] 수정 요청 데이터:", payload)
             
             with st.spinner("정보를 저장하는 중..."):
                 ok, res = call_api_post("update_user_data", payload)
@@ -1094,7 +1117,7 @@ def show_profile_page():
             else:
                 error_msg = res.get("error", "알 수 없는 오류가 발생했습니다.")
                 st.error(f"❌ 수정 실패: {error_msg}")
-                st.write("🔍 [LOG] API 응답:", res)
+                # st.write("🔍 [LOG] API 응답:", res)
 
 # ----------------------------------------------------------
 # 사용자 조회 함수
@@ -1555,12 +1578,6 @@ def search_user():
                 st.session_state.user_page += 1
                 st.rerun()
 
-def show_feature_b():
-    render_top_guide_banner("feature_b")
-    st.subheader("기능 B")
-    st.write("기능 B의 내용을 여기에 작성하세요.")
-
-
 # ----------------------------------------------------------
 # 도전과제 페이지 함수
 # ----------------------------------------------------------
@@ -1744,81 +1761,105 @@ def show_achievements_page():
         return
     
     try:
-        # 사용자의 도전과제 조회
-        res = requests.get(f"{API_URL}/users/{user_id}/achievements")
-        if res.status_code == 200:
-            data = res.json()
-            if data.get("success"):
-                achievements = data.get("achievements", [])
+        # 사용자의 도전과제 조회 (캐싱 적용)
+        achievements_cache_key = f"user_achievements_{user_id}"
+        if achievements_cache_key not in st.session_state:
+            res = requests.get(f"{API_URL}/users/{user_id}/achievements", timeout=5)
+            if res.status_code == 200:
+                data = res.json()
+                if data.get("success"):
+                    st.session_state[achievements_cache_key] = data.get("achievements", [])
+                else:
+                    st.session_state[achievements_cache_key] = []
+            else:
+                st.session_state[achievements_cache_key] = []
+        
+        achievements = st.session_state.get(achievements_cache_key, [])
+        
+        if achievements and len(achievements) > 0:
+            # 완료된 도전과제와 진행 중인 도전과제 분리
+            completed = [a for a in achievements if a.get("is_completed")]
+            in_progress = [a for a in achievements if not a.get("is_completed")]
+            
+            # 완료된 도전과제
+            if completed:
+                st.subheader("✅ 완료된 도전과제")
                 
-                if achievements and len(achievements) > 0:
-                    # 완료된 도전과제와 진행 중인 도전과제 분리
-                    completed = [a for a in achievements if a.get("is_completed")]
-                    in_progress = [a for a in achievements if not a.get("is_completed")]
+                # 현재 선택한 칭호 조회 (캐싱된 값 사용)
+                achievement_key = f"selected_achievement_{user_id}"
+                selected_achievement_id = None
+                if achievement_key in st.session_state:
+                    selected_achievement = st.session_state.get(achievement_key)
+                    if selected_achievement:
+                        selected_achievement_id = selected_achievement.get("achievement_id")
+                else:
+                    # 캐싱이 없으면 조회
+                    try:
+                        res_selected = requests.get(f"{API_URL}/users/{user_id}/selected_achievement", timeout=3)
+                        if res_selected.status_code == 200:
+                            data_selected = res_selected.json()
+                            if data_selected.get("success") and data_selected.get("selected_achievement"):
+                                st.session_state[achievement_key] = data_selected.get("selected_achievement")
+                                selected_achievement_id = st.session_state[achievement_key].get("achievement_id")
+                    except:
+                        pass
+                
+                for achievement in completed:
+                    achievement_id = achievement.get('achievement_id')
+                    is_selected = (selected_achievement_id == achievement_id)
                     
-                    # 완료된 도전과제
-                    if completed:
-                        st.subheader("✅ 완료된 도전과제")
-                        
-                        # 현재 선택한 칭호 조회
-                        selected_achievement_id = None
-                        try:
-                            res_selected = requests.get(f"{API_URL}/users/{user_id}/selected_achievement")
-                            if res_selected.status_code == 200:
-                                data_selected = res_selected.json()
-                                if data_selected.get("success") and data_selected.get("selected_achievement"):
-                                    selected_achievement_id = data_selected.get("selected_achievement").get("achievement_id")
-                        except:
-                            pass
-                        
-                        for achievement in completed:
-                            achievement_id = achievement.get('achievement_id')
-                            is_selected = (selected_achievement_id == achievement_id)
-                            
-                            with st.container(border=True):
-                                col1, col2 = st.columns([3, 1])
-                                with col1:
-                                    if is_selected:
-                                        st.markdown(f"### 🏆 {achievement.get('title', '')} ⭐ (현재 칭호)")
-                                    else:
-                                        st.markdown(f"### 🏆 {achievement.get('title', '')}")
-                                    st.write(achievement.get('description', ''))
-                                    st.caption(f"보상: {achievement.get('reward_points', 0)} 포인트")
-                                    if achievement.get('completed_at'):
-                                        st.caption(f"완료일: {achievement['completed_at'][:10]}")
-                                with col2:
-                                    if is_selected:
-                                        st.success("⭐ 칭호")
-                                        if st.button("칭호 해제", key=f"deselect_title_{achievement_id}", use_container_width=True):
-                                            try:
-                                                res_update = requests.put(
-                                                    f"{API_URL}/users/{user_id}/selected_achievement",
-                                                    json={"achievement_id": None}
-                                                )
-                                                if res_update.status_code == 200:
-                                                    st.success("칭호가 해제되었습니다!")
-                                                    st.rerun()
-                                                else:
-                                                    st.error("칭호 해제 실패")
-                                            except Exception as e:
-                                                st.error(f"오류: {str(e)}")
-                                    else:
-                                        if st.button("칭호로 선택", key=f"select_title_{achievement_id}", use_container_width=True):
-                                            try:
-                                                res_update = requests.put(
-                                                    f"{API_URL}/users/{user_id}/selected_achievement",
-                                                    json={"achievement_id": achievement_id}
-                                                )
-                                                if res_update.status_code == 200:
-                                                    st.success("칭호가 선택되었습니다!")
-                                                    st.rerun()
-                                                else:
-                                                    error_data = res_update.json() if res_update.headers.get('content-type', '').startswith('application/json') else {}
-                                                    error_msg = error_data.get('error', '칭호 선택 실패')
-                                                    st.error(error_msg)
-                                            except Exception as e:
-                                                st.error(f"오류: {str(e)}")
-                                    st.success("✅ 완료")
+                    with st.container(border=True):
+                        col1, col2 = st.columns([3, 1])
+                        with col1:
+                            if is_selected:
+                                st.markdown(f"### 🏆 {achievement.get('title', '')} ⭐ (현재 칭호)")
+                            else:
+                                st.markdown(f"### 🏆 {achievement.get('title', '')}")
+                            st.write(achievement.get('description', ''))
+                            st.caption(f"보상: {achievement.get('reward_points', 0)} 포인트")
+                            if achievement.get('completed_at'):
+                                st.caption(f"완료일: {achievement['completed_at'][:10]}")
+                        with col2:
+                            if is_selected:
+                                st.success("⭐ 칭호")
+                                if st.button("칭호 해제", key=f"deselect_title_{achievement_id}", use_container_width=True):
+                                    try:
+                                        res_update = requests.put(
+                                            f"{API_URL}/users/{user_id}/selected_achievement",
+                                            json={"achievement_id": None}
+                                        )
+                                        if res_update.status_code == 200:
+                                            st.success("칭호가 해제되었습니다!")
+                                            # 캐시 무효화
+                                            achievement_key = f"selected_achievement_{user_id}"
+                                            if achievement_key in st.session_state:
+                                                del st.session_state[achievement_key]
+                                            st.rerun()
+                                        else:
+                                            st.error("칭호 해제 실패")
+                                    except Exception as e:
+                                        st.error(f"오류: {str(e)}")
+                            else:
+                                if st.button("칭호로 선택", key=f"select_title_{achievement_id}", use_container_width=True):
+                                    try:
+                                        res_update = requests.put(
+                                            f"{API_URL}/users/{user_id}/selected_achievement",
+                                            json={"achievement_id": achievement_id}
+                                        )
+                                        if res_update.status_code == 200:
+                                            st.success("칭호가 선택되었습니다!")
+                                            # 캐시 무효화 및 업데이트
+                                            achievement_key = f"selected_achievement_{user_id}"
+                                            if achievement_key in st.session_state:
+                                                del st.session_state[achievement_key]
+                                            st.rerun()
+                                        else:
+                                            error_data = res_update.json() if res_update.headers.get('content-type', '').startswith('application/json') else {}
+                                            error_msg = error_data.get('error', '칭호 선택 실패')
+                                            st.error(error_msg)
+                                    except Exception as e:
+                                        st.error(f"오류: {str(e)}")
+                            st.success("✅ 완료")
                     
                     # 진행 중인 도전과제
                     if in_progress:
@@ -1864,26 +1905,17 @@ def show_achievements_page():
                         st.metric("완료", len(completed))
                     with col3:
                         st.metric("진행 중", len(in_progress))
-                else:
-                    st.info("아직 도전과제가 없습니다.")
-                    st.info("💡 관리자에게 문의하여 도전과제를 생성해주세요.")
-            else:
-                error_msg = data.get('error', '알 수 없는 오류')
-                st.error(f"도전과제 조회 실패: {error_msg}")
-                if "테이블이 존재하지 않습니다" in error_msg:
-                    st.info("💡 먼저 '사용자 데이터 관리' 메뉴에서 다음 테이블들을 생성해주세요:")
-                    st.info("  - Achievements Table 생성")
-                    st.info("  - User Achievements Table 생성")
-                    st.info("  - Music Playback Log Table 생성")
         else:
-            try:
-                error_data = res.json()
-                error_msg = error_data.get('error', f'HTTP {res.status_code} 오류')
-            except:
-                error_msg = f'HTTP {res.status_code} 오류'
-            st.error(f"API 오류: {error_msg}")
-            if res.status_code == 500:
-                st.info("💡 서버 오류가 발생했습니다. 백엔드 로그를 확인해주세요.")
+            st.info("아직 도전과제가 없습니다.")
+            st.info("💡 관리자에게 문의하여 도전과제를 생성해주세요.")
+    except Exception as e:
+        error_msg = str(e)
+        st.error(f"도전과제 조회 중 오류 발생: {error_msg}")
+        if "테이블이 존재하지 않습니다" in error_msg:
+            st.info("💡 먼저 '사용자 데이터 관리' 메뉴에서 다음 테이블들을 생성해주세요:")
+            st.info("  - Achievements Table 생성")
+            st.info("  - User Achievements Table 생성")
+            st.info("  - Music Playback Log Table 생성")
     except Exception as e:
         st.error(f"오류 발생: {str(e)}")
         import traceback
@@ -2561,6 +2593,7 @@ def show_user_admin_tools():
             st.success(res.get("message", "테이블 생성 완료"))
         else:
             st.error(res)
+    
 
     st.markdown("---")
     st.subheader("CSV 데이터 Import")
@@ -2682,19 +2715,29 @@ def show_main_page():
         st.write(f"**이름:** {user['name']}")
         st.write(f"**등급:** {user['grade']}")
         
-        # 선택한 칭호 표시
-        try:
-            res = requests.get(f"{API_URL}/users/{user_id}/selected_achievement")
-            if res.status_code == 200:
-                data = res.json()
-                if data.get("success") and data.get("selected_achievement"):
-                    achievement = data.get("selected_achievement")
-                    st.markdown("---")
-                    st.markdown("### 🏆 칭호")
-                    st.markdown(f"**{achievement.get('title', '')}**")
-                    st.caption(achievement.get('description', ''))
-        except:
-            pass  # 칭호 조회 실패해도 계속 진행
+        # 선택한 칭호 표시 (캐싱 적용)
+        achievement_key = f"selected_achievement_{user_id}"
+        if achievement_key not in st.session_state:
+            try:
+                res = requests.get(f"{API_URL}/users/{user_id}/selected_achievement", timeout=3)
+                if res.status_code == 200:
+                    data = res.json()
+                    if data.get("success") and data.get("selected_achievement"):
+                        st.session_state[achievement_key] = data.get("selected_achievement")
+                    else:
+                        st.session_state[achievement_key] = None
+                else:
+                    st.session_state[achievement_key] = None
+            except:
+                st.session_state[achievement_key] = None
+        
+        # 캐싱된 칭호 정보 표시
+        achievement = st.session_state.get(achievement_key)
+        if achievement:
+            st.markdown("---")
+            st.markdown("### 🏆 칭호")
+            st.markdown(f"**{achievement.get('title', '')}**")
+            st.caption(achievement.get('description', ''))
         
         st.markdown("---")
         
@@ -2706,7 +2749,7 @@ def show_main_page():
     # -------------------------
     # 사이드바 메뉴
     # -------------------------
-    menu_items = ["홈", "내 정보", "도전과제", "기능 B"]
+    menu_items = ["홈", "내 정보", "도전과제"]
     
     # grade = 99 → 관리자 메뉴 추가 (접두사로 구분)
     if grade == "99":
@@ -2729,16 +2772,20 @@ def show_main_page():
     if menu.startswith("🔧 "):
         menu = menu.replace("🔧 ", "")
     
-    # 화면 접근 로그 기록
+    # 화면 접근 로그 기록 (비동기 처리 - 화면 전환 속도에 영향 없음)
     if user_id:
+        # 이전 메뉴와 다를 때만 로그 기록 (중복 방지)
+        last_menu_key = "last_logged_menu"
+        if st.session_state.get(last_menu_key) != menu:
+            st.session_state[last_menu_key] = menu
+            # 비동기로 로그 기록 (타임아웃 짧게 설정하여 블로킹 최소화)
         try:
             page_name_map = {
                 "홈": "홈",
                 "내 정보": "개인정보 수정",
                 "사용자 조회": "사용자 조회",
-                "기능 B": "기능 B",
-                "도전과제": "도전과제",
-                "도전과제 관리": "도전과제 관리",
+                    "도전과제": "도전과제",
+                    "도전과제 관리": "도전과제 관리",
                 "사용자 데이터 관리": "사용자 데이터 관리",
                 "이탈 예측 (단일)": "이탈 예측 (단일)",
                 "이탈 예측 (배치)": "이탈 예측 (배치)",
@@ -2748,13 +2795,14 @@ def show_main_page():
                 "로그 조회": "로그 조회"
             }
             page_name = page_name_map.get(menu, menu)
+                # 매우 짧은 타임아웃으로 비동기 처리 (화면 전환 속도에 영향 없음)
             requests.post(f"{API_URL}/log", json={
                 "user_id": user_id,
                 "action_type": "PAGE_VIEW",
                 "page_name": page_name
-            }, timeout=1)
+                }, timeout=0.5)  # 타임아웃을 0.5초로 단축
         except:
-            pass  # 로그 기록 실패해도 계속 진행
+                pass  # 로그 기록 실패해도 계속 진행 (화면 전환에 영향 없음)
 
     if menu == "홈":
         show_home_page()
@@ -2772,8 +2820,6 @@ def show_main_page():
             search_user()
         else:
             st.error("권한이 없습니다.")
-    elif menu == "기능 B":
-        show_feature_b()
     elif menu == "사용자 데이터 관리":
         if grade == "99":
             show_user_admin_tools()

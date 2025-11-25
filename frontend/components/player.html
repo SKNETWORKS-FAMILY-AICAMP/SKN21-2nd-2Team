@@ -140,12 +140,30 @@
         const INITIAL_TRACK_URI = "{{INITIAL_TRACK_URI}}";
         const USER_ID = "{{USER_ID}}";
         const API_URL = "{{API_URL}}";
+        const PLAYLIST_MODE_STR = "{{PLAYLIST_MODE}}";
+        const PLAYLIST_TRACKS_STR = "{{PLAYLIST_TRACKS}}";
+        const PLAYLIST_CURRENT_INDEX_STR = "{{PLAYLIST_CURRENT_INDEX}}";
+        
+        const PLAYLIST_MODE = PLAYLIST_MODE_STR === "true";
+        const PLAYLIST_TRACKS = PLAYLIST_TRACKS_STR && PLAYLIST_TRACKS_STR !== "[]" ? JSON.parse(PLAYLIST_TRACKS_STR) : [];
+        const PLAYLIST_CURRENT_INDEX = parseInt(PLAYLIST_CURRENT_INDEX_STR) || 0;
         
         let player;
         let deviceId;
         let isPlaying = false;
         let currentTrack = null;
         let playbackStartTime = null;
+        let playlistMode = PLAYLIST_MODE;
+        let playlistTracks = PLAYLIST_TRACKS;
+        let playlistCurrentIndex = PLAYLIST_CURRENT_INDEX;
+        
+        console.log('재생 목록 모드 초기화:', {
+            playlistMode: playlistMode,
+            playlistTracks: playlistTracks,
+            playlistTracksLength: playlistTracks ? playlistTracks.length : 0,
+            playlistCurrentIndex: playlistCurrentIndex,
+            initialTrackUri: INITIAL_TRACK_URI
+        });
 
         window.onSpotifyWebPlaybackSDKReady = () => {
             player = new Spotify.Player({
@@ -155,26 +173,73 @@
             });
 
             player.addListener('ready', ({ device_id }) => {
-                console.log('Ready with Device ID', device_id);
+                // console.log('Ready with Device ID', device_id);
                 deviceId = device_id;
                 document.getElementById('status').textContent = '✅ 연결됨';
                 
-                if (INITIAL_TRACK_URI) {
+                // 재생 목록 모드인 경우
+                console.log('플레이어 준비됨 - 재생 목록 모드:', playlistMode, '트랙 수:', playlistTracks.length);
+                if (playlistMode && playlistTracks.length > 0) {
+                    console.log('재생 목록 재생 시작:', playlistTracks);
+                    setTimeout(() => {
+                        playPlaylist(playlistTracks, playlistCurrentIndex);
+                    }, 500); // 약간의 지연을 두어 안정성 확보
+                } else if (INITIAL_TRACK_URI) {
                     playTrack(INITIAL_TRACK_URI);
                 }
             });
 
             player.addListener('not_ready', ({ device_id }) => {
-                console.log('Device ID has gone offline', device_id);
+                // console.log('Device ID has gone offline', device_id);
                 document.getElementById('status').textContent = '❌ 연결 끊김';
             });
 
+            // 재생 목록 자동 재생을 위한 변수
+            let lastPosition = 0;
+            let trackEnded = false;
+            
             player.addListener('player_state_changed', state => {
                 if (!state) return;
                 
                 const track = state.track_window.current_track;
                 const wasPlaying = isPlaying;
                 isPlaying = !state.paused;
+                
+                // 재생 목록 모드에서 트랙이 끝났는지 확인
+                if (playlistMode && playlistTracks.length > 0 && track && track.uri) {
+                    const currentPosition = state.position;
+                    const trackDuration = state.duration;
+                    
+                    // 트랙이 끝났는지 확인 (position이 duration에 가까워지거나, position이 갑자기 0으로 돌아감)
+                    if (trackDuration > 0) {
+                        const remainingTime = trackDuration - currentPosition;
+                        const positionJumped = lastPosition > 1000 && currentPosition < 1000; // 위치가 갑자기 앞으로 점프
+                        
+                        if ((remainingTime < 500 && isPlaying) || (positionJumped && !isPlaying)) {
+                            // 트랙이 끝났고 다음 트랙이 있으면 재생
+                            if (!trackEnded && playlistCurrentIndex < playlistTracks.length - 1) {
+                                trackEnded = true;
+                                setTimeout(() => {
+                                    playlistCurrentIndex++;
+                                    const nextTrackUri = playlistTracks[playlistCurrentIndex];
+                                    if (nextTrackUri) {
+                                        playTrack(nextTrackUri);
+                                        // 부모 창에 다음 트랙 정보 전송
+                                        if (window.parent) {
+                                            window.parent.postMessage({
+                                                type: 'PLAYLIST_NEXT_TRACK',
+                                                track_uri: nextTrackUri,
+                                                index: playlistCurrentIndex
+                                            }, '*');
+                                        }
+                                        trackEnded = false;
+                                    }
+                                }, 500);
+                            }
+                        }
+                    }
+                    lastPosition = currentPosition;
+                }
                 
                 // 새로운 트랙이 시작되거나 재생이 시작될 때 로그 기록
                 if (track && track.uri) {
@@ -191,6 +256,8 @@
                         };
                         playbackStartTime = Date.now();
                         logPlayback(currentTrack);
+                        trackEnded = false;
+                        lastPosition = 0;
                     } else if (isPlaybackStarted && currentTrack) {
                         // 일시정지 후 재개
                         playbackStartTime = Date.now();
@@ -229,14 +296,54 @@
         }
 
         function playTrack(uri) {
+            if (!deviceId) {
+                console.error('Device ID가 없습니다.');
+                return;
+            }
+            
+            const payload = Array.isArray(uri) ? { uris: uri } : { uris: [uri] };
+            
+            console.log('트랙 재생 요청:', uri, 'deviceId:', deviceId);
+            
             fetch(`https://api.spotify.com/v1/me/player/play?device_id=${deviceId}`, {
                 method: 'PUT',
-                body: JSON.stringify({ uris: [uri] }),
+                body: JSON.stringify(payload),
                 headers: {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${ACCESS_TOKEN}`
                 },
+            })
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(data => {
+                        console.error('재생 API 오류:', response.status, data);
+                        throw new Error(`재생 실패: ${response.status} - ${JSON.stringify(data)}`);
+                    });
+                }
+                console.log('재생 요청 성공');
+            })
+            .catch(error => {
+                console.error('재생 오류:', error);
             });
+        }
+        
+        function playPlaylist(trackUris, startIndex = 0) {
+            if (!deviceId || !trackUris || trackUris.length === 0) {
+                console.error('재생 목록 재생 실패: deviceId 또는 trackUris가 없습니다.');
+                console.error('deviceId:', deviceId);
+                console.error('trackUris:', trackUris);
+                return;
+            }
+            
+            if (startIndex >= trackUris.length) {
+                console.log('재생 목록이 끝났습니다.');
+                return;
+            }
+            
+            // 첫 번째 트랙부터 재생
+            const trackUri = trackUris[startIndex];
+            console.log('재생 목록 재생 시작:', trackUri, '인덱스:', startIndex);
+            playTrack(trackUri);
         }
         
         function logPlayback(track) {
@@ -261,7 +368,7 @@
                 if (data.success && data.completed_achievements && data.completed_achievements.length > 0) {
                     // 도전과제 달성 알림
                     data.completed_achievements.forEach(achievement => {
-                        console.log(`도전과제 달성: ${achievement.title}`);
+                        // console.log(`도전과제 달성: ${achievement.title}`);
                         // 부모 창에 알림 전송 (Streamlit에서 처리)
                         if (window.parent) {
                             window.parent.postMessage({
@@ -279,7 +386,7 @@
         
         function updatePlaybackDuration(trackUri, duration) {
             // 재생 시간 업데이트는 선택적 (현재는 기록만)
-            console.log(`재생 시간: ${trackUri} - ${duration}초`);
+            // console.log(`재생 시간: ${trackUri} - ${duration}초`);
         }
     </script>
 </body>
