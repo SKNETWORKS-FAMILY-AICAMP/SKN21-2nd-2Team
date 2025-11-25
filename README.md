@@ -239,12 +239,17 @@ SKN21-2ND-2TEAM/
 - **FE 검증** (`FE_validation.ipynb`, `FE_add.ipynb`):
   - 여러 FE 세트(Set A~G) 및 추가 세그먼트/ratio/비선형 FE 후보를 실험
   - **결과**: 핵심 FE 4~5개만 남기는 것이 최선, 복잡한 교호작용·플래그를 더해도 성능 개선은 ΔF1≈0 수준
-
+<p align="center">
+        <img src="image/visualizations/03_candidate_fe_impact.png" alt="candidate_fe_impact" width="500">
+      </p>
  <br>
  
 - **범주형 및 FS 검증** (`feature_selection.ipynb`):
   - `gender`, `country`, `subscription_type`, `device_type` 및 파생 범주형을 One-Hot 인코딩해 포함
   - 수치형+FE(10~11개) vs 수치형+FE+범주형(30개 이상) 비교 시 **오히려 F1/AUC 소폭 하락 → 범주형 기여도 낮음**
+ <p align="center">
+        <img src="image/visualizations/04_feature_category_impact.png" alt="feature_category_impact" width="500">
+      </p>
 
 <br>
 
@@ -252,12 +257,19 @@ SKN21-2ND-2TEAM/
 - **모델/파라미터 튜닝** (`feature_selection.ipynb`):
   - RandomForest 하이퍼파라미터(RandomizedSearchCV), K-Fold + threshold 튜닝, 소프트보팅 앙상블(RF+XGB+HGB) 등 적용
   - **결과**: 어떤 조합도 F1 0.41±0.01, AUC 0.52~0.54 범위를 크게 넘지 못함
- 
+
+<p align="center">
+        <img src="image/visualizations/08_model_performance.png" alt="model_performance" width="500">
+      </p>
+
 <br>
   
 - **SMOTE + XGBoost + 앙상블** (`SMOTE_XGB_RF.ipynb`):
   - SMOTE(오버샘플링 비율·test_size·scale_pos_weight 등 여러 버전), XGBoost GridSearchCV, RF+XGB+HGB 앙상블 시도
   - **결과**: Train에서는 F1↑지만 Test에서는 Baseline보다 낮거나 비슷한 수준 → **심한 과적합 & 실질적 개선 실패**
+<p align="center">
+        <img src="image/visualizations/09_smote_impact.png" alt="smote_impact" width="500">
+      </p>
 
 <br>
 
