@@ -1,10 +1,20 @@
 """
-app.py (Flask API)
+app.py (Flask API 서버)
 Auth: 박수빈
 Date: 2025-11-18
-Description:
-- User Table CRUD
-- CSV 단발성 삽입 지원
+Description
+- 데이터베이스 테이블 초기화 (users, user_prediction, user_features, log, achievements 등)
+- 사용자 CRUD API (생성, 조회, 수정, 삭제)
+- 사용자 로그인 및 인증
+- 구독해지 처리
+- 이탈 예측 API (단일/배치/6피처)
+- 예측 결과 조회 및 관리
+- CSV 데이터 import/export
+- Spotify 음악 검색 API
+- 음악 재생 로그 기록
+- 도전과제 관리 API
+- 사용자 활동 로그 관리
+- 테스트 계정 설정
 """
 
 import sys

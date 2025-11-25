@@ -3,10 +3,20 @@ main.py (플랫폼 Main 화면)
 Auth: 박수빈
 Date: 2025-11-18
 Description
-- 홈 화면
+- 홈 화면 (일반 유저/관리자)
+- 음악 검색 및 재생 (Spotify 연동)
+- 인기 음악 표시
 - 내 정보 수정
+- 구독해지 기능
+- 위험도 기반 혜택 배너 표시
 - Admin 사용자 데이터 관리
 - Admin 사용자 조회
+- 이탈 예측 (단일/배치/6피처)
+- 예측 결과 조회
+- 예측 CSV 관리
+- 로그 조회
+- 도전과제 관리
+- 도전과제 조회
 """
 import streamlit as st
 import requests
@@ -141,6 +151,33 @@ def search_tracks_api(query, limit=20, offset=0):
     
     return search_tracks_api_cached(query, limit, offset, st.session_state.access_token)
 
+def get_popular_tracks(access_token, limit=3):
+    """
+    Spotify 인기 음악 가져오기 (인기 트랙 검색)
+    """
+    try:
+        # 인기 있는 트랙 검색 (year:2024로 최신 인기 트랙)
+        headers = {"Authorization": f"Bearer {access_token}"}
+        params = {
+            "q": "year:2024",
+            "type": "track",
+            "limit": 50,
+            "offset": 0
+        }
+        res = requests.get(f"{API_URL}/music/search", headers=headers, params=params, timeout=10)
+        
+        if res.status_code == 200:
+            data = res.json()
+            tracks = data.get("tracks", [])
+            # 인기도 순으로 정렬하고 상위 limit개만 반환
+            tracks_sorted = sorted(tracks, key=lambda x: x.get("popularity", 0), reverse=True)
+            return tracks_sorted[:limit]
+        else:
+            return []
+    except Exception as e:
+        print(f"[인기 음악 가져오기 오류] {str(e)}")
+        return []
+
 # ----------------------------------------------------------
 # 서브 페이지 함수들
 # ----------------------------------------------------------
@@ -174,6 +211,58 @@ def show_user_home_page():
             st.session_state.logged_in = False
             st.rerun()
         st.stop()
+
+    # Spotify 인기 음악 표시 (가이드 배너와 검색 기능 중간)
+    st.markdown("### 🔥 현재 인기 음악")
+    
+    # 인기 음악 가져오기 (캐싱)
+    popular_tracks_key = "popular_tracks_cache"
+    if popular_tracks_key not in st.session_state:
+        with st.spinner("인기 음악을 불러오는 중..."):
+            popular_tracks = get_popular_tracks(st.session_state.access_token, limit=3)
+            st.session_state[popular_tracks_key] = popular_tracks
+    
+    popular_tracks = st.session_state.get(popular_tracks_key, [])
+    
+    if popular_tracks:
+        # 3개를 가로로 정렬
+        cols = st.columns(3)
+        for idx, track in enumerate(popular_tracks[:3]):
+            with cols[idx]:
+                # 앨범 이미지
+                image_url = None
+                if track.get("album") and track["album"].get("images"):
+                    image_url = track["album"]["images"][0]["url"] if track["album"]["images"] else None
+                
+                if image_url:
+                    try:
+                        st.image(image_url, use_container_width=True)
+                    except:
+                        st.write("🎵")
+                else:
+                    st.write("🎵")
+                
+                # 트랙 정보
+                track_name = track.get("name", "알 수 없음")
+                artists = ", ".join([artist["name"] for artist in track.get("artists", [])])
+                track_uri = track.get("uri", "")
+                
+                st.markdown(f"**{track_name[:20]}{'...' if len(track_name) > 20 else ''}**")
+                st.caption(f"👤 {artists[:25]}{'...' if len(artists) > 25 else ''}")
+                
+                # 재생 버튼
+                if st.button("▶ 재생", key=f"popular_play_{idx}", use_container_width=True):
+                    st.session_state.selected_track = {
+                        "uri": track_uri,
+                        "name": track_name,
+                        "artists": artists,
+                        "image_url": image_url
+                    }
+                    st.rerun()
+    else:
+        st.info("인기 음악을 불러올 수 없습니다.")
+    
+    st.markdown("---")
 
     # 메인 컨텐츠 영역 (검색 및 플레이어)
     col1, col2 = st.columns([2, 1])

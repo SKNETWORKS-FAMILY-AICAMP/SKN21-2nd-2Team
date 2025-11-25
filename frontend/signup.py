@@ -3,7 +3,9 @@ signup.py (플랫폼 회원가입 화면)
 Auth: 박수빈
 Date: 2025-11-18
 Description
-- 회원가입
+- 신규 사용자 회원가입
+- 사용자 정보 입력 및 검증
+- 회원가입 후 로그인 페이지 이동
 """
 
 import streamlit as st
