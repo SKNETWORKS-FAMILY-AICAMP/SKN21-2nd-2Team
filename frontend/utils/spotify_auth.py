@@ -58,7 +58,7 @@ def get_token_from_code(code: str):
     }
     
     # 디버깅: redirect_uri 확인 (실제로는 로그에 출력하지 않음)
-    print(f"토큰 교환 시도 - Redirect URI: {REDIRECT_URI}")
+    # print(f"토큰 교환 시도 - Redirect URI: {REDIRECT_URI}")
 
     res = requests.post(url, data=data)
     if res.status_code != 200:
