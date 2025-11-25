@@ -1,3 +1,18 @@
+"""
+train_simulator_6feat_lgbm_mono.py
+Auth: 신지용
+6개 시뮬레이터용 피처를 대상으로 단조 제약 LGBM 앙상블 모델을 학습·저장하는 스크립트.
+
+현재 로직은 `backend.config`의 설정을 사용하여
+train/validation/test를 나눈 뒤, 여러 시드로 학습한
+LGBM 모델을 앙상블하여 성능을 개선합니다.
+
+역할 분리:
+- 시뮬레이터 피처 후보 탐색 → `backend/training/find_good_sim_features.py`
+- 6피처 LGBM v1 베이스라인 → `backend/training/train_simulator_6feat_lgbm_mono_v1_baseline.py`
+- 개선된 앙상블 학습/저장 → 이 스크립트
+"""
+
 import os
 import sys
 from typing import List

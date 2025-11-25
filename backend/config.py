@@ -1,9 +1,16 @@
 """
 config.py
 Auth: 신지용
-모델 학습/실험에서 공통으로 사용하는 설정 값을 모아둔 모듈입니다.
-다른 스크립트에서 직접 숫자를 하드코딩하지 말고,
-이 모듈의 상수를 import 해서 사용하도록 합니다.
+모델 학습/실험에서 공통으로 사용하는 설정 값을 모아둔 모듈.
+
+현재 전처리/학습 스크립트(`backend/training/train_experiments.py`)는
+이 모듈의 상수를 import 해서 데이터 경로, 테스트 비율, random_state,
+threshold 스캔 범위 등을 제어합니다.
+
+역할 분리:
+- 전처리/데이터 로딩  → `backend/preprocessing_pipeline.py`
+- 모델 종류/파라미터 → `backend/models.py`의 `get_model()`
+- 실험 설정 값       → 이 모듈의 상수들
 """
 
 from __future__ import annotations

@@ -1,17 +1,17 @@
 """
-preprocessing.py
+preprocessing_pipeline.py
 Auth: 신지용
-Spotify Churn Prediction - Sklearn Pipeline Version
----------------------------------------------------
-이 모듈은 `notebooks/pipeline.ipynb`에서 구현한 전처리 방식을
-백엔드에서 재사용할 수 있도록 모듈화한 버전입니다.
+전처리 파이프라인(`backend/preprocessing_pipeline.py`)을 정의해
+모델 학습에 사용할 입력 데이터를 생성하는 스크립트.
 
-주요 단계:
-- 결측치 처리
-- IQR 기반 이상치 처리
-- 수치/범주형 분리 후 ColumnTransformer + OneHotEncoder 파이프라인 구성
-- Train/Test Split
-- (선택) 전처리된 결과 및 preprocessor 객체 저장/로딩
+현재 전처리 로직은 `notebooks/pipeline.ipynb`에서 정의된
+sklearn ColumnTransformer 기반 파이프라인을 그대로 옮긴
+함수들을 사용합니다.
+
+역할 분리:
+- 전처리 수정        → 이 모듈의 전처리 함수들(`clean_missing_values`, `handle_outliers_iqr`, `build_preprocessor` 등)
+- 모델 종류/파라미터 → `backend/models.py`의 `get_model()`
+- 학습/실험 스크립트 → `backend/training/train_experiments.py`
 """
 
 from __future__ import annotations
