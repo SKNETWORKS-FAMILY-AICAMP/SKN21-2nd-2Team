@@ -1276,7 +1276,7 @@ def api_predict_churn():
 
         from inference import predict_churn as _predict_churn
 
-        result = _predict_churn(user_features=features, model_name=model_name)
+        result = _predict_churn(user_features=features)
 
         if not result.get("success"):
             status_code = 500
@@ -1307,6 +1307,10 @@ def api_predict_churn():
                 # 저장 실패해도 예측 결과는 반환
                 pass
 
+        # 응답에 model_name 추가 (기본값: "hgb")
+        if result.get("success"):
+            result["model_name"] = model_name or "hgb"
+        
         status_code = 200
         return jsonify(result), status_code
 
@@ -1384,7 +1388,15 @@ def api_predict_churn_bulk():
         results = []
         prediction_inserts = []  # 배치로 저장할 예측 결과들
         
+        total_rows = len(rows)
+        print(f"[배치 예측 시작] 총 {total_rows}개 유저 예측 시작")
+        
         for idx, row in enumerate(rows):
+            # 진행사항 로그 (10% 단위로 출력)
+            if total_rows > 0:
+                progress = ((idx + 1) / total_rows) * 100
+                if (idx + 1) % max(1, total_rows // 10) == 0 or idx == 0 or idx == total_rows - 1:
+                    print(f"[배치 예측 진행] {idx + 1}/{total_rows} ({progress:.1f}%) - user_id: {row.get('user_id', 'N/A')}")
             if not isinstance(row, dict):
                 results.append({
                     "index": idx,
@@ -1445,7 +1457,7 @@ def api_predict_churn_bulk():
 
             # 예측 실행
             try:
-                res = _predict_churn(user_features=cleaned_row, model_name=model_name)
+                res = _predict_churn(user_features=cleaned_row)
             except Exception as e:
                 import traceback
                 error_msg = f"예측 실행 중 오류: {str(e)}"
@@ -1496,6 +1508,7 @@ def api_predict_churn_bulk():
         # 배치로 user_prediction 테이블에 저장
         saved_count = 0
         if prediction_inserts:
+            print(f"[배치 예측 저장] {len(prediction_inserts)}개 예측 결과 DB 저장 시작")
             try:
                 cursor = conn.cursor()
                 sql = """
@@ -1510,13 +1523,20 @@ def api_predict_churn_bulk():
                 conn.commit()
                 saved_count = len(prediction_inserts)
                 cursor.close()
+                print(f"[배치 예측 저장 완료] {saved_count}개 예측 결과 저장됨")
             except Exception as e:
                 # 저장 실패해도 예측 결과는 반환 (에러는 로그에 기록)
                 import traceback
-                print(f"배치 예측 결과 저장 중 오류: {str(e)}")
+                print(f"[배치 예측 저장 오류] {str(e)}")
                 print(traceback.format_exc())
+        else:
+            print(f"[배치 예측 저장] 저장할 예측 결과 없음")
         
         conn.close()
+        
+        success_count = len([r for r in results if "error" not in r])
+        error_count = len([r for r in results if "error" in r])
+        print(f"[배치 예측 완료] 총 {total_rows}개 처리 완료 - 성공: {success_count}, 실패: {error_count}, 저장: {saved_count}")
 
         response_data = {
             "success": True,
@@ -2510,6 +2530,8 @@ def check_all_users_for_new_achievement(cursor, conn, achievement_id, achievemen
     completed_count = 0
     
     try:
+        print(f"[배치 도전과제 체크 시작] achievement_id={achievement_id}, type={achievement_type}")
+        
         # 도전과제 정보 가져오기
         cursor.execute("""
             SELECT target_value
@@ -2518,11 +2540,14 @@ def check_all_users_for_new_achievement(cursor, conn, achievement_id, achievemen
         """, (achievement_id,))
         achievement = cursor.fetchone()
         if not achievement:
+            print(f"[배치 도전과제 체크] 도전과제 정보 없음 (achievement_id={achievement_id})")
             return {"processed_users": 0, "completed_users": 0}
         target_value = achievement[0]
+        print(f"[배치 도전과제 체크] 목표 값: {target_value}")
         
         # 배치 쿼리로 모든 유저의 진행도 한 번에 계산
         if achievement_type == "TRACK_PLAY" and target_track_uri:
+            print(f"[배치 도전과제 체크] 트랙 재생 횟수 조회 중 (track_uri={target_track_uri})")
             # 특정 트랙 재생 횟수를 배치로 계산
             cursor.execute("""
                 SELECT 
@@ -2535,6 +2560,7 @@ def check_all_users_for_new_achievement(cursor, conn, achievement_id, achievemen
             """, (target_track_uri,))
             
         elif achievement_type == "GENRE_PLAY" and target_genre:
+            print(f"[배치 도전과제 체크] 장르 재생 횟수 조회 중 (genre={target_genre})")
             # 특정 장르 재생 횟수를 배치로 계산
             cursor.execute("""
                 SELECT 
@@ -2546,9 +2572,12 @@ def check_all_users_for_new_achievement(cursor, conn, achievement_id, achievemen
                 GROUP BY m.user_id
             """, (target_genre,))
         else:
+            print(f"[배치 도전과제 체크] 잘못된 도전과제 타입 또는 파라미터")
             return {"processed_users": 0, "completed_users": 0}
         
         user_progresses = cursor.fetchall()
+        total_users = len(user_progresses)
+        print(f"[배치 도전과제 체크] {total_users}명 유저의 진행도 조회 완료")
         
         # 배치 INSERT를 위한 데이터 준비
         insert_data = []
@@ -2566,8 +2595,11 @@ def check_all_users_for_new_achievement(cursor, conn, achievement_id, achievemen
             completed_data = [(uid, aid, pc) for uid, aid, pc, ic in insert_data if ic]
             in_progress_data = [(uid, aid, pc) for uid, aid, pc, ic in insert_data if not ic]
             
+            print(f"[배치 도전과제 체크] 진행도 업데이트 준비 - 완료: {len(completed_data)}명, 진행중: {len(in_progress_data)}명")
+            
             # 완료된 도전과제 배치 INSERT
             if completed_data:
+                print(f"[배치 도전과제 체크] 완료된 도전과제 {len(completed_data)}명 DB 저장 중...")
                 cursor.executemany("""
                     INSERT INTO user_achievements (user_id, achievement_id, current_progress, is_completed, completed_at)
                     VALUES (%s, %s, %s, TRUE, NOW())
@@ -2577,9 +2609,11 @@ def check_all_users_for_new_achievement(cursor, conn, achievement_id, achievemen
                         completed_at = CASE WHEN completed_at IS NULL THEN NOW() ELSE completed_at END
                 """, completed_data)
                 completed_count = len(completed_data)
+                print(f"[배치 도전과제 체크] 완료된 도전과제 {completed_count}명 저장 완료")
             
             # 진행 중인 도전과제 배치 INSERT
             if in_progress_data:
+                print(f"[배치 도전과제 체크] 진행 중인 도전과제 {len(in_progress_data)}명 DB 저장 중...")
                 cursor.executemany("""
                     INSERT INTO user_achievements (user_id, achievement_id, current_progress, is_completed)
                     VALUES (%s, %s, %s, FALSE)
@@ -2587,10 +2621,14 @@ def check_all_users_for_new_achievement(cursor, conn, achievement_id, achievemen
                         current_progress = VALUES(current_progress),
                         is_completed = FALSE
                 """, in_progress_data)
+                print(f"[배치 도전과제 체크] 진행 중인 도전과제 {len(in_progress_data)}명 저장 완료")
             
             conn.commit()
             processed_count = len(insert_data)
+        else:
+            print(f"[배치 도전과제 체크] 업데이트할 진행도 없음")
         
+        print(f"[배치 도전과제 체크 완료] 처리된 유저: {processed_count}명, 완료된 유저: {completed_count}명")
         return {"processed_users": processed_count, "completed_users": completed_count}
         
     except Exception as e:
