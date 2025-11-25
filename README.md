@@ -226,9 +226,11 @@ SKN21-2nd-2Team/
 <br>
 <div> 
 
-<br><br><br>
+<br>
 
 ---
+
+<br>
 
 
 ## 1)  Data & Baseline Setup
