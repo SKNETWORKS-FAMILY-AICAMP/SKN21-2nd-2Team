@@ -243,7 +243,7 @@ def save_processed_data(
     with open(os.path.join(save_dir, "preprocessor.pkl"), "wb") as f:
         pickle.dump(preprocessor, f)
 
-    print(f"✅ 전처리 데이터 및 preprocessor 저장 완료: {save_dir}")
+    print(f"전처리 데이터 및 preprocessor 저장 완료: {save_dir}")
 
 
 def load_processed_data(
@@ -267,7 +267,7 @@ def load_processed_data(
     with open(os.path.join(save_dir, "preprocessor.pkl"), "rb") as f:
         preprocessor = pickle.load(f)
 
-    print(f"✅ 전처리 데이터 및 preprocessor 로드 완료: {save_dir}")
+    print(f"전처리 데이터 및 preprocessor 로드 완료: {save_dir}")
     return X_train, X_test, y_train, y_test, preprocessor
 
 

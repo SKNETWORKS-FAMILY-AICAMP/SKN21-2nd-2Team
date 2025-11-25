@@ -114,13 +114,13 @@ def score_feature(
 
 
 def main() -> None:
-    print("✅ 데이터 로드 중...")
+    print("데이터 로드 중...")
     df = load_data(DATA_PATH)
     print(f" - shape: {df.shape}")
 
     results: List[Dict[str, float]] = []
 
-    print("\n🔥 피처별 반응도 스코어 계산 시작...\n")
+    print("\n피처별 반응도 스코어 계산 시작...\n")
 
     for feat in CANDIDATE_FEATURES:
         try:
@@ -142,19 +142,19 @@ def main() -> None:
         )
 
     if not results:
-        print("\n❌ 유효한 결과가 없습니다. 데이터/피처 이름을 확인하세요.")
+        print("\n유효한 결과가 없습니다. 데이터/피처 이름을 확인하세요.")
         return
 
     res_df = pd.DataFrame(results)
     res_df = res_df.sort_values("score", ascending=False)
 
     print("\n" + "=" * 70)
-    print("📊 시뮬레이터용 \"좋은 피처\" 순위 (상위 6개 추천)")
+    print("시뮬레이터용 \"좋은 피처\" 순위 (상위 6개 추천)")
     print("=" * 70)
     print(res_df.to_string(index=False))
 
     top_k = res_df.head(6)["feature"].tolist()
-    print("\n✅ 추천 입력 피처 조합 (프론트에서 받아 쓰면 좋은 컬럼들):")
+    print("\n추천 입력 피처 조합 (프론트에서 받아 쓰면 좋은 컬럼들):")
     for f in top_k:
         print(f" - {f}")
 

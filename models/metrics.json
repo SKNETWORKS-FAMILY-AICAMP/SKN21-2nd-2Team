@@ -1402,5 +1402,31 @@
       "step": 0.01
     },
     "timestamp": "2025-11-25T12:15:03.933929"
+  },
+  {
+    "model": "hgb",
+    "f1": 0.6339066339066339,
+    "auc": 0.8172275582276315,
+    "pr_auc": 0.6821487269756432,
+    "best_threshold": 0.24000000000000005,
+    "precision": 0.645,
+    "recall": 0.6231884057971014,
+    "confusion_matrix": {
+      "tn": 1044,
+      "fp": 142,
+      "fn": 156,
+      "tp": 258
+    },
+    "n_train": 6400,
+    "n_test": 1600,
+    "data_path": "data/processed/enhanced_data_not_clean_FE_delete.csv",
+    "test_size": 0.2,
+    "random_state": 42,
+    "threshold_range": {
+      "start": 0.05,
+      "end": 0.45,
+      "step": 0.01
+    },
+    "timestamp": "2025-11-25T16:48:16.154430"
   }
 ]

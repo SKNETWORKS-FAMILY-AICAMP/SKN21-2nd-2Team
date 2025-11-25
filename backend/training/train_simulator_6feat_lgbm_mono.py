@@ -68,7 +68,7 @@ def main() -> None:
     if "is_churned" not in df.columns:
         raise ValueError("'is_churned' 타깃 컬럼을 찾을 수 없습니다.")
 
-    print(f"✅ 데이터 로드 완료: {df.shape}")
+    print(f"데이터 로드 완료: {df.shape}")
     print(f"   이탈률: {df['is_churned'].mean():.2%}")
 
     X = df[SIM_FEATURES].copy()
@@ -107,7 +107,7 @@ def main() -> None:
     models = []
     predictions_test = []
     
-    print(f"\n📚 {n_models}개 모델 앙상블 학습 중...")
+    print(f"\n{n_models}개 모델 앙상블 학습 중...")
     
     for i in range(n_models):
         print(f"   [{i+1}/{n_models}] 모델 학습 중... (seed={RANDOM_STATE + i})")
@@ -133,7 +133,7 @@ def main() -> None:
         models.append(model)
         predictions_test.append(model.predict_proba(X_test)[:, 1])
     
-    print("✅ 앙상블 학습 완료!")
+    print("앙상블 학습 완료!")
 
     # 앙상블 예측: 5개 모델의 평균
     y_proba = np.mean(predictions_test, axis=0)
@@ -156,7 +156,7 @@ def main() -> None:
     tn, fp, fn, tp = confusion_matrix(y_test, y_best).ravel()
 
     print("\n" + "=" * 70)
-    print("📊 6피처 전용 LGBM(단조 제약) 앙상블 모델 성능 (검증 세트 기준)")
+    print("6피처 전용 LGBM(단조 제약) 앙상블 모델 성능 (검증 세트 기준)")
     print("=" * 70)
     print(f"앙상블 모델 수  : {n_models}")
     print(f"ROC-AUC        : {auc:.4f}")
@@ -178,7 +178,7 @@ def main() -> None:
         'monotone_constraints': MONO_CONSTRAINTS,
     }
     joblib.dump(ensemble_info, out_path)
-    print(f"\n💾 6피처 전용 LGBM(단조 제약) 앙상블 모델 저장 완료: {out_path}")
+    print(f"\n6피처 전용 LGBM(단조 제약) 앙상블 모델 저장 완료: {out_path}")
     print(f"   (앙상블 {n_models}개 모델 + 메타정보 포함)")
 
 

@@ -220,7 +220,7 @@ scenarios = {
 
 def run_comprehensive_test():
     print("=" * 80)
-    print("🧪 LGBM 앙상블 모델 포괄적 시나리오 테스트")
+    print("LGBM 앙상블 모델 포괄적 시나리오 테스트")
     print("=" * 80)
     print(f"총 {len(scenarios)}개 시나리오 테스트\n")
     
@@ -237,7 +237,7 @@ def run_comprehensive_test():
         print(f"{'='*80}")
         
         # 피처 출력 (보기 좋게)
-        print("📊 입력 피처:")
+        print("입력 피처:")
         print(f"  • 크래시 횟수 (30일):      {features['app_crash_count_30d']}")
         print(f"  • 스킵률 증가 (7일):       {features['skip_rate_increase_7d']:+.1f}%")
         print(f"  • 마지막 로그인:           {features['days_since_last_login']}일 전")
@@ -253,7 +253,7 @@ def run_comprehensive_test():
             risk_level = result['risk_level']
             ensemble_size = result.get('ensemble_size', 1)
             
-            print(f"\n🎯 예측 결과:")
+            print(f"\n예측 결과:")
             print(f"  ✓ 이탈 확률: {churn_prob:.4f} ({churn_prob*100:.2f}%)")
             print(f"  ✓ 위험도: {risk_level}")
             print(f"  ✓ 앙상블 크기: {ensemble_size}개 모델")
@@ -268,18 +268,18 @@ def run_comprehensive_test():
                 "features": features
             })
         else:
-            print(f"\n❌ 에러: {result.get('error')}")
+            print(f"\n에러: {result.get('error')}")
             results["ERROR"].append(name)
     
     # 최종 요약
     print("\n\n" + "=" * 80)
-    print("📈 테스트 결과 요약")
+    print("테스트 결과 요약")
     print("=" * 80)
     print(f"🟢 LOW 위험군:    {len(results['LOW'])}건")
     print(f"🟡 MEDIUM 위험군: {len(results['MEDIUM'])}건")
     print(f"🔴 HIGH 위험군:   {len(results['HIGH'])}건")
     if results["ERROR"]:
-        print(f"❌ 에러:          {len(results['ERROR'])}건")
+        print(f"에러:          {len(results['ERROR'])}건")
     
     # 각 그룹별 상세 정보
     for risk_level in ["LOW", "MEDIUM", "HIGH"]:
@@ -295,7 +295,7 @@ def run_comprehensive_test():
                 print(f"  • {item['name'][:40]:<40} | 이탈 확률: {item['prob']:.4f}")
     
     print("\n" + "=" * 80)
-    print("✅ 테스트 완료!")
+    print("테스트 완료!")
     print("=" * 80)
 
 
