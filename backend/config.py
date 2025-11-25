@@ -23,7 +23,7 @@ TEST_SIZE: float = 0.2
 RANDOM_STATE: int = 42
 
 # 기본으로 사용할 모델 이름
-DEFAULT_MODEL_NAME: str = "xgb"  # "rf", "logit" 등 models.py의 MODEL_REGISTRY 키
+DEFAULT_MODEL_NAME: str = "hgb"  # "rf", "logit" 등 models.py의 MODEL_REGISTRY 키
 
 
 # -----------------------------------------------------
