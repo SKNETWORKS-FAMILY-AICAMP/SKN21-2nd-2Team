@@ -1920,6 +1920,130 @@ def upload_prediction_csv():
 
 
 # -------------------------------------------------------------
+# -------------------------------------------------------------
+# 테스트용: 위험도 설정 및 임시 계정 추가 API
+# -------------------------------------------------------------
+@app.route("/api/setup_test_accounts", methods=["POST"])
+def setup_test_accounts():
+    """
+    테스트용 계정들의 위험도를 HIGH로 설정하고, 
+    다양한 구독 유형의 임시 계정을 추가합니다.
+    """
+    try:
+        conn = get_connection()
+        cursor = conn.cursor(DictCursor)
+        
+        # test2 계정의 user_id 찾기 (name이 'test2' 또는 'Test User'인 경우)
+        cursor.execute("SELECT user_id, name FROM users WHERE name = 'test2' OR name = 'Test User' LIMIT 1")
+        test2_user = cursor.fetchone()
+        
+        results = []
+        
+        # test2 계정 위험도 HIGH 설정
+        if test2_user:
+            test2_user_id = test2_user['user_id']
+            test2_name = test2_user['name']
+            sql = """
+            INSERT INTO user_prediction (user_id, churn_rate, risk_score, update_date)
+            VALUES (%s, %s, %s, CURDATE())
+            ON DUPLICATE KEY UPDATE
+                churn_rate = VALUES(churn_rate),
+                risk_score = VALUES(risk_score),
+                update_date = CURDATE()
+            """
+            cursor.execute(sql, (test2_user_id, 80, 'HIGH'))
+            results.append(f"test2 ({test2_name}, user_id: {test2_user_id}) 위험도 HIGH 설정 완료")
+        else:
+            # user_id = 1인 계정도 시도 (test2 임시 계정의 기본 user_id)
+            cursor.execute("SELECT user_id, name FROM users WHERE user_id = 1 LIMIT 1")
+            user_1 = cursor.fetchone()
+            if user_1:
+                sql = """
+                INSERT INTO user_prediction (user_id, churn_rate, risk_score, update_date)
+                VALUES (%s, %s, %s, CURDATE())
+                ON DUPLICATE KEY UPDATE
+                    churn_rate = VALUES(churn_rate),
+                    risk_score = VALUES(risk_score),
+                    update_date = CURDATE()
+                """
+                cursor.execute(sql, (1, 80, 'HIGH'))
+                results.append(f"user_id=1 ({user_1['name']}) 위험도 HIGH 설정 완료")
+            else:
+                results.append("test2 계정을 찾을 수 없습니다.")
+        
+        # 임시 계정들 추가 (다양한 구독 유형)
+        test_accounts = [
+            {"name": "test_free_high", "password": "test123", "favorite_music": "Pop", "grade": "01", "subscription_type": "Free"},
+            {"name": "test_premium_high", "password": "test123", "favorite_music": "Rock", "grade": "01", "subscription_type": "Premium"},
+            {"name": "test_free2_high", "password": "test123", "favorite_music": "Jazz", "grade": "01", "subscription_type": "Free"},
+            {"name": "test_premium2_high", "password": "test123", "favorite_music": "Classical", "grade": "01", "subscription_type": "Premium"},
+        ]
+        
+        import bcrypt
+        from datetime import date
+        
+        for account in test_accounts:
+            # 계정이 이미 존재하는지 확인
+            cursor.execute("SELECT user_id FROM users WHERE name = %s", (account["name"],))
+            existing = cursor.fetchone()
+            
+            if existing:
+                user_id = existing['user_id']
+                results.append(f"{account['name']} 계정이 이미 존재합니다. (user_id: {user_id})")
+            else:
+                # 새 계정 생성
+                hashed_password = bcrypt.hashpw(account["password"].encode("utf-8"), bcrypt.gensalt())
+                cursor.execute("""
+                    INSERT INTO users (name, favorite_music, password, join_date, modify_date, grade)
+                    VALUES (%s, %s, %s, %s, %s, %s)
+                """, (
+                    account["name"],
+                    account["favorite_music"],
+                    hashed_password,
+                    date.today(),
+                    date.today(),
+                    account["grade"]
+                ))
+                user_id = cursor.lastrowid
+                results.append(f"{account['name']} 계정 생성 완료 (user_id: {user_id})")
+            
+            # user_features 테이블에 구독 유형 추가
+            cursor.execute("""
+                INSERT INTO user_features (user_id, subscription_type)
+                VALUES (%s, %s)
+                ON DUPLICATE KEY UPDATE subscription_type = VALUES(subscription_type)
+            """, (user_id, account["subscription_type"]))
+            
+            # user_prediction 테이블에 위험도 HIGH 설정
+            cursor.execute("""
+                INSERT INTO user_prediction (user_id, churn_rate, risk_score, update_date)
+                VALUES (%s, %s, %s, CURDATE())
+                ON DUPLICATE KEY UPDATE
+                    churn_rate = VALUES(churn_rate),
+                    risk_score = VALUES(risk_score),
+                    update_date = CURDATE()
+            """, (user_id, 75, 'HIGH'))
+            results.append(f"  - {account['name']} 위험도 HIGH 설정 완료 (구독 유형: {account['subscription_type']})")
+        
+        conn.commit()
+        cursor.close()
+        conn.close()
+        
+        return jsonify({
+            "success": True,
+            "message": "테스트 계정 설정 완료",
+            "results": results
+        }), 200
+        
+    except Exception as e:
+        import traceback
+        return jsonify({
+            "success": False,
+            "error": f"테스트 계정 설정 중 오류: {str(e)}",
+            "traceback": traceback.format_exc()
+        }), 500
+
+
 # CSV 다운로드 API (user_prediction 전체를 CSV로 반환)
 # -------------------------------------------------------------
 @app.route("/api/download_prediction_csv", methods=["GET"])

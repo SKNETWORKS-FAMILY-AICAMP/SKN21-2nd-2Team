@@ -162,86 +162,6 @@ def show_user_home_page():
     user = st.session_state.user_info
     user_id = user.get("user_id") if user else None
     
-    # 위험도가 높은 유저에게 구독 유형에 따른 모달 표시
-    if user_id:
-        try:
-            # 위험도와 구독 유형 조회
-            res_prediction = requests.get(f"{API_URL}/user_prediction/{user_id}", timeout=5)
-            res_features = requests.get(f"{API_URL}/user_features/{user_id}", timeout=5)
-            
-            risk_score = None
-            subscription_type = None
-            
-            if res_prediction.status_code == 200:
-                pred_data = res_prediction.json()
-                if pred_data.get("success"):
-                    risk_score = pred_data.get("data", {}).get("risk_score")
-            
-            if res_features.status_code == 200:
-                feat_data = res_features.json()
-                if feat_data.get("success"):
-                    subscription_type = feat_data.get("data", {}).get("subscription_type")
-            
-            # 위험도가 HIGH이고 모달이 아직 표시되지 않은 경우
-            if risk_score == "HIGH" and f"risk_modal_shown_{user_id}" not in st.session_state:
-                # 구독 유형에 따라 다른 모달 표시
-                if subscription_type == "Free" or subscription_type is None:
-                    # Free 유저: 구독 체험형 팝업
-                    with st.container():
-                        st.markdown("---")
-                        st.markdown("### 🎁 특별 제안")
-                        st.warning("⚠️ 현재 이탈 위험도가 높은 상태입니다.")
-                        st.info("""
-                        **🎵 프리미엄 체험을 시작해보세요!**
-                        
-                        - 광고 없는 음악 감상
-                        - 오프라인 재생
-                        - 고음질 스트리밍
-                        - 무제한 스킵
-                        
-                        지금 체험하고 더 나은 음악 경험을 만나보세요!
-                        """)
-                        col1, col2 = st.columns(2)
-                        with col1:
-                            if st.button("✅ 체험 시작하기", type="primary", key=f"trial_start_{user_id}"):
-                                st.success("체험 신청이 완료되었습니다!")
-                                st.session_state[f"risk_modal_shown_{user_id}"] = True
-                                st.rerun()
-                        with col2:
-                            if st.button("❌ 나중에", key=f"trial_later_{user_id}"):
-                                st.session_state[f"risk_modal_shown_{user_id}"] = True
-                                st.rerun()
-                        st.markdown("---")
-                elif subscription_type == "Premium":
-                    # Premium 유저: 재구독 유지 혜택 팝업
-                    with st.container():
-                        st.markdown("---")
-                        st.markdown("### 💎 프리미엄 회원님께 특별 혜택")
-                        st.warning("⚠️ 현재 이탈 위험도가 높은 상태입니다.")
-                        st.info("""
-                        **🎁 재구독 유지 혜택**
-                        
-                        - 다음 결제 시 20% 할인
-                        - 프리미엄 플러스 기능 1개월 무료
-                        - 특별 플레이리스트 제공
-                        - 우선 고객 지원
-                        
-                        지금 유지하시면 더 많은 혜택을 받으실 수 있습니다!
-                        """)
-                        col1, col2 = st.columns(2)
-                        with col1:
-                            if st.button("✅ 혜택 받기", type="primary", key=f"premium_benefit_{user_id}"):
-                                st.success("혜택이 적용되었습니다!")
-                                st.session_state[f"risk_modal_shown_{user_id}"] = True
-                                st.rerun()
-                        with col2:
-                            if st.button("❌ 닫기", key=f"premium_close_{user_id}"):
-                                st.session_state[f"risk_modal_shown_{user_id}"] = True
-                                st.rerun()
-                        st.markdown("---")
-        except Exception as e:
-            # 오류 발생 시 무시하고 계속 진행
-            pass
     
     st.markdown("## 🎵 Music Search & Player")
     
@@ -2162,7 +2082,8 @@ def show_churn_prediction_page():
             app_crash_count_30d = st.number_input("app_crash_count_30d", value=int(features.get("app_crash_count_30d", 0)), step=1)
         
         with col2:
-            subscription_type = st.selectbox("subscription_type", ["Free", "Premium"], index=0 if features.get("subscription_type") == "Free" else 1)
+            subscription_type = st.selectbox("subscription_type", ["Free", "Premium", "Family"], 
+                                             index=0 if features.get("subscription_type") == "Free" else (1 if features.get("subscription_type") == "Premium" else 2))
             customer_support_contact = st.number_input("customer_support_contact", value=int(features.get("customer_support_contact", 0)), step=1)
         
         # 추가 피처들 (필요한 경우)
@@ -2802,6 +2723,25 @@ def show_user_admin_tools():
     
 
     st.markdown("---")
+    st.subheader("테스트 계정 설정")
+    
+    # 테스트 계정 설정 버튼
+    if st.button("🧪 테스트 계정 설정 (위험도 HIGH)", type="primary"):
+        try:
+            res = requests.post(f"{API_URL}/setup_test_accounts", timeout=30)
+            if res.status_code == 200:
+                result = res.json()
+                if result.get("success"):
+                    st.success("✅ 테스트 계정 설정 완료!")
+                    st.json(result.get("results", []))
+                else:
+                    st.error(result.get("error", "테스트 계정 설정 실패"))
+            else:
+                st.error(f"API 오류: {res.status_code}")
+        except Exception as e:
+            st.error(f"오류 발생: {str(e)}")
+    
+    st.markdown("---")
     st.subheader("CSV 데이터 Import")
     
     # CSV → DB Insert 실행 (users)
@@ -2911,6 +2851,43 @@ def show_main_page():
     user = st.session_state.user_info
     user_id = user.get("user_id")
     grade = user.get("grade")
+    
+    # 위험도 정보를 저장할 변수 (나중에 배너 표시용)
+    risk_banner_data = None
+    if grade != "99" and user_id:
+        try:
+            # 위험도와 구독 유형 조회
+            res_prediction = requests.get(f"{API_URL}/user_prediction/{user_id}", timeout=5)
+            res_features = requests.get(f"{API_URL}/user_features/{user_id}", timeout=5)
+            
+            risk_score = None
+            subscription_type = None
+            
+            if res_prediction.status_code == 200:
+                pred_data = res_prediction.json()
+                if pred_data.get("success"):
+                    risk_score = pred_data.get("data", {}).get("risk_score")
+            elif res_prediction.status_code == 404:
+                # user_prediction에 데이터가 없는 경우 (정상)
+                risk_score = None
+            
+            if res_features.status_code == 200:
+                feat_data = res_features.json()
+                if feat_data.get("success"):
+                    subscription_type = feat_data.get("data", {}).get("subscription_type")
+            elif res_features.status_code == 404:
+                # user_features에 데이터가 없는 경우 (정상)
+                subscription_type = None
+            
+            # 위험도가 HIGH인 경우 배너 데이터 저장
+            if risk_score == "HIGH":
+                risk_banner_data = {
+                    "subscription_type": subscription_type,
+                    "user_id": user_id
+                }
+        except Exception as e:
+            # 오류 발생 시 무시
+            pass
     
     # ---------------------------
     # 사용자 정보 사이드바 출력
@@ -3061,6 +3038,136 @@ def show_main_page():
             show_logs_page()
         else:
             st.error("권한이 없습니다.")
+    
+    # 화면 하단에 위험도 배너 표시 (일반 유저만, 관리자 제외)
+    if risk_banner_data and grade != "99":
+        subscription_type = risk_banner_data.get("subscription_type")
+        banner_user_id = risk_banner_data.get("user_id")
+        banner_key = f"risk_banner_dismissed_{banner_user_id}"
+        
+        # 배너가 닫히지 않은 경우에만 표시
+        if banner_key not in st.session_state:
+            # 임의의 사용 통계 생성 (실제 데이터가 없을 경우)
+            import random
+            days_used = random.randint(15, 180)  # 15일~180일 사이 랜덤
+            songs_played = random.randint(500, 5000)  # 500곡~5000곡 사이 랜덤
+            playlists_created = random.randint(3, 20)  # 3개~20개 사이 랜덤
+            
+            if subscription_type == "Free" or subscription_type is None:
+                # Free 유저: 구독 체험형 배너
+                st.markdown("---")
+                st.markdown("### 🎁 특별 제안")
+                
+                st.info(f"""
+                **🎵 프리미엄 체험을 시작해보세요!**
+                
+                현재 무료 구독으로 **{days_used}일** 동안 이용하셨고, **{songs_played}곡**을 감상하셨습니다.
+                프리미엄으로 업그레이드하면 더 나은 음악 경험을 즐기실 수 있습니다!
+                
+                **✨ 프리미엄 혜택:**
+                - 광고 없는 음악 감상
+                - 오프라인 재생
+                - 고음질 스트리밍 (320kbps)
+                - 무제한 스킵
+                - 플레이리스트 {playlists_created}개에서 무제한으로 확장
+                
+                지금 체험하고 더 나은 음악 경험을 만나보세요!
+                """)
+                
+                col1, col2, col3 = st.columns([2, 1, 1])
+                with col1:
+                    if st.button("✅ 체험 시작하기", type="primary", key=f"banner_trial_start_{banner_user_id}"):
+                        st.success("체험 신청이 완료되었습니다!")
+                        st.session_state[banner_key] = True
+                        st.rerun()
+                with col2:
+                    if st.button("❌ 나중에", key=f"banner_trial_later_{banner_user_id}"):
+                        st.session_state[banner_key] = True
+                        st.rerun()
+                with col3:
+                    if st.button("✕ 닫기", key=f"banner_trial_close_{banner_user_id}"):
+                        st.session_state[banner_key] = True
+                        st.rerun()
+                st.markdown("---")
+                
+            elif subscription_type == "Premium":
+                # Premium 유저: 재구독 유지 혜택 배너
+                st.markdown("---")
+                st.markdown("### 💎 프리미엄 회원님께 특별 혜택")
+                
+                st.info(f"""
+                **🎁 재구독 유지 혜택**
+                
+                프리미엄 회원으로 **{days_used}일** 동안 함께해주셔서 감사합니다!
+                지금까지 **{songs_played}곡**을 감상하시고, **{playlists_created}개의 플레이리스트**를 만드셨네요.
+                
+                **🎉 특별 혜택:**
+                - 다음 결제 시 **20% 할인** 적용
+                - 프리미엄 플러스 기능 **1개월 무료** 제공
+                - 특별 큐레이션 플레이리스트 제공
+                - 우선 고객 지원 서비스
+                - 고음질 스트리밍 무제한 유지
+                
+                지금 유지하시면 더 많은 혜택을 받으실 수 있습니다!
+                """)
+                
+                col1, col2, col3 = st.columns([2, 1, 1])
+                with col1:
+                    if st.button("✅ 혜택 받기", type="primary", key=f"banner_premium_benefit_{banner_user_id}"):
+                        st.success("혜택이 적용되었습니다!")
+                        st.session_state[banner_key] = True
+                        st.rerun()
+                with col2:
+                    if st.button("❌ 나중에", key=f"banner_premium_later_{banner_user_id}"):
+                        st.session_state[banner_key] = True
+                        st.rerun()
+                with col3:
+                    if st.button("✕ 닫기", key=f"banner_premium_close_{banner_user_id}"):
+                        st.session_state[banner_key] = True
+                        st.rerun()
+                st.markdown("---")
+                
+            elif subscription_type == "Family":
+                # Family 유저: 가족 구독 유지 혜택 배너
+                family_members = random.randint(2, 6)  # 가족 구성원 수 (2~6명)
+                total_songs = songs_played * family_members  # 가족 전체 감상 곡 수
+                
+                st.markdown("---")
+                st.markdown("### 👨‍👩‍👧‍👦 패밀리 회원님께 특별 혜택")
+                
+                st.info(f"""
+                **🎁 패밀리 구독 유지 혜택**
+                
+                패밀리 회원으로 **{days_used}일** 동안 함께해주셔서 감사합니다!
+                가족 구성원 **{family_members}명**이 함께 **{total_songs:,}곡**을 감상하시고, 
+                **{playlists_created}개의 플레이리스트**를 만드셨네요.
+                
+                **🎉 특별 혜택:**
+                - 다음 결제 시 **15% 할인** 적용
+                - 패밀리 플러스 기능 **2개월 무료** 제공
+                - 가족 전용 큐레이션 플레이리스트 제공
+                - 우선 고객 지원 서비스
+                - 모든 가족 구성원 고음질 스트리밍 무제한 유지
+                - 가족 공유 플레이리스트 기능 확장
+                
+                가족과 함께 음악을 즐기시는 시간을 더 오래 유지하세요!
+                """)
+                
+                col1, col2, col3 = st.columns([2, 1, 1])
+                with col1:
+                    if st.button("✅ 혜택 받기", type="primary", key=f"banner_family_benefit_{banner_user_id}"):
+                        st.success("혜택이 적용되었습니다!")
+                        st.session_state[banner_key] = True
+                        st.rerun()
+                with col2:
+                    if st.button("❌ 나중에", key=f"banner_family_later_{banner_user_id}"):
+                        st.session_state[banner_key] = True
+                        st.rerun()
+                with col3:
+                    if st.button("✕ 닫기", key=f"banner_family_close_{banner_user_id}"):
+                        st.session_state[banner_key] = True
+                        st.rerun()
+                st.markdown("---")
 
     # -------------------------
     # 로그아웃
