@@ -106,10 +106,9 @@ def call_api_post(endpoint: str, payload: dict):
     except Exception as e:
         return False, {"error": str(e)}
 
-@st.cache_data(ttl=300, show_spinner=False)  # 5분 캐싱, 검색 결과는 캐싱
 def search_tracks_api_cached(query, limit, offset, access_token):
     """
-    백엔드 API를 호출하여 트랙 검색 (캐싱 적용)
+    백엔드 API를 호출하여 트랙 검색
     """
     try:
         headers = {"Authorization": f"Bearer {access_token}"}
@@ -121,10 +120,16 @@ def search_tracks_api_cached(query, limit, offset, access_token):
         res = requests.get(f"{API_URL}/music/search", headers=headers, params=params, timeout=10)
         
         if res.status_code == 200:
-            return res.json().get("tracks", [])
+            data = res.json()
+            tracks = data.get("tracks", [])
+            # 디버깅: 검색 결과 개수 확인
+            print(f"[검색] 쿼리: {query}, 결과 개수: {len(tracks)}")
+            return tracks
         else:
+            print(f"[검색 오류] 상태 코드: {res.status_code}")
             return []
     except Exception as e:
+        print(f"[검색 예외] {str(e)}")
         return []
 
 def search_tracks_api(query, limit=20, offset=0):
@@ -154,6 +159,90 @@ def show_home_page():
 
 def show_user_home_page():
     """일반 유저(01) 홈 화면 - 음악 재생"""
+    user = st.session_state.user_info
+    user_id = user.get("user_id") if user else None
+    
+    # 위험도가 높은 유저에게 구독 유형에 따른 모달 표시
+    if user_id:
+        try:
+            # 위험도와 구독 유형 조회
+            res_prediction = requests.get(f"{API_URL}/user_prediction/{user_id}", timeout=5)
+            res_features = requests.get(f"{API_URL}/user_features/{user_id}", timeout=5)
+            
+            risk_score = None
+            subscription_type = None
+            
+            if res_prediction.status_code == 200:
+                pred_data = res_prediction.json()
+                if pred_data.get("success"):
+                    risk_score = pred_data.get("data", {}).get("risk_score")
+            
+            if res_features.status_code == 200:
+                feat_data = res_features.json()
+                if feat_data.get("success"):
+                    subscription_type = feat_data.get("data", {}).get("subscription_type")
+            
+            # 위험도가 HIGH이고 모달이 아직 표시되지 않은 경우
+            if risk_score == "HIGH" and f"risk_modal_shown_{user_id}" not in st.session_state:
+                # 구독 유형에 따라 다른 모달 표시
+                if subscription_type == "Free" or subscription_type is None:
+                    # Free 유저: 구독 체험형 팝업
+                    with st.container():
+                        st.markdown("---")
+                        st.markdown("### 🎁 특별 제안")
+                        st.warning("⚠️ 현재 이탈 위험도가 높은 상태입니다.")
+                        st.info("""
+                        **🎵 프리미엄 체험을 시작해보세요!**
+                        
+                        - 광고 없는 음악 감상
+                        - 오프라인 재생
+                        - 고음질 스트리밍
+                        - 무제한 스킵
+                        
+                        지금 체험하고 더 나은 음악 경험을 만나보세요!
+                        """)
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            if st.button("✅ 체험 시작하기", type="primary", key=f"trial_start_{user_id}"):
+                                st.success("체험 신청이 완료되었습니다!")
+                                st.session_state[f"risk_modal_shown_{user_id}"] = True
+                                st.rerun()
+                        with col2:
+                            if st.button("❌ 나중에", key=f"trial_later_{user_id}"):
+                                st.session_state[f"risk_modal_shown_{user_id}"] = True
+                                st.rerun()
+                        st.markdown("---")
+                elif subscription_type == "Premium":
+                    # Premium 유저: 재구독 유지 혜택 팝업
+                    with st.container():
+                        st.markdown("---")
+                        st.markdown("### 💎 프리미엄 회원님께 특별 혜택")
+                        st.warning("⚠️ 현재 이탈 위험도가 높은 상태입니다.")
+                        st.info("""
+                        **🎁 재구독 유지 혜택**
+                        
+                        - 다음 결제 시 20% 할인
+                        - 프리미엄 플러스 기능 1개월 무료
+                        - 특별 플레이리스트 제공
+                        - 우선 고객 지원
+                        
+                        지금 유지하시면 더 많은 혜택을 받으실 수 있습니다!
+                        """)
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            if st.button("✅ 혜택 받기", type="primary", key=f"premium_benefit_{user_id}"):
+                                st.success("혜택이 적용되었습니다!")
+                                st.session_state[f"risk_modal_shown_{user_id}"] = True
+                                st.rerun()
+                        with col2:
+                            if st.button("❌ 닫기", key=f"premium_close_{user_id}"):
+                                st.session_state[f"risk_modal_shown_{user_id}"] = True
+                                st.rerun()
+                        st.markdown("---")
+        except Exception as e:
+            # 오류 발생 시 무시하고 계속 진행
+            pass
+    
     st.markdown("## 🎵 Music Search & Player")
     
     # Spotify 토큰 확인 (필수)
@@ -238,6 +327,7 @@ def show_user_home_page():
                         new_tracks = [t for t in new_tracks if t.get("popularity", 0) >= min_popularity]
                     
                     st.session_state.search_results = new_tracks
+                    print(f"[검색 결과 저장] {len(new_tracks)}개 트랙 저장됨")
                     
                     if len(new_tracks) < 20:
                         st.session_state.has_more = False
@@ -258,14 +348,18 @@ def show_user_home_page():
                 duration_str = f"{duration_ms // 60000}:{(duration_ms % 60000) // 1000:02d}"
                 
                 images = track.get("album", {}).get("images", [])
-                image_url = images[0].get("url") if images else None
+                image_url = images[0].get("url") if images and len(images) > 0 else None
                 track_uri = track.get("uri", "")
                 
                 with st.container(border=True):
                     cols = st.columns([1, 4, 1])
                     with cols[0]:
                         if image_url:
-                            st.image(image_url, width=60)
+                            try:
+                                st.image(image_url, width=60)
+                            except Exception as e:
+                                # 이미지 로드 실패 시 대체 표시
+                                st.write("🎵")
                         else:
                             st.write("🎵")
                     with cols[1]:
@@ -277,12 +371,14 @@ def show_user_home_page():
                         with col_play:
                             if st.button("▶", key=f"play_{idx}", help="이 곡 재생", use_container_width=True):
                                 st.session_state.selected_track = {
-                                "uri": track_uri,
-                                "name": track_name,
-                                "artists": artists,
-                                "image_url": image_url
-                            }
-                            st.rerun()
+                                    "uri": track_uri,
+                                    "name": track_name,
+                                    "artists": artists,
+                                    "image_url": image_url
+                                }
+                                st.rerun()
+                        with col_add:
+                            pass  # 추가 기능이 필요하면 여기에
             
             if st.session_state.get("has_more", False):
                  if st.button("더 보기 (Load More)", key="load_more_btn", use_container_width=True):
@@ -571,7 +667,7 @@ def render_top_guide_banner(page_name="default"):
             • 이름, 좋아하는 음악, 등급을 수정할 수 있습니다.<br>
             • 등급은 관리자(99)만 수정 가능합니다.<br>
             • 정보를 수정한 후 '저장' 버튼을 클릭해야 변경사항이 적용됩니다.<br>
-            • 구독해지를 하시면 휴면 유저(등급 00)로 전환되고 이탈 위험도가 높음으로 설정됩니다.<br>
+            • 구독해지를 하시면 휴면 유저(등급 00)로 전환됩니다.<br>
             • 관리자는 구독해지 기능을 사용할 수 없습니다.
         """,
         "logs": """
@@ -931,7 +1027,6 @@ def show_profile_page():
     if grade != "99":  # 관리자는 구독해지 불가
         st.markdown("---")
         st.markdown("### 🚪 구독해지")
-        st.warning("⚠️ 구독해지를 하시면 이탈 위험도가 높음으로 설정됩니다.")
         
         # 구독해지 모달 상태 관리
         if f"unsubscribe_modal_{user_id}" not in st.session_state:
@@ -947,7 +1042,7 @@ def show_profile_page():
                 with st.container():
                     st.markdown("---")
                     st.markdown("### 📝 구독해지 양식")
-                    st.info("구독해지를 진행하시겠습니까? 이탈 위험도가 높음으로 설정됩니다.")
+                    st.info("구독해지를 진행하시겠습니까?")
                     
                     reason = st.selectbox(
                         "구독해지 사유",
