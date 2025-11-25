@@ -2035,18 +2035,6 @@ def show_churn_prediction_page():
     st.write("전체 피처를 사용하여 유저의 이탈 확률을 예측합니다.")
     st.markdown("---")
     
-    # 테이블 생성 안내 및 버튼
-    with st.expander("⚠️ 테이블이 없으면 먼저 생성하세요"):
-        if st.button("📊 User Prediction Table 생성", key="init_pred_table_1"):
-            try:
-                res = requests.get(f"{API_URL}/init_user_prediction_table")
-                if res.status_code == 200:
-                    st.success("테이블 생성 완료!")
-                else:
-                    st.error(f"테이블 생성 실패: {res.status_code}")
-            except Exception as e:
-                st.error(f"오류 발생: {str(e)}")
-    
     # User ID 입력
     user_id = st.number_input("User ID", min_value=1, value=1, step=1)
     
@@ -2213,21 +2201,36 @@ def show_churn_prediction_bulk_page():
                     
                     # 한 번에 모든 데이터를 배치로 처리 (백엔드에서 효율적으로 처리)
                     status_text.info(f"📊 배치 예측 시작: 총 {total_rows}개 유저 처리 중...")
-                    progress_bar.progress(0.1)
+                    progress_bar.progress(0.05)
                     
                     with log_container.container():
-                        st.caption(f"📝 {total_rows}개 유저 데이터 준비 완료, API 호출 중...")
+                        st.caption(f"📝 1단계: {total_rows}개 유저 데이터 준비 완료")
                     
                     # 한 번에 모든 데이터 전송 (백엔드에서 배치 처리)
                     payload = {"rows": rows}
-                    progress_bar.progress(0.3)
+                    progress_bar.progress(0.1)
                     
                     with log_container.container():
-                        st.caption(f"🔄 백엔드에서 배치 예측 처리 중... (백엔드 콘솔에서 진행 상황 확인 가능)")
+                        st.caption(f"📝 1단계: {total_rows}개 유저 데이터 준비 완료")
+                        st.caption(f"🔄 2단계: API 호출 중...")
+                    
+                    progress_bar.progress(0.2)
+                    
+                    with log_container.container():
+                        st.caption(f"📝 1단계: {total_rows}개 유저 데이터 준비 완료")
+                        st.caption(f"🔄 2단계: API 호출 완료")
+                        st.caption(f"📊 3단계: 백엔드에서 배치 예측 처리 중...")
+                        st.caption(f"   - DB에서 {total_rows}개 유저 피처 조회 중...")
                     
                     res = requests.post(f"{API_URL}/predict_churn_bulk", json=payload, timeout=600)
                     
-                    progress_bar.progress(0.9)
+                    progress_bar.progress(0.8)
+                    
+                    with log_container.container():
+                        st.caption(f"📝 1단계: {total_rows}개 유저 데이터 준비 완료 ✓")
+                        st.caption(f"🔄 2단계: API 호출 완료 ✓")
+                        st.caption(f"📊 3단계: 배치 예측 처리 완료 ✓")
+                        st.caption(f"💾 4단계: 예측 결과 DB 저장 중...")
                     
                     if res.status_code == 200:
                         result = res.json()
@@ -2238,10 +2241,19 @@ def show_churn_prediction_bulk_page():
                                 progress_bar.progress(1.0)
                                 status_text.success(f"✅ 배치 예측 완료: 총 {len(all_results)}개 결과, {saved_count}개 DB 저장됨")
                                 
+                                success_count = len([r for r in all_results if "error" not in r])
+                                error_count = len([r for r in all_results if "error" in r])
+                                
                                 with log_container.container():
-                                    success_count = len([r for r in all_results if "error" not in r])
-                                    error_count = len([r for r in all_results if "error" in r])
-                                    st.caption(f"✅ 성공: {success_count}개, 실패: {error_count}개, 저장: {saved_count}개")
+                                    st.caption(f"📝 1단계: {total_rows}개 유저 데이터 준비 완료 ✓")
+                                    st.caption(f"🔄 2단계: API 호출 완료 ✓")
+                                    st.caption(f"📊 3단계: 배치 예측 처리 완료 ✓")
+                                    st.caption(f"💾 4단계: 예측 결과 DB 저장 완료 ✓")
+                                    st.caption(f"")
+                                    st.caption(f"📈 최종 결과:")
+                                    st.caption(f"   ✅ 성공: {success_count}개")
+                                    st.caption(f"   ❌ 실패: {error_count}개")
+                                    st.caption(f"   💾 DB 저장: {saved_count}개")
                                 
                                 if len(all_results) > 0:
                                     results_df = pd.DataFrame(all_results)
@@ -2388,18 +2400,6 @@ def show_churn_prediction_6feat_page():
     st.write("6개 핵심 피처만 사용하여 이탈 확률을 예측합니다.")
     st.markdown("---")
     
-    # 테이블 생성 안내 및 버튼
-    with st.expander("⚠️ 테이블이 없으면 먼저 생성하세요"):
-        if st.button("📊 User Prediction Table 생성", key="init_pred_table_2"):
-            try:
-                res = requests.get(f"{API_URL}/init_user_prediction_table")
-                if res.status_code == 200:
-                    st.success("테이블 생성 완료!")
-                else:
-                    st.error(f"테이블 생성 실패: {res.status_code}")
-            except Exception as e:
-                st.error(f"오류 발생: {str(e)}")
-    
     user_id = st.number_input("User ID", min_value=1, value=1, step=1)
     
     st.subheader("6개 핵심 피처 입력")
@@ -2495,18 +2495,6 @@ def show_prediction_results_page():
     st.header("📋 예측 결과 조회")
     st.write("저장된 예측 결과를 조회합니다.")
     st.markdown("---")
-    
-    # 테이블 생성 안내 및 버튼
-    with st.expander("⚠️ 테이블이 없으면 먼저 생성하세요"):
-        if st.button("📊 User Prediction Table 생성", key="init_pred_table_3"):
-            try:
-                res = requests.get(f"{API_URL}/init_user_prediction_table")
-                if res.status_code == 200:
-                    st.success("테이블 생성 완료!")
-                else:
-                    st.error(f"테이블 생성 실패: {res.status_code}")
-            except Exception as e:
-                st.error(f"오류 발생: {str(e)}")
     
     tab1, tab2 = st.tabs(["단일 유저 조회", "전체 조회"])
     
