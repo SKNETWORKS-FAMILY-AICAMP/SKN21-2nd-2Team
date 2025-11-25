@@ -43,9 +43,21 @@ def _load_player_html(file_path):
     with open(file_path, "r", encoding="utf-8") as f:
         return f.read()
 
-# selectbox input field 편집 불가 처리
+# Spotify 스타일 전역 CSS
 st.markdown("""
 <style>
+/* Spotify 다크 테마 배경 */
+.stApp {
+    background: linear-gradient(180deg, #121212 0%, #191414 100%);
+    color: #ffffff;
+}
+
+/* 메인 컨테이너 스타일 */
+.main .block-container {
+    background-color: transparent;
+    padding-top: 2rem;
+}
+
 /* Streamlit의 selectbox는 Baseweb 컴포넌트의 input 요소를 사용 */
 /* 해당 input 요소의 편집을 불가능하게 만듦 */
 div[data-baseweb="select"] input {
@@ -55,6 +67,316 @@ div[data-baseweb="select"] input {
 /* 커서를 텍스트 수정 커서가 아닌 기본 화살표로 변경 */
 div[data-baseweb="select"] input {
     caret-color: transparent !important;
+}
+
+/* 사이드바 Spotify 스타일 */
+section[data-testid="stSidebar"] {
+    background: linear-gradient(180deg, #000000 0%, #121212 100%);
+    border-right: 1px solid #2a2a2a;
+}
+
+section[data-testid="stSidebar"] .css-1d391kg {
+    background-color: transparent;
+}
+
+/* 제목 및 헤더 스타일 */
+h1, h2, h3, h4, h5, h6 {
+    color: #ffffff !important;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+}
+
+h2 {
+    border-bottom: 2px solid rgba(29, 185, 84, 0.3);
+    padding-bottom: 0.5rem;
+    margin-bottom: 1.5rem;
+}
+
+h3 {
+    color: #ffffff !important;
+    margin-top: 1.5rem;
+    margin-bottom: 1rem;
+}
+
+/* 서브헤더 스타일 */
+div[data-testid="stHeader"] {
+    background-color: #000000 !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+/* 일반 텍스트 색상 */
+p, div, span, label {
+    color: #b3b3b3 !important;
+}
+
+/* 버튼 Spotify 스타일 */
+button[kind="primary"] {
+    background-color: #1DB954 !important;
+    color: #ffffff !important;
+    border: none !important;
+    border-radius: 25px !important;
+    padding: 0.5rem 2rem !important;
+    font-weight: 600 !important;
+    transition: all 0.3s ease !important;
+}
+
+button[kind="primary"]:hover {
+    background-color: #1ed760 !important;
+    transform: scale(1.05) !important;
+}
+
+button:not([kind="primary"]) {
+    background-color: rgba(255, 255, 255, 0.1) !important;
+    color: #ffffff !important;
+    border: 1px solid rgba(255, 255, 255, 0.2) !important;
+    border-radius: 25px !important;
+    padding: 0.5rem 1.5rem !important;
+    transition: all 0.3s ease !important;
+}
+
+button:not([kind="primary"]):hover {
+    background-color: rgba(255, 255, 255, 0.2) !important;
+    transform: scale(1.05) !important;
+}
+
+/* 입력 필드 Spotify 스타일 */
+div[data-testid="stTextInput"] > div > div > input,
+div[data-testid="stTextArea"] > div > div > textarea,
+div[data-baseweb="select"] {
+    background-color: rgba(255, 255, 255, 0.1) !important;
+    color: #ffffff !important;
+    border: 1px solid rgba(255, 255, 255, 0.2) !important;
+    border-radius: 8px !important;
+}
+
+div[data-testid="stTextInput"] > div > div > input:focus,
+div[data-testid="stTextArea"] > div > div > textarea:focus {
+    border-color: #1DB954 !important;
+    box-shadow: 0 0 0 2px rgba(29, 185, 84, 0.2) !important;
+}
+
+/* 컨테이너 스타일 */
+div[data-testid="stVerticalBlock"] > div[style*="border"] {
+    background-color: rgba(255, 255, 255, 0.05) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    border-radius: 12px !important;
+    padding: 1rem !important;
+}
+
+/* 라디오 버튼 Spotify 스타일 */
+div[data-testid="stRadio"] label {
+    color: #ffffff !important;
+}
+
+/* 메트릭 카드 스타일 */
+div[data-testid="stMetricValue"] {
+    color: #1DB954 !important;
+}
+
+/* 차트 및 그래프 배경 */
+div[data-testid="stPlotlyChart"] {
+    background-color: rgba(255, 255, 255, 0.05) !important;
+    border-radius: 12px !important;
+    padding: 1rem !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+/* Matplotlib 차트 스타일 */
+div[data-testid="stImage"] {
+    border-radius: 8px !important;
+}
+
+/* 스피너 스타일 */
+div[data-testid="stSpinner"] {
+    color: #1DB954 !important;
+}
+
+/* 테이블 스타일 */
+div[data-testid="stDataFrame"] {
+    background-color: rgba(255, 255, 255, 0.05) !important;
+    border-radius: 12px !important;
+}
+
+/* 구분선 스타일 */
+hr {
+    border-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+/* 정보/성공/경고 메시지 스타일 */
+div[data-testid="stAlert"] {
+    border-radius: 8px !important;
+}
+
+/* 스크롤바 스타일 */
+::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+
+::-webkit-scrollbar-track {
+    background: #121212;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #2a2a2a;
+    border-radius: 5px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #3a3a3a;
+}
+
+/* 음악 카드 스타일 */
+div[data-testid="stVerticalBlock"] > div[style*="border"] {
+    background: linear-gradient(135deg, rgba(29, 185, 84, 0.05) 0%, rgba(18, 18, 18, 0.8) 100%) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    border-radius: 12px !important;
+    padding: 1rem !important;
+    transition: all 0.3s ease !important;
+}
+
+div[data-testid="stVerticalBlock"] > div[style*="border"]:hover {
+    background: linear-gradient(135deg, rgba(29, 185, 84, 0.1) 0%, rgba(18, 18, 18, 0.9) 100%) !important;
+    border-color: rgba(29, 185, 84, 0.3) !important;
+    transform: translateY(-2px) !important;
+    box-shadow: 0 4px 15px rgba(29, 185, 84, 0.2) !important;
+}
+
+/* 이미지 스타일 */
+img {
+    border-radius: 8px !important;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3) !important;
+}
+
+/* 확장 가능한 섹션 스타일 */
+div[data-testid="stExpander"] {
+    background-color: rgba(255, 255, 255, 0.05) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    border-radius: 8px !important;
+}
+
+/* 라디오 버튼 컨테이너 */
+section[data-testid="stSidebar"] div[data-testid="stRadio"] {
+    background-color: rgba(255, 255, 255, 0.05) !important;
+    padding: 1rem !important;
+    border-radius: 8px !important;
+    margin: 0.5rem 0 !important;
+}
+
+/* 라디오 버튼 선택된 항목 스타일 */
+section[data-testid="stSidebar"] div[data-testid="stRadio"] > div > label {
+    color: #ffffff !important;
+    font-weight: 500 !important;
+}
+
+section[data-testid="stSidebar"] div[data-testid="stRadio"] > div > label > div[data-testid="stMarkdownContainer"] {
+    color: #ffffff !important;
+}
+
+/* 사이드바 텍스트 스타일 */
+section[data-testid="stSidebar"] p,
+section[data-testid="stSidebar"] div,
+section[data-testid="stSidebar"] span {
+    color: #b3b3b3 !important;
+}
+
+section[data-testid="stSidebar"] h3 {
+    color: #ffffff !important;
+    font-weight: 700 !important;
+}
+
+/* 슬라이더 스타일 */
+div[data-testid="stSlider"] {
+    color: #1DB954 !important;
+}
+
+/* 체크박스 스타일 */
+div[data-testid="stCheckbox"] label {
+    color: #ffffff !important;
+}
+
+/* 멀티셀렉트 스타일 */
+div[data-baseweb="select"] {
+    background-color: rgba(255, 255, 255, 0.1) !important;
+    border-radius: 8px !important;
+}
+
+/* 데이터프레임 스타일 */
+.dataframe {
+    background-color: rgba(255, 255, 255, 0.05) !important;
+    color: #ffffff !important;
+}
+
+/* 캡션 스타일 */
+.caption {
+    color: #b3b3b3 !important;
+}
+
+/* 메트릭 카드 강조 */
+div[data-testid="stMetricContainer"] {
+    background: linear-gradient(135deg, rgba(29, 185, 84, 0.1) 0%, rgba(18, 18, 18, 0.8) 100%) !important;
+    border: 1px solid rgba(29, 185, 84, 0.2) !important;
+    border-radius: 12px !important;
+    padding: 1rem !important;
+}
+
+/* 정보 메시지 스타일 */
+div[data-testid="stAlert"] {
+    background-color: rgba(255, 255, 255, 0.05) !important;
+    border-left: 4px solid #1DB954 !important;
+    border-radius: 8px !important;
+}
+
+/* 경고 메시지 스타일 */
+div[data-testid="stAlert"] div[role="alert"] {
+    color: #ffffff !important;
+}
+
+/* 파일 업로더 스타일 */
+div[data-testid="stFileUploader"] {
+    background-color: rgba(255, 255, 255, 0.05) !important;
+    border: 1px dashed rgba(255, 255, 255, 0.2) !important;
+    border-radius: 8px !important;
+    padding: 1rem !important;
+}
+
+div[data-testid="stFileUploader"]:hover {
+    border-color: rgba(29, 185, 84, 0.5) !important;
+    background-color: rgba(29, 185, 84, 0.05) !important;
+}
+
+/* 탭 스타일 */
+div[data-baseweb="tabs"] {
+    background-color: transparent !important;
+}
+
+div[data-baseweb="tabs"] > div > div {
+    background-color: rgba(255, 255, 255, 0.05) !important;
+    border-radius: 8px !important;
+}
+
+/* 프로그레스 바 스타일 */
+div[data-testid="stProgress"] > div > div {
+    background-color: #1DB954 !important;
+}
+
+/* 구분선 스타일 개선 */
+hr {
+    border: none !important;
+    border-top: 1px solid rgba(255, 255, 255, 0.1) !important;
+    margin: 2rem 0 !important;
+}
+
+/* 선택된 항목 강조 */
+div[data-baseweb="select"] > div[aria-selected="true"] {
+    background-color: #1DB954 !important;
+    color: #ffffff !important;
+}
+
+/* 포커스 상태 스타일 */
+*:focus {
+    outline: 2px solid rgba(29, 185, 84, 0.5) !important;
+    outline-offset: 2px !important;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -861,13 +1183,15 @@ def render_top_guide_banner(page_name="default"):
     
     # HTML을 제대로 렌더링하기 위해 f-string 대신 직접 결합
     html_content = f"""<div style="
-            background-color: #1f2937;
-            padding: 15px 20px;
-            border-radius: 10px;
+            background: linear-gradient(135deg, rgba(29, 185, 84, 0.15) 0%, rgba(18, 18, 18, 0.9) 100%);
+            padding: 20px 25px;
+            border-radius: 12px;
             margin-bottom: 25px;
-            color: white;
+            color: #ffffff;
             font-size: 16px;
-            border-left: 5px solid #3b82f6;
+            border-left: 4px solid #1DB954;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(10px);
         ">{guide_text.strip()}</div>"""
     
     st.markdown(html_content, unsafe_allow_html=True)
@@ -1389,8 +1713,8 @@ def search_user():
     # 조회 필드 UI - 한 줄에 나열하여 보기 좋게 정리 (FHD 기준으로 더 넓게)
     st.markdown("### 조회 조건")
     
-    # 필터 필드들을 한 줄에 나열 (FHD 화면에 맞게 비율 조정)
-    filter_col1, filter_col2, filter_col3, filter_col4, filter_col5 = st.columns([2.5, 2.5, 2.5, 2.5, 1.5])
+    # 필터 필드들을 한 줄에 나열 (FHD 화면에 맞게 비율 조정, 위험도 필터 추가)
+    filter_col1, filter_col2, filter_col3, filter_col4, filter_col5, filter_col6 = st.columns([2, 2, 2, 2, 2, 1.5])
     
     with filter_col1:
         search_name = st.text_input("이름 조회", placeholder="이름을 입력하세요")
@@ -1414,6 +1738,14 @@ def search_user():
         else:
             search_grade = selected_grade_filter.split(":")[0].strip()
     with filter_col5:
+        # 위험도 필터 추가
+        risk_filter_options = ["전체", "LOW: 낮음", "MEDIUM: 중간", "HIGH: 높음", "UNKNOWN: 알 수 없음"]
+        selected_risk_filter = st.selectbox("위험도", options=risk_filter_options, key="search_risk_filter")
+        if selected_risk_filter == "전체":
+            search_risk = ""
+        else:
+            search_risk = selected_risk_filter.split(":")[0].strip()
+    with filter_col6:
         page_size = st.selectbox("페이지 크기", [10, 20, 30, 50], index=1)
 
     # 페이지 상태 및 조회 실행 여부 관리
@@ -1443,6 +1775,7 @@ def search_user():
             "user_id": search_user_id,
             "favorite_music": search_music,
             "grade": search_grade,
+            "risk_score": search_risk,
             "page_size": page_size
         }
         st.rerun()
@@ -1458,6 +1791,7 @@ def search_user():
     current_search_user_id = saved_params.get("user_id", "")
     current_search_music = saved_params.get("favorite_music", "")
     current_search_grade = saved_params.get("grade", "")
+    current_search_risk = saved_params.get("risk_score", "")
     current_page_size = saved_params.get("page_size", page_size)
 
     # API 요청 URL 구성
@@ -1467,6 +1801,7 @@ def search_user():
         f"&user_id={current_search_user_id}"
         f"&favorite_music={current_search_music}"
         f"&grade={current_search_grade}"
+        f"&risk_score={current_search_risk}"
     )
 
     ok, res = call_api(api_url)

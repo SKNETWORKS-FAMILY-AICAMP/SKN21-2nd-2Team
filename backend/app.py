@@ -740,6 +740,7 @@ def users_search():
         user_id = request.args.get("user_id", "").strip()
         favorite_music = request.args.get("favorite_music", "").strip()
         grade = request.args.get("grade", "").strip()
+        risk_score = request.args.get("risk_score", "").strip()
 
         # 페이징 파라미터
         page = int(request.args.get("page", 1))
@@ -756,29 +757,38 @@ def users_search():
         params = []
 
         if name:
-            conditions.append("name LIKE %s")
+            conditions.append("u.name LIKE %s")
             params.append(f"%{name}%")
 
         if user_id.isdigit():
-            conditions.append("user_id = %s")
+            conditions.append("u.user_id = %s")
             params.append(int(user_id))
 
         if favorite_music:
-            conditions.append("favorite_music LIKE %s")
+            conditions.append("u.favorite_music LIKE %s")
             params.append(f"%{favorite_music}%")
 
         if grade:
-            conditions.append("grade = %s")
+            conditions.append("u.grade = %s")
             params.append(grade)
+
+        if risk_score:
+            conditions.append("COALESCE(up.risk_score, 'UNKNOWN') = %s")
+            params.append(risk_score)
 
         where_clause = " AND ".join(conditions)
         if where_clause:
             where_clause = "WHERE " + where_clause
 
         # ----------------------------
-        # 전체 개수 조회
+        # 전체 개수 조회 (JOIN 포함)
         # ----------------------------
-        count_sql = f"SELECT COUNT(*) AS cnt FROM users {where_clause}"
+        count_sql = f"""
+            SELECT COUNT(*) AS cnt 
+            FROM users u
+            LEFT JOIN user_prediction up ON u.user_id = up.user_id
+            {where_clause}
+        """
         cursor.execute(count_sql, tuple(params))
         total_rows = cursor.fetchone()["cnt"]
 
