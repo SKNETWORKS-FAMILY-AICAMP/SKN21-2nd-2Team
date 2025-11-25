@@ -240,7 +240,7 @@ SKN21-2ND-2TEAM/
   - 여러 FE 세트(Set A~G) 및 추가 세그먼트/ratio/비선형 FE 후보를 실험
   - **결과**: 핵심 FE 4~5개만 남기는 것이 최선, 복잡한 교호작용·플래그를 더해도 성능 개선은 ΔF1≈0 수준
 <p align="center">
-        <img src="image/visualizations/03_candidate_fe_impact.png" alt="candidate_fe_impact" width="500">
+        <img src="image/visualizations/03_candidate_fe_impact.png" alt="candidate_fe_impact" width="550">
       </p>
  <br>
  
@@ -248,7 +248,7 @@ SKN21-2ND-2TEAM/
   - `gender`, `country`, `subscription_type`, `device_type` 및 파생 범주형을 One-Hot 인코딩해 포함
   - 수치형+FE(10~11개) vs 수치형+FE+범주형(30개 이상) 비교 시 **오히려 F1/AUC 소폭 하락 → 범주형 기여도 낮음**
  <p align="center">
-        <img src="image/visualizations/04_feature_category_impact.png" alt="feature_category_impact" width="500">
+        <img src="image/visualizations/04_feature_category_impact.png" alt="feature_category_impact" width="550">
       </p>
 
 <br>
@@ -276,20 +276,31 @@ SKN21-2ND-2TEAM/
 ## 4) Limitations & Root Cause Analysis(한계 원인 분석)
 - **통계·상관·Feature Importance 분석** (`feature_selection.ipynb` 6장, `improvement_proposal.md`):
   - 모든 피처에서 t-test p-value>0.05, 상관계수 |r|<0.02 → 이탈/비이탈 간 행동 차이가 통계적으로 거의 없음
-  - RF Feature Importance & Permutation Importance도 특정 피처가 두드러지지 않고 8~14% 수준으로 고르게 분산
+<p align="center">
+  <img src="image/visualizations/05_ttest_pvalues.png" width="450">
+  <img src="image/visualizations/06_correlation_analysis.png" width="450">
+</p>
 
+  - RF Feature Importance & Permutation Importance도 특정 피처가 두드러지지 않고 8~14% 수준으로 고르게 분산
+<p align="center">
+        <img src="image/visualizations/07_feature_importance.png" alt="feature_importance" width="580">
+      </p>
+      
 <br>
 
 - **결론**:
   - 현재 구조(유저당 1행 스냅샷 + 단일 시점 피처)에서는 **F1≈0.41, AUC≈0.53이 사실상 상한**
-  - 모델 변경·튜닝·SMOTE만으로는 성능을 올리기 어렵고, **데이터/피처 자체를 바꾸는 방향이 필요**함
+  <p align="center">
+        <img src="image/visualizations/08_performance_ceiling.png" alt="performance_ceiling" width="550">
+      </p>
+ - 모델 변경·튜닝·SMOTE만으로는 성능을 올리기 어렵고, **데이터/피처 자체를 바꾸는 방향이 필요**함
 
 <br>
 
 ## 5) 시계열·고객 접점 Features 추가 및 성능 향상
 - **개선 아이디어 정리 (`improvement_proposal.md`)**:
-  - Priority 1: 최근 7/14/30일 행동 변화를 담는 **시계열 피처 5개**
-  - Priority 2: 고객센터 문의, 결제 실패, 프로모션 반응, 앱 크래시 등 **고객 접점 피처 4개**
+  - `Priority 1`: 최근 7/14/30일 행동 변화를 담는 **시계열 피처 5개**
+  - `Priority 2`: 고객센터 문의, 결제 실패, 프로모션 반응, 앱 크래시 등 **고객 접점 피처 4개**
      ### 🔹 `Time-Series Behavioral Trends` - 시계열features(5개)
       | 피처명 | 타입 | 설명 | 예상 기여도 |
       |--------|------|------|-------------|
