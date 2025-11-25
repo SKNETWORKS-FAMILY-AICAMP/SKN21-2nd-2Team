@@ -125,6 +125,18 @@ def search_tracks_api(query, limit=20, offset=0):
 def show_home_page():
     render_top_guide_banner("home")
     
+    user = st.session_state.user_info
+    grade = user.get("grade") if user else None
+    
+    # 관리자(99)는 통계 화면, 일반 유저(01)는 음악 재생 화면
+    if grade == "99":
+        show_admin_home_page()
+    else:
+        show_user_home_page()
+
+
+def show_user_home_page():
+    """일반 유저(01) 홈 화면 - 음악 재생"""
     st.markdown("## 🎵 Music Search & Player")
     
     # Spotify 토큰 확인 (필수)
@@ -295,8 +307,14 @@ def show_home_page():
                 with open(player_html_path, "r", encoding="utf-8") as f:
                     player_html = f.read()
                 
+                # 사용자 ID와 API URL 추가
+                user_id = st.session_state.user_info.get("user_id") if st.session_state.get("user_info") else ""
+                api_url = API_URL
+                
                 player_html = player_html.replace("{{ACCESS_TOKEN}}", st.session_state.access_token)
                 player_html = player_html.replace("{{INITIAL_TRACK_URI}}", selected_track.get("uri", ""))
+                player_html = player_html.replace("{{USER_ID}}", str(user_id))
+                player_html = player_html.replace("{{API_URL}}", api_url)
                 
                 components.html(player_html, height=400)
                 
@@ -307,6 +325,194 @@ def show_home_page():
         else:
             st.info("재생할 트랙을 선택하세요.")
             st.write("검색 결과에서 **▶ 재생** 버튼을 클릭하면 플레이어가 표시됩니다.")
+
+
+def show_admin_home_page():
+    """관리자(99) 홈 화면 - 유저 위험도 및 이탈률 통계"""
+    st.markdown("## 📊 유저 위험도 및 이탈률 통계")
+    
+    try:
+        # 전체 유저 예측 데이터 조회
+        res = requests.get(f"{API_URL}/user_prediction")
+        if res.status_code == 200:
+            data = res.json()
+            if data.get("success"):
+                predictions = data.get("rows", [])
+                
+                if predictions:
+                    # 데이터프레임 생성
+                    df = pd.DataFrame(predictions)
+                    
+                    # 통계 요약
+                    col1, col2, col3, col4 = st.columns(4)
+                    with col1:
+                        total_users = len(df)
+                        st.metric("전체 유저 수", f"{total_users}명")
+                    with col2:
+                        avg_churn = df['churn_rate'].mean() if 'churn_rate' in df.columns else 0
+                        st.metric("평균 이탈률", f"{avg_churn:.1f}%")
+                    with col3:
+                        high_risk = len(df[df['risk_score'] == 'HIGH']) if 'risk_score' in df.columns else 0
+                        st.metric("고위험 유저", f"{high_risk}명")
+                    with col4:
+                        medium_risk = len(df[df['risk_score'] == 'MEDIUM']) if 'risk_score' in df.columns else 0
+                        st.metric("중위험 유저", f"{medium_risk}명")
+                    
+                    st.markdown("---")
+                    
+                    # 위험도 분포 차트 (한눈에 보이도록 3개 차트를 한 줄에)
+                    col_chart1, col_chart2, col_chart3 = st.columns(3)
+                    
+                    with col_chart1:
+                        st.markdown("#### 위험도 분포")
+                        if 'risk_score' in df.columns:
+                            risk_counts = df['risk_score'].value_counts()
+                            
+                            fig, ax = plt.subplots(figsize=(5, 4))
+                            fig.patch.set_facecolor('none')
+                            ax.set_facecolor('none')
+                            
+                            colors = {'LOW': '#2ecc71', 'MEDIUM': '#f39c12', 'HIGH': '#e74c3c', 'UNKNOWN': '#95a5a6'}
+                            risk_labels = {'LOW': '낮음', 'MEDIUM': '중간', 'HIGH': '높음', 'UNKNOWN': '알 수 없음'}
+                            
+                            labels = [risk_labels.get(r, r) for r in risk_counts.index]
+                            values = risk_counts.values
+                            chart_colors = [colors.get(r, '#95a5a6') for r in risk_counts.index]
+                            
+                            # 텍스트 색상을 밝게 설정
+                            ax.pie(values, labels=labels, autopct='%1.1f%%', colors=chart_colors, 
+                                  startangle=90, textprops={'color': 'white', 'fontsize': 9})
+                            ax.set_title('위험도 분포', fontsize=11, fontweight='bold', color='white')
+                            plt.tight_layout(pad=0.5)
+                            st.pyplot(fig, use_container_width=True)
+                            plt.close()
+                        else:
+                            st.info("위험도 데이터가 없습니다.")
+                    
+                    with col_chart2:
+                        st.markdown("#### 이탈률 분포")
+                        if 'churn_rate' in df.columns:
+                            fig, ax = plt.subplots(figsize=(5, 4))
+                            fig.patch.set_facecolor('none')
+                            ax.set_facecolor('none')
+                            
+                            # 이탈률 구간별 분류
+                            bins = [0, 20, 40, 60, 80, 100]
+                            labels_bin = ['0-20%', '20-40%', '40-60%', '60-80%', '80-100%']
+                            df_temp = df.copy()
+                            df_temp['churn_range'] = pd.cut(df_temp['churn_rate'], bins=bins, labels=labels_bin, include_lowest=True)
+                            churn_counts = df_temp['churn_range'].value_counts().sort_index()
+                            
+                            ax.bar(churn_counts.index, churn_counts.values, color='#3498db')
+                            ax.set_xlabel('이탈률 구간', fontsize=9, color='white')
+                            ax.set_ylabel('유저 수', fontsize=9, color='white')
+                            ax.set_title('이탈률 분포', fontsize=11, fontweight='bold', color='white')
+                            ax.tick_params(axis='x', rotation=45, labelsize=8, colors='white')
+                            ax.tick_params(axis='y', labelsize=8, colors='white')
+                            ax.spines['bottom'].set_color('white')
+                            ax.spines['top'].set_color('white')
+                            ax.spines['left'].set_color('white')
+                            ax.spines['right'].set_color('white')
+                            plt.tight_layout(pad=0.5)
+                            st.pyplot(fig, use_container_width=True)
+                            plt.close()
+                        else:
+                            st.info("이탈률 데이터가 없습니다.")
+                    
+                    with col_chart3:
+                        st.markdown("#### 위험도별 평균 이탈률")
+                        if 'risk_score' in df.columns and 'churn_rate' in df.columns:
+                            risk_labels = {'LOW': '낮음', 'MEDIUM': '중간', 'HIGH': '높음', 'UNKNOWN': '알 수 없음'}
+                            risk_churn = df.groupby('risk_score')['churn_rate'].agg(['mean']).reset_index()
+                            risk_churn.columns = ['위험도', '평균 이탈률']
+                            risk_churn['위험도'] = risk_churn['위험도'].map(risk_labels).fillna(risk_churn['위험도'])
+                            risk_churn['평균 이탈률'] = risk_churn['평균 이탈률'].round(2)
+                            
+                            fig, ax = plt.subplots(figsize=(5, 4))
+                            fig.patch.set_facecolor('none')
+                            ax.set_facecolor('none')
+                            
+                            colors_map = {'낮음': '#2ecc71', '중간': '#f39c12', '높음': '#e74c3c', '알 수 없음': '#95a5a6'}
+                            bar_colors = [colors_map.get(r, '#95a5a6') for r in risk_churn['위험도']]
+                            bars = ax.bar(risk_churn['위험도'], risk_churn['평균 이탈률'], color=bar_colors)
+                            ax.set_xlabel('위험도', fontsize=9, color='white')
+                            ax.set_ylabel('평균 이탈률 (%)', fontsize=9, color='white')
+                            ax.set_title('위험도별 평균 이탈률', fontsize=11, fontweight='bold', color='white')
+                            
+                            # 값 표시
+                            for bar in bars:
+                                height = bar.get_height()
+                                ax.text(bar.get_x() + bar.get_width()/2., height,
+                                       f'{height:.1f}%',
+                                       ha='center', va='bottom', fontsize=8, color='white')
+                            
+                            ax.tick_params(axis='x', labelsize=8, colors='white')
+                            ax.tick_params(axis='y', labelsize=8, colors='white')
+                            ax.spines['bottom'].set_color('white')
+                            ax.spines['top'].set_color('white')
+                            ax.spines['left'].set_color('white')
+                            ax.spines['right'].set_color('white')
+                            plt.tight_layout(pad=0.5)
+                            st.pyplot(fig, use_container_width=True)
+                            plt.close()
+                        else:
+                            st.info("데이터가 없습니다.")
+                    
+                    st.markdown("---")
+                    
+                    # 위험도별 상세 통계 테이블
+                    if 'risk_score' in df.columns and 'churn_rate' in df.columns:
+                        risk_labels = {'LOW': '낮음', 'MEDIUM': '중간', 'HIGH': '높음', 'UNKNOWN': '알 수 없음'}
+                        risk_churn = df.groupby('risk_score')['churn_rate'].agg(['mean', 'count']).reset_index()
+                        risk_churn.columns = ['위험도', '평균 이탈률', '유저 수']
+                        risk_churn['위험도'] = risk_churn['위험도'].map(risk_labels).fillna(risk_churn['위험도'])
+                        risk_churn['평균 이탈률'] = risk_churn['평균 이탈률'].round(2)
+                        st.dataframe(risk_churn, use_container_width=True)
+                    
+                    st.markdown("---")
+                    
+                    # 상세 데이터 테이블
+                    st.subheader("유저별 상세 정보")
+                    display_df = df.copy()
+                    risk_labels = {'LOW': '낮음', 'MEDIUM': '중간', 'HIGH': '높음', 'UNKNOWN': '알 수 없음'}
+                    
+                    # 필요한 컬럼만 선택하고 이름 변경
+                    if 'risk_score' in display_df.columns:
+                        display_df['risk_score'] = display_df['risk_score'].map(risk_labels).fillna(display_df['risk_score'])
+                    
+                    # 컬럼 이름 매핑 (실제 컬럼에 맞게)
+                    column_mapping = {}
+                    if 'user_id' in display_df.columns:
+                        column_mapping['user_id'] = '유저 ID'
+                    if 'churn_rate' in display_df.columns:
+                        column_mapping['churn_rate'] = '이탈률 (%)'
+                    if 'risk_score' in display_df.columns:
+                        column_mapping['risk_score'] = '위험도'
+                    if 'update_date' in display_df.columns:
+                        column_mapping['update_date'] = '업데이트 날짜'
+                    
+                    display_df = display_df.rename(columns=column_mapping)
+                    
+                    # 필요한 컬럼만 선택
+                    display_columns = [col for col in ['유저 ID', '이탈률 (%)', '위험도', '업데이트 날짜'] if col in display_df.columns]
+                    display_df = display_df[display_columns]
+                    
+                    st.dataframe(display_df, use_container_width=True, height=400)
+                else:
+                    st.info("예측 데이터가 없습니다. 먼저 이탈 예측을 실행해주세요.")
+            else:
+                st.error(f"데이터 조회 실패: {data.get('error', '알 수 없는 오류')}")
+        else:
+            if res.status_code == 404:
+                st.info("user_prediction 테이블이 존재하지 않습니다. 먼저 테이블을 생성해주세요.")
+            else:
+                st.error(f"API 오류: {res.status_code}")
+    except requests.exceptions.ConnectionError:
+        st.error("백엔드 서버에 연결할 수 없습니다. 서버가 실행 중인지 확인해주세요.")
+    except Exception as e:
+        st.error(f"오류 발생: {str(e)}")
+        import traceback
+        st.code(traceback.format_exc())
 
 
 # ----------------------------------------------------------
@@ -401,6 +607,21 @@ def render_top_guide_banner(page_name="default"):
         "feature_b": """
             <b style="font-size:17px;">⚙️ 기능 B 이용 가이드</b><br>
             • 기능 B의 내용을 여기에 작성하세요.
+        """,
+        "achievements": """
+            <b style="font-size:17px;">🏆 도전과제 이용 가이드</b><br>
+            • 특정 노래나 장르의 노래를 일정 횟수 이상 들으면 도전과제를 달성할 수 있습니다.<br>
+            • 노래를 재생하면 자동으로 재생 로그가 기록되고 도전과제 진행도가 업데이트됩니다.<br>
+            • 도전과제를 완료하면 보상 포인트를 받을 수 있습니다.<br>
+            • 완료된 도전과제와 진행 중인 도전과제를 확인할 수 있습니다.<br>
+            • 완료된 도전과제를 칭호로 선택하여 사이드바에 표시할 수 있습니다.
+        """,
+        "achievements_admin": """
+            <b style="font-size:17px;">🏆 도전과제 관리 이용 가이드</b><br>
+            • 도전과제를 생성, 조회, 삭제할 수 있습니다. (관리자 전용)<br>
+            • 도전과제 타입: GENRE_PLAY (장르별 재생), TRACK_PLAY (특정 노래 재생)<br>
+            • 목표 값, 보상 포인트 등을 설정할 수 있습니다.<br>
+            • 생성된 도전과제는 모든 사용자에게 적용됩니다.
         """,
         "default": """
             <b style="font-size:17px;">📘 이용 가이드</b><br>
@@ -1341,6 +1562,335 @@ def show_feature_b():
 
 
 # ----------------------------------------------------------
+# 도전과제 페이지 함수
+# ----------------------------------------------------------
+def show_achievements_admin_page():
+    """도전과제 관리 페이지 (관리자용)"""
+    render_top_guide_banner("achievements_admin")
+    st.header("🏆 도전과제 관리")
+    st.write("도전과제를 생성, 수정, 삭제할 수 있습니다.")
+    st.markdown("---")
+    
+    user = st.session_state.user_info
+    user_id = user.get("user_id") if user else None
+    grade = user.get("grade") if user else None
+    
+    if grade != "99":
+        st.error("관리자만 접근 가능한 페이지입니다.")
+        return
+    
+    tab1, tab2 = st.tabs(["도전과제 목록", "새 도전과제 생성"])
+    
+    with tab1:
+        st.subheader("📋 도전과제 목록")
+        try:
+            res = requests.get(f"{API_URL}/achievements")
+            if res.status_code == 200:
+                data = res.json()
+                if data.get("success"):
+                    achievements = data.get("achievements", [])
+                    
+                    if achievements:
+                        for achievement in achievements:
+                            achievement_id = achievement.get('achievement_id')
+                            
+                            # 도전과제 통계 조회
+                            statistics = None
+                            try:
+                                res_stats = requests.get(f"{API_URL}/achievements/{achievement_id}/statistics")
+                                if res_stats.status_code == 200:
+                                    stats_data = res_stats.json()
+                                    if stats_data.get("success"):
+                                        statistics = stats_data
+                            except:
+                                pass
+                            
+                            with st.container(border=True):
+                                col1, col2, col3, col4 = st.columns([3, 1, 1, 1])
+                                with col1:
+                                    st.markdown(f"### {achievement.get('title', '')}")
+                                    st.write(achievement.get('description', ''))
+                                    st.caption(f"타입: {achievement.get('achievement_type', '')} | 목표: {achievement.get('target_value', 0)} | 보상: {achievement.get('reward_points', 0)} 포인트")
+                                    if achievement.get('target_genre'):
+                                        st.caption(f"목표 장르: {achievement.get('target_genre')}")
+                                    if achievement.get('target_track_uri'):
+                                        st.caption(f"목표 트랙: {achievement.get('target_track_uri')}")
+                                    status = "활성" if achievement.get('is_active') else "비활성"
+                                    st.caption(f"상태: {status}")
+                                    
+                                    # 달성 통계 표시
+                                    if statistics:
+                                        col_stat1, col_stat2, col_stat3 = st.columns(3)
+                                        with col_stat1:
+                                            st.metric("달성자", f"{statistics.get('completed_count', 0)}명")
+                                        with col_stat2:
+                                            st.metric("진행 중", f"{statistics.get('in_progress_count', 0)}명")
+                                        with col_stat3:
+                                            st.metric("달성률", f"{statistics.get('completion_rate', 0)}%")
+                                        
+                                        # 달성한 유저 목록 (expander)
+                                        if statistics.get('completed_count', 0) > 0:
+                                            with st.expander(f"달성한 유저 목록 ({statistics.get('completed_count', 0)}명)", expanded=False):
+                                                completed_users = statistics.get('completed_users', [])
+                                                if completed_users:
+                                                    for user in completed_users:
+                                                        completed_at = user.get('completed_at', '')
+                                                        if completed_at:
+                                                            completed_at = completed_at[:10]  # 날짜만 표시
+                                                        st.write(f"• {user.get('name', '')} (ID: {user.get('user_id', '')}) - {completed_at}")
+                                                else:
+                                                    st.info("달성한 유저가 없습니다.")
+                                with col2:
+                                    if achievement.get('is_active'):
+                                        st.success("활성")
+                                    else:
+                                        st.info("비활성")
+                                with col3:
+                                    if st.button("통계 보기", key=f"view_stats_{achievement_id}", use_container_width=True):
+                                        # 통계 상세 보기
+                                        if statistics:
+                                            st.info(f"**{achievement.get('title', '')} 통계**")
+                                            st.write(f"전체 사용자: {statistics.get('total_users', 0)}명")
+                                            st.write(f"달성자: {statistics.get('completed_count', 0)}명")
+                                            st.write(f"진행 중: {statistics.get('in_progress_count', 0)}명")
+                                            st.write(f"달성률: {statistics.get('completion_rate', 0)}%")
+                                with col4:
+                                    if st.button("삭제", key=f"delete_achievement_{achievement_id}", type="secondary", use_container_width=True):
+                                        try:
+                                            res_delete = requests.delete(f"{API_URL}/achievements/{achievement_id}")
+                                            if res_delete.status_code == 200:
+                                                st.success("도전과제가 삭제되었습니다!")
+                                                st.rerun()
+                                            else:
+                                                error_data = res_delete.json() if res_delete.headers.get('content-type', '').startswith('application/json') else {}
+                                                error_msg = error_data.get('error', '삭제 실패')
+                                                st.error(error_msg)
+                                        except Exception as e:
+                                            st.error(f"오류: {str(e)}")
+                    else:
+                        st.info("등록된 도전과제가 없습니다.")
+                else:
+                    st.error(f"도전과제 조회 실패: {data.get('error', '알 수 없는 오류')}")
+            else:
+                st.error(f"API 오류: {res.status_code}")
+        except Exception as e:
+            st.error(f"오류 발생: {str(e)}")
+    
+    with tab2:
+        st.subheader("➕ 새 도전과제 생성")
+        
+        with st.form("create_achievement_form"):
+            title = st.text_input("도전과제 제목 *", placeholder="예: Pop 음악 애호가")
+            description = st.text_area("도전과제 설명", placeholder="예: Pop 장르 노래를 10번 재생하세요")
+            
+            achievement_type = st.selectbox("도전과제 타입 *", ["GENRE_PLAY", "TRACK_PLAY"])
+            target_value = st.number_input("목표 값 *", min_value=1, value=10, step=1)
+            reward_points = st.number_input("보상 포인트", min_value=0, value=100, step=10)
+            
+            target_genre = None
+            target_track_uri = None
+            
+            if achievement_type == "GENRE_PLAY":
+                target_genre = st.text_input("목표 장르 *", placeholder="예: Pop, Rock, K-Pop")
+            elif achievement_type == "TRACK_PLAY":
+                target_track_uri = st.text_input("목표 트랙 URI *", placeholder="예: spotify:track:...")
+            
+            submitted = st.form_submit_button("도전과제 생성", type="primary")
+            
+            if submitted:
+                if not title or not achievement_type or not target_value:
+                    st.error("필수 항목을 모두 입력해주세요.")
+                elif achievement_type == "GENRE_PLAY" and not target_genre:
+                    st.error("목표 장르를 입력해주세요.")
+                elif achievement_type == "TRACK_PLAY" and not target_track_uri:
+                    st.error("목표 트랙 URI를 입력해주세요.")
+                else:
+                    try:
+                        payload = {
+                            "title": title,
+                            "description": description,
+                            "achievement_type": achievement_type,
+                            "target_value": target_value,
+                            "target_genre": target_genre,
+                            "target_track_uri": target_track_uri,
+                            "reward_points": reward_points
+                        }
+                        res = requests.post(f"{API_URL}/achievements", json=payload)
+                        if res.status_code == 200:
+                            result = res.json()
+                            if result.get("success"):
+                                st.success(f"✅ 도전과제가 생성되었습니다! (ID: {result.get('achievement_id')})")
+                                st.rerun()
+                            else:
+                                st.error(result.get("error", "도전과제 생성 실패"))
+                        else:
+                            error_data = res.json() if res.headers.get('content-type', '').startswith('application/json') else {}
+                            error_msg = error_data.get('error', f'HTTP {res.status_code} 오류')
+                            st.error(f"API 오류: {error_msg}")
+                    except Exception as e:
+                        st.error(f"오류 발생: {str(e)}")
+
+
+def show_achievements_page():
+    """도전과제 페이지"""
+    render_top_guide_banner("achievements")
+    st.header("🏆 도전과제")
+    
+    user = st.session_state.user_info
+    user_id = user.get("user_id") if user else None
+    
+    if not user_id:
+        st.error("로그인이 필요합니다.")
+        return
+    
+    try:
+        # 사용자의 도전과제 조회
+        res = requests.get(f"{API_URL}/users/{user_id}/achievements")
+        if res.status_code == 200:
+            data = res.json()
+            if data.get("success"):
+                achievements = data.get("achievements", [])
+                
+                if achievements and len(achievements) > 0:
+                    # 완료된 도전과제와 진행 중인 도전과제 분리
+                    completed = [a for a in achievements if a.get("is_completed")]
+                    in_progress = [a for a in achievements if not a.get("is_completed")]
+                    
+                    # 완료된 도전과제
+                    if completed:
+                        st.subheader("✅ 완료된 도전과제")
+                        
+                        # 현재 선택한 칭호 조회
+                        selected_achievement_id = None
+                        try:
+                            res_selected = requests.get(f"{API_URL}/users/{user_id}/selected_achievement")
+                            if res_selected.status_code == 200:
+                                data_selected = res_selected.json()
+                                if data_selected.get("success") and data_selected.get("selected_achievement"):
+                                    selected_achievement_id = data_selected.get("selected_achievement").get("achievement_id")
+                        except:
+                            pass
+                        
+                        for achievement in completed:
+                            achievement_id = achievement.get('achievement_id')
+                            is_selected = (selected_achievement_id == achievement_id)
+                            
+                            with st.container(border=True):
+                                col1, col2 = st.columns([3, 1])
+                                with col1:
+                                    if is_selected:
+                                        st.markdown(f"### 🏆 {achievement.get('title', '')} ⭐ (현재 칭호)")
+                                    else:
+                                        st.markdown(f"### 🏆 {achievement.get('title', '')}")
+                                    st.write(achievement.get('description', ''))
+                                    st.caption(f"보상: {achievement.get('reward_points', 0)} 포인트")
+                                    if achievement.get('completed_at'):
+                                        st.caption(f"완료일: {achievement['completed_at'][:10]}")
+                                with col2:
+                                    if is_selected:
+                                        st.success("⭐ 칭호")
+                                        if st.button("칭호 해제", key=f"deselect_title_{achievement_id}", use_container_width=True):
+                                            try:
+                                                res_update = requests.put(
+                                                    f"{API_URL}/users/{user_id}/selected_achievement",
+                                                    json={"achievement_id": None}
+                                                )
+                                                if res_update.status_code == 200:
+                                                    st.success("칭호가 해제되었습니다!")
+                                                    st.rerun()
+                                                else:
+                                                    st.error("칭호 해제 실패")
+                                            except Exception as e:
+                                                st.error(f"오류: {str(e)}")
+                                    else:
+                                        if st.button("칭호로 선택", key=f"select_title_{achievement_id}", use_container_width=True):
+                                            try:
+                                                res_update = requests.put(
+                                                    f"{API_URL}/users/{user_id}/selected_achievement",
+                                                    json={"achievement_id": achievement_id}
+                                                )
+                                                if res_update.status_code == 200:
+                                                    st.success("칭호가 선택되었습니다!")
+                                                    st.rerun()
+                                                else:
+                                                    error_data = res_update.json() if res_update.headers.get('content-type', '').startswith('application/json') else {}
+                                                    error_msg = error_data.get('error', '칭호 선택 실패')
+                                                    st.error(error_msg)
+                                            except Exception as e:
+                                                st.error(f"오류: {str(e)}")
+                                    st.success("✅ 완료")
+                    
+                    # 진행 중인 도전과제
+                    if in_progress:
+                        st.subheader("🎯 진행 중인 도전과제")
+                        for achievement in in_progress:
+                            with st.container(border=True):
+                                col1, col2 = st.columns([3, 1])
+                                with col1:
+                                    st.markdown(f"### 🎯 {achievement.get('title', '')}")
+                                    st.write(achievement.get('description', ''))
+                                    
+                                    # 진행도 표시
+                                    current_progress = achievement.get('current_progress', 0)
+                                    target_value = achievement.get('target_value', 1)
+                                    progress_percent = min((current_progress / target_value) * 100, 100)
+                                    
+                                    st.progress(progress_percent / 100)
+                                    st.caption(f"진행도: {current_progress} / {target_value} ({progress_percent:.1f}%)")
+                                    
+                                    # 도전과제 타입별 정보 표시
+                                    achievement_type = achievement.get('achievement_type', '')
+                                    if achievement_type == 'TRACK_PLAY':
+                                        track_uri = achievement.get('target_track_uri', '')
+                                        if track_uri:
+                                            st.caption(f"🎵 목표 트랙: {track_uri}")
+                                    elif achievement_type == 'GENRE_PLAY':
+                                        genre = achievement.get('target_genre', '')
+                                        if genre:
+                                            st.caption(f"🎵 목표 장르: {genre}")
+                                    
+                                    st.caption(f"보상: {achievement.get('reward_points', 0)} 포인트")
+                                with col2:
+                                    st.info("진행 중")
+                    else:
+                        st.info("진행 중인 도전과제가 없습니다.")
+                    
+                    # 전체 도전과제 통계
+                    st.markdown("---")
+                    col1, col2, col3 = st.columns(3)
+                    with col1:
+                        st.metric("전체 도전과제", len(achievements))
+                    with col2:
+                        st.metric("완료", len(completed))
+                    with col3:
+                        st.metric("진행 중", len(in_progress))
+                else:
+                    st.info("아직 도전과제가 없습니다.")
+                    st.info("💡 관리자에게 문의하여 도전과제를 생성해주세요.")
+            else:
+                error_msg = data.get('error', '알 수 없는 오류')
+                st.error(f"도전과제 조회 실패: {error_msg}")
+                if "테이블이 존재하지 않습니다" in error_msg:
+                    st.info("💡 먼저 '사용자 데이터 관리' 메뉴에서 다음 테이블들을 생성해주세요:")
+                    st.info("  - Achievements Table 생성")
+                    st.info("  - User Achievements Table 생성")
+                    st.info("  - Music Playback Log Table 생성")
+        else:
+            try:
+                error_data = res.json()
+                error_msg = error_data.get('error', f'HTTP {res.status_code} 오류')
+            except:
+                error_msg = f'HTTP {res.status_code} 오류'
+            st.error(f"API 오류: {error_msg}")
+            if res.status_code == 500:
+                st.info("💡 서버 오류가 발생했습니다. 백엔드 로그를 확인해주세요.")
+    except Exception as e:
+        st.error(f"오류 발생: {str(e)}")
+        import traceback
+        st.code(traceback.format_exc())
+
+
+# ----------------------------------------------------------
 # 로그 조회 함수
 # ----------------------------------------------------------
 def show_logs_page():
@@ -1986,6 +2536,33 @@ def show_user_admin_tools():
             st.error(res)
 
     st.markdown("---")
+    st.subheader("도전과제 관련 테이블")
+    
+    # Achievements 테이블 생성
+    if st.button("🏆 Achievements Table 생성"):
+        ok, res = call_api("init_achievements_table")
+        if ok:
+            st.success(res.get("message", "테이블 생성 완료"))
+        else:
+            st.error(res)
+    
+    # User Achievements 테이블 생성
+    if st.button("📊 User Achievements Table 생성"):
+        ok, res = call_api("init_user_achievements_table")
+        if ok:
+            st.success(res.get("message", "테이블 생성 완료"))
+        else:
+            st.error(res)
+    
+    # Music Playback Log 테이블 생성
+    if st.button("🎵 Music Playback Log Table 생성"):
+        ok, res = call_api("init_music_playback_log_table")
+        if ok:
+            st.success(res.get("message", "테이블 생성 완료"))
+        else:
+            st.error(res)
+
+    st.markdown("---")
     st.subheader("CSV 데이터 Import")
     
     # CSV → DB Insert 실행 (users)
@@ -2104,6 +2681,21 @@ def show_main_page():
         st.write(f"**ID:** {user['user_id']}")
         st.write(f"**이름:** {user['name']}")
         st.write(f"**등급:** {user['grade']}")
+        
+        # 선택한 칭호 표시
+        try:
+            res = requests.get(f"{API_URL}/users/{user_id}/selected_achievement")
+            if res.status_code == 200:
+                data = res.json()
+                if data.get("success") and data.get("selected_achievement"):
+                    achievement = data.get("selected_achievement")
+                    st.markdown("---")
+                    st.markdown("### 🏆 칭호")
+                    st.markdown(f"**{achievement.get('title', '')}**")
+                    st.caption(achievement.get('description', ''))
+        except:
+            pass  # 칭호 조회 실패해도 계속 진행
+        
         st.markdown("---")
         
     # # ---------------------------
@@ -2114,22 +2706,28 @@ def show_main_page():
     # -------------------------
     # 사이드바 메뉴
     # -------------------------
-    menu_items = ["홈", "내 정보", "기능 B"]
+    menu_items = ["홈", "내 정보", "도전과제", "기능 B"]
     
-    # grade = 99 → 관리자
+    # grade = 99 → 관리자 메뉴 추가 (접두사로 구분)
     if grade == "99":
         menu_items.extend([
-            "사용자 데이터 관리", 
-            "사용자 조회",
-            "이탈 예측 (단일)",
-            "이탈 예측 (배치)",
-            "이탈 예측 (6피처)",
-            "예측 결과 조회",
-            "예측 CSV 관리",
-            "로그 조회"
+            "🔧 도전과제 관리",
+            "🔧 사용자 데이터 관리", 
+            "🔧 사용자 조회",
+            "🔧 이탈 예측 (단일)",
+            "🔧 이탈 예측 (배치)",
+            "🔧 이탈 예측 (6피처)",
+            "🔧 예측 결과 조회",
+            "🔧 예측 CSV 관리",
+            "🔧 로그 조회"
         ])
-
+    
+    # 하나의 radio 버튼으로 통합
     menu = st.sidebar.radio("메뉴 선택", menu_items)
+    
+    # 접두사 제거하여 실제 메뉴 이름 추출
+    if menu.startswith("🔧 "):
+        menu = menu.replace("🔧 ", "")
     
     # 화면 접근 로그 기록
     if user_id:
@@ -2139,6 +2737,8 @@ def show_main_page():
                 "내 정보": "개인정보 수정",
                 "사용자 조회": "사용자 조회",
                 "기능 B": "기능 B",
+                "도전과제": "도전과제",
+                "도전과제 관리": "도전과제 관리",
                 "사용자 데이터 관리": "사용자 데이터 관리",
                 "이탈 예측 (단일)": "이탈 예측 (단일)",
                 "이탈 예측 (배치)": "이탈 예측 (배치)",
@@ -2160,6 +2760,13 @@ def show_main_page():
         show_home_page()
     elif menu == "내 정보":
         show_profile_page()
+    elif menu == "도전과제":
+        show_achievements_page()
+    elif menu == "도전과제 관리":
+        if grade == "99":
+            show_achievements_admin_page()
+        else:
+            st.error("권한이 없습니다.")
     elif menu == "사용자 조회":
         if grade == "99":
             search_user()

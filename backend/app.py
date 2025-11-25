@@ -55,6 +55,28 @@ def init_user_table():
     cursor.close()
     conn.close()
 
+    # selected_achievement_id 컬럼 추가 (이미 있으면 무시)
+    try:
+        cursor.execute("ALTER TABLE users ADD COLUMN selected_achievement_id INT")
+    except Exception:
+        pass  # 컬럼이 이미 존재하는 경우 무시
+    
+    # 외래키 제약조건 추가 (achievements 테이블이 존재하는 경우에만)
+    try:
+        cursor.execute("""
+            ALTER TABLE users 
+            ADD CONSTRAINT fk_users_selected_achievement 
+            FOREIGN KEY (selected_achievement_id) 
+            REFERENCES achievements(achievement_id) 
+            ON DELETE SET NULL
+        """)
+    except Exception:
+        pass  # 제약조건이 이미 존재하거나 achievements 테이블이 없는 경우 무시
+    
+    conn.commit()
+    cursor.close()
+    conn.close()
+
     return jsonify({"message": "User table created"})
 
 
@@ -180,6 +202,152 @@ def init_log_table():
         conn.close()
 
         return jsonify({"success": True, "message": "log table created"})
+    except Exception as e:
+        return jsonify({"success": False, "error": f"테이블 생성 중 오류: {str(e)}"}), 500
+
+
+# -------------------------------------------------------------
+# 0-3-1) achievements 테이블 생성 (도전과제 정의)
+# -------------------------------------------------------------
+@app.route("/api/init_achievements_table")
+def init_achievements_table():
+    """
+    도전과제 정의를 저장할 achievements 테이블을 생성합니다.
+    
+    - achievement_id: 도전과제 ID
+    - title: 도전과제 제목
+    - description: 도전과제 설명
+    - achievement_type: 도전과제 유형 ('TRACK_PLAY', 'GENRE_PLAY' 등)
+    - target_value: 목표 값 (예: 재생 횟수)
+    - target_track_uri: 목표 트랙 URI (TRACK_PLAY 타입인 경우)
+    - target_genre: 목표 장르 (GENRE_PLAY 타입인 경우)
+    - reward_points: 보상 포인트
+    - is_active: 활성화 여부
+    """
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        sql = """
+        CREATE TABLE IF NOT EXISTS achievements (
+            achievement_id INT AUTO_INCREMENT PRIMARY KEY,
+            title VARCHAR(200) NOT NULL,
+            description TEXT,
+            achievement_type VARCHAR(50) NOT NULL,
+            target_value INT NOT NULL,
+            target_track_uri VARCHAR(200),
+            target_genre VARCHAR(100),
+            reward_points INT DEFAULT 0,
+            is_active BOOLEAN DEFAULT TRUE,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            INDEX idx_achievement_type (achievement_type),
+            INDEX idx_is_active (is_active)
+        )
+        """
+
+        cursor.execute(sql)
+        conn.commit()
+        cursor.close()
+        conn.close()
+
+        return jsonify({"success": True, "message": "achievements table created"})
+    except Exception as e:
+        return jsonify({"success": False, "error": f"테이블 생성 중 오류: {str(e)}"}), 500
+
+
+# -------------------------------------------------------------
+# 0-3-2) user_achievements 테이블 생성 (사용자별 도전과제 진행 상황)
+# -------------------------------------------------------------
+@app.route("/api/init_user_achievements_table")
+def init_user_achievements_table():
+    """
+    사용자별 도전과제 진행 상황을 저장할 user_achievements 테이블을 생성합니다.
+    
+    - user_achievement_id: 사용자 도전과제 ID
+    - user_id: 사용자 ID (외래키)
+    - achievement_id: 도전과제 ID (외래키)
+    - current_progress: 현재 진행도
+    - is_completed: 완료 여부
+    - completed_at: 완료 시간
+    - created_at: 시작 시간
+    """
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        sql = """
+        CREATE TABLE IF NOT EXISTS user_achievements (
+            user_achievement_id INT AUTO_INCREMENT PRIMARY KEY,
+            user_id INT NOT NULL,
+            achievement_id INT NOT NULL,
+            current_progress INT DEFAULT 0,
+            is_completed BOOLEAN DEFAULT FALSE,
+            completed_at DATETIME,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+            FOREIGN KEY (achievement_id) REFERENCES achievements(achievement_id) ON DELETE CASCADE,
+            UNIQUE KEY unique_user_achievement (user_id, achievement_id),
+            INDEX idx_user_id (user_id),
+            INDEX idx_achievement_id (achievement_id),
+            INDEX idx_is_completed (is_completed)
+        )
+        """
+
+        cursor.execute(sql)
+        conn.commit()
+        cursor.close()
+        conn.close()
+
+        return jsonify({"success": True, "message": "user_achievements table created"})
+    except Exception as e:
+        return jsonify({"success": False, "error": f"테이블 생성 중 오류: {str(e)}"}), 500
+
+
+# -------------------------------------------------------------
+# 0-3-3) music_playback_log 테이블 생성 (노래 재생 로그)
+# -------------------------------------------------------------
+@app.route("/api/init_music_playback_log_table")
+def init_music_playback_log_table():
+    """
+    노래 재생 로그를 저장할 music_playback_log 테이블을 생성합니다.
+    
+    - playback_id: 재생 로그 ID
+    - user_id: 사용자 ID (외래키)
+    - track_uri: 트랙 URI
+    - track_name: 트랙 이름
+    - artist_name: 아티스트 이름
+    - genre: 장르 (선택적)
+    - playback_duration: 재생 시간 (초)
+    - created_at: 재생 시간
+    """
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        sql = """
+        CREATE TABLE IF NOT EXISTS music_playback_log (
+            playback_id INT AUTO_INCREMENT PRIMARY KEY,
+            user_id INT NOT NULL,
+            track_uri VARCHAR(200) NOT NULL,
+            track_name VARCHAR(200),
+            artist_name VARCHAR(200),
+            genre VARCHAR(100),
+            playback_duration INT DEFAULT 0,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+            INDEX idx_user_id (user_id),
+            INDEX idx_track_uri (track_uri),
+            INDEX idx_genre (genre),
+            INDEX idx_created_at (created_at)
+        )
+        """
+
+        cursor.execute(sql)
+        conn.commit()
+        cursor.close()
+        conn.close()
+
+        return jsonify({"success": True, "message": "music_playback_log table created"})
     except Exception as e:
         return jsonify({"success": False, "error": f"테이블 생성 중 오류: {str(e)}"}), 500
 
@@ -1218,13 +1386,18 @@ def api_predict_churn_bulk():
         
         for idx, row in enumerate(rows):
             if not isinstance(row, dict):
+                results.append({
+                    "index": idx,
+                    "user_id": None,
+                    "error": "행이 dict 형태가 아닙니다."
+                })
                 continue
 
             user_id = row.get("user_id")
             cleaned_row = {}
             
             # user_id가 있으면 user_features 테이블에서 조회
-            if user_id:
+            if user_id is not None:
                 try:
                     cursor.execute("SELECT * FROM user_features WHERE user_id = %s", (user_id,))
                     db_features = cursor.fetchone()
@@ -1249,18 +1422,41 @@ def api_predict_churn_bulk():
                 # user_id가 없으면 직접 제공된 features 사용
                 # NaN, inf, -inf 값 정리
                 for key, value in row.items():
-                    if isinstance(value, (int, float)):
+                    if key == "user_id":
+                        continue  # user_id는 제외
+                    
+                    if value is None:
+                        cleaned_row[key] = None
+                    elif isinstance(value, (int, float)):
                         if math.isnan(value) or math.isinf(value):
                             cleaned_row[key] = None
                         else:
                             cleaned_row[key] = value
-                    elif pd.isna(value):
-                        cleaned_row[key] = None
                     else:
-                        cleaned_row[key] = value
+                        # pandas의 NaN 체크 (안전하게)
+                        try:
+                            if pd.isna(value):
+                                cleaned_row[key] = None
+                            else:
+                                cleaned_row[key] = value
+                        except (TypeError, ValueError):
+                            # pd.isna()가 실패하면 그냥 값 사용
+                            cleaned_row[key] = value
 
             # 예측 실행
-            res = _predict_churn(user_features=cleaned_row, model_name=model_name)
+            try:
+                res = _predict_churn(user_features=cleaned_row, model_name=model_name)
+            except Exception as e:
+                import traceback
+                error_msg = f"예측 실행 중 오류: {str(e)}"
+                print(f"배치 예측 오류 (index={idx}, user_id={user_id}): {error_msg}")
+                print(traceback.format_exc())
+                results.append({
+                    "index": idx,
+                    "user_id": user_id,
+                    "error": error_msg
+                })
+                continue
 
             if not res.get("success"):
                 results.append({
@@ -1287,10 +1483,13 @@ def api_predict_churn_bulk():
                 })
                 
                 # user_id가 있으면 예측 결과 저장 준비
-                if user_id:
-                    churn_rate = int(round(churn_prob * 100))
-                    risk_score = res.get("risk_level", "UNKNOWN")
-                    prediction_inserts.append((user_id, churn_rate, risk_score))
+                if user_id is not None:
+                    try:
+                        churn_rate = int(round(churn_prob * 100))
+                        risk_score = res.get("risk_level", "UNKNOWN")
+                        prediction_inserts.append((user_id, churn_rate, risk_score))
+                    except Exception as e:
+                        print(f"예측 결과 저장 준비 중 오류 (user_id={user_id}): {str(e)}")
         
         cursor.close()
         
@@ -1328,7 +1527,11 @@ def api_predict_churn_bulk():
         return jsonify(response_data), 200
 
     except Exception as e:
-        return jsonify({"success": False, "error": f"배치 예측 중 오류 발생: {str(e)}"}), 500
+        import traceback
+        error_msg = f"배치 예측 중 오류 발생: {str(e)}"
+        print(f"배치 예측 전체 오류: {error_msg}")
+        print(traceback.format_exc())
+        return jsonify({"success": False, "error": error_msg}), 500
 
 
 # -------------------------------------------------------------
@@ -1763,6 +1966,778 @@ def search_music():
         
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+# -------------------------------------------------------------
+# 도전과제 관련 API
+# -------------------------------------------------------------
+
+# -------------------------------------------------------------
+# 노래 재생 로그 기록 API
+# -------------------------------------------------------------
+@app.route("/api/music/playback", methods=["POST"])
+def log_music_playback():
+    """
+    노래 재생 로그를 기록하고 도전과제 달성 여부를 체크합니다.
+    
+    Request JSON:
+    {
+        "user_id": 123,
+        "track_uri": "spotify:track:...",
+        "track_name": "노래 제목",
+        "artist_name": "아티스트 이름",
+        "genre": "Pop" (선택적),
+        "playback_duration": 180 (초, 선택적)
+    }
+    """
+    try:
+        data = request.get_json()
+        user_id = data.get("user_id")
+        track_uri = data.get("track_uri")
+        track_name = data.get("track_name", "")
+        artist_name = data.get("artist_name", "")
+        genre = data.get("genre")
+        playback_duration = data.get("playback_duration", 0)
+        
+        if not user_id or not track_uri:
+            return jsonify({"success": False, "error": "user_id와 track_uri는 필수입니다."}), 400
+        
+        conn = get_connection()
+        cursor = conn.cursor()
+        
+        # 재생 로그 기록
+        sql = """
+        INSERT INTO music_playback_log (user_id, track_uri, track_name, artist_name, genre, playback_duration)
+        VALUES (%s, %s, %s, %s, %s, %s)
+        """
+        cursor.execute(sql, (user_id, track_uri, track_name, artist_name, genre, playback_duration))
+        conn.commit()
+        
+        # 도전과제 달성 체크
+        completed_achievements = check_and_update_achievements(
+            cursor, conn, user_id, track_uri, genre
+        )
+        
+        cursor.close()
+        conn.close()
+        
+        return jsonify({
+            "success": True,
+            "message": "재생 로그가 기록되었습니다.",
+            "completed_achievements": completed_achievements
+        })
+        
+    except Exception as e:
+        return jsonify({"success": False, "error": f"재생 로그 기록 중 오류: {str(e)}"}), 500
+
+
+def check_and_update_achievements(cursor, conn, user_id, track_uri, genre):
+    """
+    도전과제 달성 여부를 체크하고 업데이트합니다.
+    
+    Returns:
+        list: 새로 달성한 도전과제 목록
+    """
+    completed_achievements = []
+    
+    try:
+        # 활성화된 모든 도전과제 조회
+        cursor.execute("""
+            SELECT achievement_id, achievement_type, target_value, target_track_uri, target_genre
+            FROM achievements
+            WHERE is_active = TRUE
+        """)
+        achievements = cursor.fetchall()
+        
+        for achievement in achievements:
+            achievement_id = achievement[0]
+            achievement_type = achievement[1]
+            target_value = achievement[2]
+            target_track_uri = achievement[3]
+            target_genre = achievement[4]
+            
+            # 사용자의 해당 도전과제 진행 상황 조회 또는 생성
+            cursor.execute("""
+                SELECT user_achievement_id, current_progress, is_completed
+                FROM user_achievements
+                WHERE user_id = %s AND achievement_id = %s
+            """, (user_id, achievement_id))
+            
+            user_achievement = cursor.fetchone()
+            
+            if user_achievement:
+                user_achievement_id, current_progress, is_completed = user_achievement
+                if is_completed:
+                    continue  # 이미 완료된 도전과제는 스킵
+            else:
+                # 새로운 도전과제 시작
+                cursor.execute("""
+                    INSERT INTO user_achievements (user_id, achievement_id, current_progress, is_completed)
+                    VALUES (%s, %s, 0, FALSE)
+                """, (user_id, achievement_id))
+                conn.commit()
+                user_achievement_id = cursor.lastrowid
+                current_progress = 0
+                is_completed = False
+            
+            # 도전과제 타입에 따라 진행도 업데이트
+            should_update = False
+            
+            if achievement_type == "TRACK_PLAY":
+                # 특정 노래 재생 횟수
+                if target_track_uri and track_uri == target_track_uri:
+                    current_progress += 1
+                    should_update = True
+                    
+            elif achievement_type == "GENRE_PLAY":
+                # 특정 장르 노래 재생 횟수
+                if target_genre and genre and target_genre.lower() == genre.lower():
+                    current_progress += 1
+                    should_update = True
+            
+            # 진행도 업데이트
+            if should_update:
+                if current_progress >= target_value:
+                    # 도전과제 완료
+                    cursor.execute("""
+                        UPDATE user_achievements
+                        SET current_progress = %s, is_completed = TRUE, completed_at = NOW()
+                        WHERE user_achievement_id = %s
+                    """, (current_progress, user_achievement_id))
+                    conn.commit()
+                    
+                    # 완료된 도전과제 정보 가져오기
+                    cursor.execute("""
+                        SELECT title, description, reward_points
+                        FROM achievements
+                        WHERE achievement_id = %s
+                    """, (achievement_id,))
+                    achievement_info = cursor.fetchone()
+                    
+                    completed_achievements.append({
+                        "achievement_id": achievement_id,
+                        "title": achievement_info[0] if achievement_info else "",
+                        "description": achievement_info[1] if achievement_info else "",
+                        "reward_points": achievement_info[2] if achievement_info else 0
+                    })
+                else:
+                    # 진행도만 업데이트
+                    cursor.execute("""
+                        UPDATE user_achievements
+                        SET current_progress = %s
+                        WHERE user_achievement_id = %s
+                    """, (current_progress, user_achievement_id))
+                    conn.commit()
+    
+    except Exception as e:
+        # 도전과제 체크 실패해도 재생 로그는 기록됨
+        print(f"도전과제 체크 중 오류: {str(e)}")
+    
+    return completed_achievements
+
+
+# -------------------------------------------------------------
+# 도전과제 목록 조회 API
+# -------------------------------------------------------------
+@app.route("/api/achievements", methods=["GET"])
+def get_achievements():
+    """
+    도전과제 목록을 조회합니다.
+    
+    Query Parameters:
+    - user_id: 특정 사용자의 도전과제 진행 상황 포함 (선택적)
+    - is_active: 활성화된 도전과제만 조회 (기본값: true)
+    """
+    try:
+        user_id = request.args.get("user_id", "").strip()
+        is_active = request.args.get("is_active", "true").lower() == "true"
+        
+        conn = get_connection()
+        cursor = conn.cursor(DictCursor)
+        
+        # 기본 쿼리
+        where_clause = "WHERE 1=1"
+        params = []
+        
+        if is_active:
+            where_clause += " AND a.is_active = TRUE"
+        
+        sql = f"""
+        SELECT a.achievement_id, a.title, a.description, a.achievement_type,
+               a.target_value, a.target_track_uri, a.target_genre, a.reward_points,
+               a.is_active, a.created_at
+        FROM achievements a
+        {where_clause}
+        ORDER BY a.achievement_id ASC
+        """
+        
+        cursor.execute(sql, tuple(params))
+        achievements = cursor.fetchall()
+        
+        # 사용자 ID가 제공된 경우 진행 상황 포함
+        if user_id and user_id.isdigit():
+            user_id_int = int(user_id)
+            for achievement in achievements:
+                achievement_id = achievement["achievement_id"]
+                cursor.execute("""
+                    SELECT current_progress, is_completed, completed_at, created_at
+                    FROM user_achievements
+                    WHERE user_id = %s AND achievement_id = %s
+                """, (user_id_int, achievement_id))
+                
+                user_progress = cursor.fetchone()
+                if user_progress:
+                    achievement["user_progress"] = user_progress.get("current_progress", 0)
+                    achievement["is_completed"] = user_progress.get("is_completed", False)
+                    achievement["completed_at"] = user_progress["completed_at"].isoformat() if user_progress.get("completed_at") else None
+                    achievement["started_at"] = user_progress["created_at"].isoformat() if user_progress.get("created_at") else None
+                else:
+                    achievement["user_progress"] = 0
+                    achievement["is_completed"] = False
+                    achievement["completed_at"] = None
+                    achievement["started_at"] = None
+        
+        cursor.close()
+        conn.close()
+        
+        # DATETIME → 문자열 변환
+        for achievement in achievements:
+            if "created_at" in achievement and achievement.get("created_at"):
+                achievement["created_at"] = achievement["created_at"].isoformat()
+        
+        return jsonify({"success": True, "achievements": achievements})
+        
+    except Exception as e:
+        import traceback
+        error_detail = traceback.format_exc()
+        print(f"도전과제 조회 오류: {error_detail}")
+        return jsonify({"success": False, "error": f"도전과제 조회 중 오류: {str(e)}"}), 500
+
+
+# -------------------------------------------------------------
+# 사용자 도전과제 진행 상황 조회 API
+# -------------------------------------------------------------
+@app.route("/api/achievements/<int:achievement_id>/statistics", methods=["GET"])
+def get_achievement_statistics(achievement_id):
+    """
+    특정 도전과제의 달성 통계를 조회합니다.
+    
+    Returns:
+    {
+        "achievement_id": 1,
+        "total_users": 100,  # 전체 사용자 수
+        "completed_count": 15,  # 달성한 사용자 수
+        "in_progress_count": 20,  # 진행 중인 사용자 수
+        "completion_rate": 15.0,  # 달성률 (%)
+        "completed_users": [  # 달성한 사용자 목록
+            {"user_id": 1, "name": "홍길동", "completed_at": "2025-01-01"},
+            ...
+        ]
+    }
+    """
+    try:
+        conn = get_connection()
+        cursor = conn.cursor(DictCursor)
+        
+        # 도전과제 정보 조회
+        cursor.execute("""
+            SELECT achievement_id, title, target_value
+            FROM achievements
+            WHERE achievement_id = %s
+        """, (achievement_id,))
+        
+        achievement = cursor.fetchone()
+        if not achievement:
+            cursor.close()
+            conn.close()
+            return jsonify({"success": False, "error": "도전과제를 찾을 수 없습니다."}), 404
+        
+        # 전체 사용자 수
+        cursor.execute("SELECT COUNT(*) AS total FROM users WHERE grade != '00'")
+        total_users = cursor.fetchone()["total"]
+        
+        # 달성한 사용자 수 및 목록
+        cursor.execute("""
+            SELECT ua.user_id, u.name, ua.completed_at
+            FROM user_achievements ua
+            JOIN users u ON ua.user_id = u.user_id
+            WHERE ua.achievement_id = %s AND ua.is_completed = TRUE
+            ORDER BY ua.completed_at DESC
+        """, (achievement_id,))
+        completed_users = cursor.fetchall()
+        completed_count = len(completed_users)
+        
+        # 진행 중인 사용자 수
+        cursor.execute("""
+            SELECT COUNT(*) AS count
+            FROM user_achievements
+            WHERE achievement_id = %s AND is_completed = FALSE
+        """, (achievement_id,))
+        in_progress_count = cursor.fetchone()["count"]
+        
+        # 달성률 계산
+        completion_rate = (completed_count / total_users * 100) if total_users > 0 else 0
+        
+        cursor.close()
+        conn.close()
+        
+        # DATETIME → 문자열 변환
+        for user in completed_users:
+            if user.get("completed_at"):
+                user["completed_at"] = user["completed_at"].isoformat()
+        
+        return jsonify({
+            "success": True,
+            "achievement_id": achievement_id,
+            "title": achievement["title"],
+            "target_value": achievement["target_value"],
+            "total_users": total_users,
+            "completed_count": completed_count,
+            "in_progress_count": in_progress_count,
+            "completion_rate": round(completion_rate, 2),
+            "completed_users": completed_users
+        })
+        
+    except Exception as e:
+        import traceback
+        error_detail = traceback.format_exc()
+        print(f"도전과제 통계 조회 오류: {error_detail}")
+        return jsonify({"success": False, "error": f"도전과제 통계 조회 중 오류: {str(e)}"}), 500
+
+
+@app.route("/api/users/<int:user_id>/achievements", methods=["GET"])
+def get_user_achievements(user_id):
+    """
+    특정 사용자의 도전과제 진행 상황을 조회합니다.
+    """
+    try:
+        conn = get_connection()
+        cursor = conn.cursor(DictCursor)
+        
+        # 테이블 존재 여부 확인
+        try:
+            cursor.execute("SELECT 1 FROM achievements LIMIT 1")
+        except Exception as table_error:
+            cursor.close()
+            conn.close()
+            return jsonify({
+                "success": False, 
+                "error": "achievements 테이블이 존재하지 않습니다. 먼저 테이블을 생성해주세요."
+            }), 500
+        
+        sql = """
+        SELECT a.achievement_id, a.title, a.description, a.achievement_type,
+               a.target_value, a.target_track_uri, a.target_genre, a.reward_points,
+               ua.current_progress, ua.is_completed, ua.completed_at, ua.created_at AS started_at
+        FROM achievements a
+        LEFT JOIN user_achievements ua ON a.achievement_id = ua.achievement_id AND ua.user_id = %s
+        WHERE a.is_active = TRUE
+        ORDER BY a.achievement_id ASC
+        """
+        
+        cursor.execute(sql, (user_id,))
+        achievements = cursor.fetchall()
+        
+        cursor.close()
+        conn.close()
+        
+        # DATETIME → 문자열 변환 및 None 값 처리
+        for achievement in achievements:
+            # None 값 안전하게 처리
+            if achievement.get("completed_at") is not None:
+                achievement["completed_at"] = achievement["completed_at"].isoformat()
+            else:
+                achievement["completed_at"] = None
+                
+            if achievement.get("started_at") is not None:
+                achievement["started_at"] = achievement["started_at"].isoformat()
+            else:
+                achievement["started_at"] = None
+                
+            if achievement.get("current_progress") is None:
+                achievement["current_progress"] = 0
+                
+            if achievement.get("is_completed") is None:
+                achievement["is_completed"] = False
+        
+        return jsonify({"success": True, "achievements": achievements})
+        
+    except Exception as e:
+        import traceback
+        error_detail = traceback.format_exc()
+        print(f"사용자 도전과제 조회 오류: {error_detail}")
+        return jsonify({"success": False, "error": f"사용자 도전과제 조회 중 오류: {str(e)}"}), 500
+
+
+# -------------------------------------------------------------
+# 도전과제 생성 API (관리자용)
+# -------------------------------------------------------------
+@app.route("/api/achievements/<int:achievement_id>", methods=["DELETE"])
+def delete_achievement(achievement_id):
+    """
+    도전과제를 삭제합니다. (관리자용)
+    """
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+        
+        # 도전과제 존재 여부 확인
+        cursor.execute("SELECT achievement_id FROM achievements WHERE achievement_id = %s", (achievement_id,))
+        if not cursor.fetchone():
+            cursor.close()
+            conn.close()
+            return jsonify({"success": False, "error": "도전과제를 찾을 수 없습니다."}), 404
+        
+        # 도전과제 삭제 (CASCADE로 user_achievements도 함께 삭제됨)
+        cursor.execute("DELETE FROM achievements WHERE achievement_id = %s", (achievement_id,))
+        conn.commit()
+        
+        cursor.close()
+        conn.close()
+        
+        return jsonify({
+            "success": True,
+            "message": "도전과제가 삭제되었습니다."
+        })
+        
+    except Exception as e:
+        import traceback
+        error_detail = traceback.format_exc()
+        print(f"도전과제 삭제 오류: {error_detail}")
+        return jsonify({"success": False, "error": f"도전과제 삭제 중 오류: {str(e)}"}), 500
+
+
+@app.route("/api/achievements", methods=["POST"])
+def create_achievement():
+    """
+    새로운 도전과제를 생성합니다. (관리자용)
+    
+    Request JSON:
+    {
+        "title": "도전과제 제목",
+        "description": "도전과제 설명",
+        "achievement_type": "TRACK_PLAY" | "GENRE_PLAY",
+        "target_value": 10,
+        "target_track_uri": "spotify:track:..." (TRACK_PLAY인 경우),
+        "target_genre": "Pop" (GENRE_PLAY인 경우),
+        "reward_points": 100
+    }
+    """
+    try:
+        data = request.get_json()
+        title = data.get("title")
+        description = data.get("description", "")
+        achievement_type = data.get("achievement_type")
+        target_value = data.get("target_value")
+        target_track_uri = data.get("target_track_uri")
+        target_genre = data.get("target_genre")
+        reward_points = data.get("reward_points", 0)
+        
+        if not title or not achievement_type or not target_value:
+            return jsonify({"success": False, "error": "title, achievement_type, target_value는 필수입니다."}), 400
+        
+        if achievement_type == "TRACK_PLAY" and not target_track_uri:
+            return jsonify({"success": False, "error": "TRACK_PLAY 타입은 target_track_uri가 필요합니다."}), 400
+        
+        if achievement_type == "GENRE_PLAY" and not target_genre:
+            return jsonify({"success": False, "error": "GENRE_PLAY 타입은 target_genre가 필요합니다."}), 400
+        
+        conn = get_connection()
+        cursor = conn.cursor()
+        
+        sql = """
+        INSERT INTO achievements (title, description, achievement_type, target_value, 
+                                 target_track_uri, target_genre, reward_points)
+        VALUES (%s, %s, %s, %s, %s, %s, %s)
+        """
+        
+        cursor.execute(sql, (title, description, achievement_type, target_value,
+                            target_track_uri, target_genre, reward_points))
+        conn.commit()
+        achievement_id = cursor.lastrowid
+        
+        # 새로 생성된 도전과제에 대해 기존 재생 로그를 기반으로 모든 유저의 진행도 체크
+        try:
+            result = check_all_users_for_new_achievement(cursor, conn, achievement_id, achievement_type, target_track_uri, target_genre)
+            print(f"도전과제 생성 후 기존 유저 진행도 체크 완료: {result.get('processed_users', 0)}명 처리, {result.get('completed_users', 0)}명 즉시 완료")
+        except Exception as e:
+            import traceback
+            print(f"기존 유저 진행도 체크 중 오류 (도전과제는 생성됨): {str(e)}")
+            traceback.print_exc()
+        
+        cursor.close()
+        conn.close()
+        
+        return jsonify({
+            "success": True,
+            "message": "도전과제가 생성되었습니다.",
+            "achievement_id": achievement_id
+        })
+        
+    except Exception as e:
+        return jsonify({"success": False, "error": f"도전과제 생성 중 오류: {str(e)}"}), 500
+
+
+def check_all_users_for_new_achievement(cursor, conn, achievement_id, achievement_type, target_track_uri, target_genre):
+    """
+    새로 생성된 도전과제에 대해 기존 재생 로그를 기반으로 모든 유저의 진행도를 체크하고 업데이트합니다.
+    
+    Args:
+        cursor: DB 커서
+        conn: DB 연결
+        achievement_id: 새로 생성된 도전과제 ID
+        achievement_type: 도전과제 타입 ("TRACK_PLAY" 또는 "GENRE_PLAY")
+        target_track_uri: 목표 트랙 URI (TRACK_PLAY인 경우)
+        target_genre: 목표 장르 (GENRE_PLAY인 경우)
+    """
+    processed_count = 0
+    completed_count = 0
+    
+    try:
+        # 도전과제 정보 가져오기
+        cursor.execute("""
+            SELECT target_value
+            FROM achievements
+            WHERE achievement_id = %s
+        """, (achievement_id,))
+        achievement = cursor.fetchone()
+        if not achievement:
+            return {"processed_users": 0, "completed_users": 0}
+        target_value = achievement[0]
+        
+        # 모든 활성 사용자 조회 (휴면 유저 제외)
+        cursor.execute("""
+            SELECT user_id
+            FROM users
+            WHERE grade != '00'
+        """)
+        users = cursor.fetchall()
+        
+        for user_row in users:
+            user_id = user_row[0]
+            
+            # 기존 재생 로그에서 진행도 계산
+            if achievement_type == "TRACK_PLAY" and target_track_uri:
+                # 특정 트랙 재생 횟수 계산
+                cursor.execute("""
+                    SELECT COUNT(*) AS play_count
+                    FROM music_playback_log
+                    WHERE user_id = %s AND track_uri = %s
+                """, (user_id, target_track_uri))
+                result = cursor.fetchone()
+                play_count = result[0] if result else 0
+                
+            elif achievement_type == "GENRE_PLAY" and target_genre:
+                # 특정 장르 재생 횟수 계산 (대소문자 구분 없이)
+                cursor.execute("""
+                    SELECT COUNT(*) AS play_count
+                    FROM music_playback_log
+                    WHERE user_id = %s AND LOWER(genre) = LOWER(%s)
+                """, (user_id, target_genre))
+                result = cursor.fetchone()
+                play_count = result[0] if result else 0
+            else:
+                play_count = 0
+            
+            if play_count > 0:
+                # 진행도가 있으면 user_achievements에 기록
+                is_completed = (play_count >= target_value)
+                
+                if is_completed:
+                    # 완료된 경우
+                    cursor.execute("""
+                        INSERT INTO user_achievements (user_id, achievement_id, current_progress, is_completed, completed_at)
+                        VALUES (%s, %s, %s, TRUE, NOW())
+                        ON DUPLICATE KEY UPDATE
+                            current_progress = %s,
+                            is_completed = TRUE,
+                            completed_at = CASE WHEN completed_at IS NULL THEN NOW() ELSE completed_at END
+                    """, (user_id, achievement_id, play_count, play_count))
+                else:
+                    # 진행 중인 경우
+                    cursor.execute("""
+                        INSERT INTO user_achievements (user_id, achievement_id, current_progress, is_completed)
+                        VALUES (%s, %s, %s, FALSE)
+                        ON DUPLICATE KEY UPDATE
+                            current_progress = %s,
+                            is_completed = FALSE
+                    """, (user_id, achievement_id, play_count, play_count))
+                conn.commit()
+                
+                processed_count += 1
+                if is_completed:
+                    completed_count += 1
+        
+        return {"processed_users": processed_count, "completed_users": completed_count}
+        
+    except Exception as e:
+        print(f"기존 유저 진행도 체크 중 오류: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return {"processed_users": processed_count, "completed_users": completed_count}
+
+
+# -------------------------------------------------------------
+# 칭호(도전과제) 선택 API
+# -------------------------------------------------------------
+@app.route("/api/users/<int:user_id>/selected_achievement", methods=["PUT"])
+def update_selected_achievement(user_id):
+    """
+    사용자가 선택한 칭호(도전과제)를 업데이트합니다.
+    
+    Request JSON:
+    {
+        "achievement_id": 1 (선택한 도전과제 ID, null이면 칭호 해제)
+    }
+    """
+    try:
+        data = request.get_json()
+        achievement_id = data.get("achievement_id")
+        
+        conn = get_connection()
+        cursor = conn.cursor()
+        
+        # achievement_id가 None이면 칭호 해제
+        if achievement_id is None:
+            # selected_achievement_id를 NULL로 설정
+            sql = """
+            UPDATE users
+            SET selected_achievement_id = NULL, modify_date = NOW()
+            WHERE user_id = %s
+            """
+            cursor.execute(sql, (user_id,))
+            conn.commit()
+            cursor.close()
+            conn.close()
+            return jsonify({
+                "success": True,
+                "message": "칭호가 해제되었습니다.",
+                "selected_achievement_id": None
+            })
+        
+        # achievement_id가 제공된 경우, 해당 사용자가 완료한 도전과제인지 확인
+        if achievement_id:
+            cursor.execute("""
+                SELECT is_completed
+                FROM user_achievements
+                WHERE user_id = %s AND achievement_id = %s AND is_completed = TRUE
+            """, (user_id, achievement_id))
+            
+            result = cursor.fetchone()
+            if not result:
+                cursor.close()
+                conn.close()
+                return jsonify({
+                    "success": False,
+                    "error": "완료하지 않은 도전과제는 칭호로 선택할 수 없습니다."
+                }), 400
+        
+        # users 테이블에 selected_achievement_id 컬럼이 있는지 확인하고 없으면 추가
+        try:
+            cursor.execute("ALTER TABLE users ADD COLUMN selected_achievement_id INT")
+            conn.commit()
+        except Exception as e:
+            # 컬럼이 이미 존재하는 경우 무시
+            pass
+        
+        # 외래키 제약조건 추가 (achievements 테이블이 존재하는 경우에만)
+        try:
+            cursor.execute("""
+                ALTER TABLE users 
+                ADD CONSTRAINT fk_users_selected_achievement 
+                FOREIGN KEY (selected_achievement_id) 
+                REFERENCES achievements(achievement_id) 
+                ON DELETE SET NULL
+            """)
+            conn.commit()
+        except Exception as e:
+            # 제약조건이 이미 존재하거나 achievements 테이블이 없는 경우 무시
+            pass
+        
+        # selected_achievement_id 업데이트
+        sql = """
+        UPDATE users
+        SET selected_achievement_id = %s, modify_date = NOW()
+        WHERE user_id = %s
+        """
+        cursor.execute(sql, (achievement_id, user_id))
+        conn.commit()
+        
+        cursor.close()
+        conn.close()
+        
+        return jsonify({
+            "success": True,
+            "message": "칭호가 업데이트되었습니다.",
+            "selected_achievement_id": achievement_id
+        })
+        
+    except Exception as e:
+        import traceback
+        error_detail = traceback.format_exc()
+        print(f"칭호 업데이트 오류: {error_detail}")
+        return jsonify({"success": False, "error": f"칭호 업데이트 중 오류: {str(e)}"}), 500
+
+
+@app.route("/api/users/<int:user_id>/selected_achievement", methods=["GET"])
+def get_selected_achievement(user_id):
+    """
+    사용자가 선택한 칭호(도전과제)를 조회합니다.
+    """
+    try:
+        conn = get_connection()
+        cursor = conn.cursor(DictCursor)
+        
+        # users 테이블에서 selected_achievement_id 조회
+        cursor.execute("""
+            SELECT selected_achievement_id
+            FROM users
+            WHERE user_id = %s
+        """, (user_id,))
+        
+        user = cursor.fetchone()
+        if not user:
+            cursor.close()
+            conn.close()
+            return jsonify({"success": False, "error": "사용자를 찾을 수 없습니다."}), 404
+        
+        selected_achievement_id = user.get("selected_achievement_id")
+        
+        if selected_achievement_id:
+            # 선택한 도전과제 정보 조회
+            cursor.execute("""
+                SELECT achievement_id, title, description, reward_points
+                FROM achievements
+                WHERE achievement_id = %s
+            """, (selected_achievement_id,))
+            
+            achievement = cursor.fetchone()
+            cursor.close()
+            conn.close()
+            
+            if achievement:
+                return jsonify({
+                    "success": True,
+                    "selected_achievement": achievement
+                })
+            else:
+                return jsonify({
+                    "success": True,
+                    "selected_achievement": None
+                })
+        else:
+            cursor.close()
+            conn.close()
+            return jsonify({
+                "success": True,
+                "selected_achievement": None
+            })
+        
+    except Exception as e:
+        import traceback
+        error_detail = traceback.format_exc()
+        print(f"칭호 조회 오류: {error_detail}")
+        return jsonify({"success": False, "error": f"칭호 조회 중 오류: {str(e)}"}), 500
+
 
 # -------------------------------------------------------------
 # Flask 실행
