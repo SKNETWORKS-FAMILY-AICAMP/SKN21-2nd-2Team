@@ -240,7 +240,7 @@ SKN21-2ND-2TEAM/
   - 여러 FE 세트(Set A~G) 및 추가 세그먼트/ratio/비선형 FE 후보를 실험
   - **결과**: 핵심 FE 4~5개만 남기는 것이 최선, 복잡한 교호작용·플래그를 더해도 성능 개선은 ΔF1≈0 수준
 <p align="center">
-        <img src="image/visualizations/03_candidate_fe_impact.png" alt="candidate_fe_impact" width="550">
+        <img src="image/visualizations/03_candidate_fe_impact.png" alt="candidate_fe_impact" width="500">
       </p>
  <br>
  
@@ -333,7 +333,7 @@ SKN21-2ND-2TEAM/
     - `payment_failure_count`, `app_crash_count_30d` (고객 접점)
     - `freq_of_use_trend_14d`, `listening_time_trend_7d`, `skip_rate_increase_7d` (시계열)
   <p align="center">
-        <img src="image/visualizations/advanced_fe_top_importances_highlight.png" alt="advanced_fe_top" width="550">
+        <img src="image/visualizations/advanced_fe_top_importances_highlight.png" alt="advanced_fe_top" width="500">
       </p>      
 
 <br>
