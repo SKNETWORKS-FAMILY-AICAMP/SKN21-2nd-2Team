@@ -2100,14 +2100,42 @@ def show_churn_prediction_page():
         
         if st.button("예측 실행", type="primary"):
             try:
+                # 진행 상황 표시를 위한 상태 초기화
+                progress_bar = st.progress(0)
+                status_text = st.empty()
+                log_container = st.empty()
+                
+                # 시작 로그
+                status_text.info(f"📊 단일 유저 이탈 예측 시작: User ID {user_id}")
+                progress_bar.progress(0.1)
+                
+                with log_container.container():
+                    st.caption("📝 피처 데이터 준비 중...")
+                
                 payload = {
                     "user_id": user_id,  # user_id 포함하여 user_features에서 조회
                     "features": feature_dict
                 }
-                res = requests.post(f"{API_URL}/predict_churn", json=payload)
+                
+                progress_bar.progress(0.3)
+                with log_container.container():
+                    st.caption("🔄 API 호출 중...")
+                
+                res = requests.post(f"{API_URL}/predict_churn", json=payload, timeout=60)
+                
+                progress_bar.progress(0.7)
+                with log_container.container():
+                    st.caption("📊 예측 결과 처리 중...")
+                
                 if res.status_code == 200:
                     result = res.json()
                     if result.get("success"):
+                        progress_bar.progress(1.0)
+                        status_text.success(f"✅ 예측 완료: User ID {user_id}")
+                        
+                        with log_container.container():
+                            st.caption(f"✅ 이탈 확률: {result.get('churn_prob', 0):.2%}, 위험도: {result.get('risk_level', 'UNKNOWN')}")
+                        
                         st.success("예측 완료!")
                         col1, col2, col3 = st.columns(3)
                         with col1:
@@ -2119,10 +2147,22 @@ def show_churn_prediction_page():
                         with col3:
                             st.metric("모델", result.get("model_name", "default"))
                     else:
+                        progress_bar.progress(1.0)
+                        status_text.error(f"❌ 예측 실패: {result.get('error', 'Unknown error')}")
+                        with log_container.container():
+                            st.caption(f"❌ 오류: {result.get('error', '예측 실패')}")
                         st.error(result.get("error", "예측 실패"))
                 else:
+                    progress_bar.progress(1.0)
+                    status_text.error(f"❌ API 오류: HTTP {res.status_code}")
+                    with log_container.container():
+                        st.caption(f"❌ HTTP 오류: {res.status_code}")
                     st.error(f"API 오류: {res.status_code} {res.text}")
             except Exception as e:
+                progress_bar.progress(1.0)
+                status_text.error(f"❌ 예외 발생: {str(e)}")
+                with log_container.container():
+                    st.caption(f"❌ 예외: {str(e)}")
                 st.error(f"오류 발생: {str(e)}")
 
 def show_churn_prediction_bulk_page():
@@ -2161,140 +2201,183 @@ def show_churn_prediction_bulk_page():
                             except:
                                 continue
                     
+                    total_rows = len(rows)
+                    if total_rows == 0:
+                        st.error("처리할 유저가 없습니다.")
+                        return
+                    
+                    # 진행 상황 표시를 위한 상태 초기화
+                    progress_bar = st.progress(0)
+                    status_text = st.empty()
+                    log_container = st.empty()
+                    
+                    # 한 번에 모든 데이터를 배치로 처리 (백엔드에서 효율적으로 처리)
+                    status_text.info(f"📊 배치 예측 시작: 총 {total_rows}개 유저 처리 중...")
+                    progress_bar.progress(0.1)
+                    
+                    with log_container.container():
+                        st.caption(f"📝 {total_rows}개 유저 데이터 준비 완료, API 호출 중...")
+                    
+                    # 한 번에 모든 데이터 전송 (백엔드에서 배치 처리)
                     payload = {"rows": rows}
-                    res = requests.post(f"{API_URL}/predict_churn_bulk", json=payload)
+                    progress_bar.progress(0.3)
+                    
+                    with log_container.container():
+                        st.caption(f"🔄 백엔드에서 배치 예측 처리 중... (백엔드 콘솔에서 진행 상황 확인 가능)")
+                    
+                    res = requests.post(f"{API_URL}/predict_churn_bulk", json=payload, timeout=600)
+                    
+                    progress_bar.progress(0.9)
+                    
                     if res.status_code == 200:
                         result = res.json()
                         if result.get("success"):
-                            results_df = pd.DataFrame(result.get("results", []))
-                            st.success("배치 예측 완료!")
-                            
-                            # 에러가 있는 행 제외
-                            valid_results = results_df[~results_df.get('error').notna()] if 'error' in results_df.columns else results_df
-                            
-                            if len(valid_results) > 0 and 'churn_prob' in valid_results.columns:
-                                # 탭으로 테이블과 차트 분리
-                                tab1, tab2, tab3 = st.tabs(["📊 데이터 테이블", "📈 이탈 확률 분포", "🎯 위험도 분석"])
+                                all_results = result.get("results", [])
+                                saved_count = result.get("saved_count", 0)
                                 
-                                with tab1:
-                                    st.dataframe(results_df, use_container_width=True)
-                                    
-                                    # 통계 요약
-                                    st.subheader("📊 통계 요약")
-                                    col1, col2, col3, col4 = st.columns(4)
-                                    with col1:
-                                        st.metric("총 예측 수", len(valid_results))
-                                    with col2:
-                                        avg_churn = valid_results['churn_prob'].mean() * 100
-                                        st.metric("평균 이탈 확률", f"{avg_churn:.1f}%")
-                                    with col3:
-                                        high_risk = len(valid_results[valid_results.get('risk_level') == 'HIGH']) if 'risk_level' in valid_results.columns else 0
-                                        st.metric("고위험 유저", high_risk)
-                                    with col4:
-                                        max_churn = valid_results['churn_prob'].max() * 100
-                                        st.metric("최대 이탈 확률", f"{max_churn:.1f}%")
+                                progress_bar.progress(1.0)
+                                status_text.success(f"✅ 배치 예측 완료: 총 {len(all_results)}개 결과, {saved_count}개 DB 저장됨")
                                 
-                                with tab2:
-                                    st.subheader("이탈 확률 분포")
-                                    
-                                    # 히스토그램
-                                    fig, axes = plt.subplots(1, 2, figsize=(12, 4))
-                                    
-                                    # 이탈 확률 히스토그램
-                                    axes[0].hist(valid_results['churn_prob'] * 100, bins=20, edgecolor='black', alpha=0.7, color='#ff6b6b')
-                                    axes[0].set_xlabel('이탈 확률 (%)')
-                                    axes[0].set_ylabel('유저 수')
-                                    axes[0].set_title('이탈 확률 분포')
-                                    axes[0].grid(True, alpha=0.3)
-                                    
-                                    # 상위 20명 바 차트
-                                    top_users = valid_results.nlargest(20, 'churn_prob')
-                                    axes[1].barh(range(len(top_users)), top_users['churn_prob'] * 100, color='#ee5a6f')
-                                    axes[1].set_yticks(range(len(top_users)))
-                                    axes[1].set_yticklabels([f"User {uid}" for uid in top_users.get('user_id', range(len(top_users)))], fontsize=8)
-                                    axes[1].set_xlabel('이탈 확률 (%)')
-                                    axes[1].set_title('상위 20명 이탈 확률')
-                                    axes[1].grid(True, alpha=0.3, axis='x')
-                                    
-                                    plt.tight_layout()
-                                    st.pyplot(fig)
-                                    
-                                    # 이탈 확률 구간별 분포
-                                    st.subheader("이탈 확률 구간별 분포")
-                                    bins = [0, 0.3, 0.5, 0.7, 1.0]
-                                    labels = ['낮음 (0-30%)', '보통 (30-50%)', '높음 (50-70%)', '매우 높음 (70-100%)']
-                                    valid_results['churn_category'] = pd.cut(valid_results['churn_prob'], bins=bins, labels=labels, include_lowest=True)
-                                    category_counts = valid_results['churn_category'].value_counts().sort_index()
-                                    
-                                    col1, col2 = st.columns([1, 2])
-                                    with col1:
-                                        st.dataframe(category_counts.reset_index().rename(columns={'index': '구간', 'churn_category': '유저 수'}))
-                                    with col2:
-                                        st.bar_chart(category_counts)
+                                with log_container.container():
+                                    success_count = len([r for r in all_results if "error" not in r])
+                                    error_count = len([r for r in all_results if "error" in r])
+                                    st.caption(f"✅ 성공: {success_count}개, 실패: {error_count}개, 저장: {saved_count}개")
                                 
-                                with tab3:
-                                    st.subheader("위험도 분석")
+                                if len(all_results) > 0:
+                                    results_df = pd.DataFrame(all_results)
+                                    st.success("배치 예측 완료!")
                                     
-                                    if 'risk_level' in valid_results.columns:
-                                        # 위험도별 분포
-                                        risk_counts = valid_results['risk_level'].value_counts()
+                                    # 에러가 있는 행 제외
+                                    valid_results = results_df[~results_df.get('error').notna()] if 'error' in results_df.columns else results_df
+                                    
+                                    if len(valid_results) > 0 and 'churn_prob' in valid_results.columns:
+                                        # 탭으로 테이블과 차트 분리
+                                        tab1, tab2, tab3 = st.tabs(["📊 데이터 테이블", "📈 이탈 확률 분포", "🎯 위험도 분석"])
                                         
-                                        col1, col2 = st.columns(2)
+                                        with tab1:
+                                            st.dataframe(results_df, use_container_width=True)
+                                            
+                                            # 통계 요약
+                                            st.subheader("📊 통계 요약")
+                                            col1, col2, col3, col4 = st.columns(4)
+                                            with col1:
+                                                st.metric("총 예측 수", len(valid_results))
+                                            with col2:
+                                                avg_churn = valid_results['churn_prob'].mean() * 100
+                                                st.metric("평균 이탈 확률", f"{avg_churn:.1f}%")
+                                            with col3:
+                                                high_risk = len(valid_results[valid_results.get('risk_level') == 'HIGH']) if 'risk_level' in valid_results.columns else 0
+                                                st.metric("고위험 유저", high_risk)
+                                            with col4:
+                                                max_churn = valid_results['churn_prob'].max() * 100
+                                                st.metric("최대 이탈 확률", f"{max_churn:.1f}%")
                                         
-                                        with col1:
-                                            st.write("위험도별 유저 수")
-                                            risk_df = risk_counts.reset_index()
-                                            risk_df.columns = ['위험도', '유저 수']
-                                            # 위험도 순서 정렬
-                                            risk_order = ['LOW', 'MEDIUM', 'HIGH']
-                                            risk_df['위험도'] = pd.Categorical(risk_df['위험도'], categories=risk_order, ordered=True)
-                                            risk_df = risk_df.sort_values('위험도')
-                                            st.dataframe(risk_df, use_container_width=True)
-                                        
-                                        with col2:
-                                            # 파이 차트
-                                            fig, ax = plt.subplots(figsize=(8, 8))
-                                            colors = {'LOW': '#51cf66', 'MEDIUM': '#ffd43b', 'HIGH': '#ff6b6b'}
-                                            risk_colors = [colors.get(risk, '#95a5a6') for risk in risk_counts.index]
-                                            ax.pie(risk_counts.values, labels=risk_counts.index, autopct='%1.1f%%', 
-                                                  colors=risk_colors, startangle=90)
-                                            ax.set_title('위험도 분포')
+                                        with tab2:
+                                            st.subheader("이탈 확률 분포")
+                                            
+                                            # 히스토그램
+                                            fig, axes = plt.subplots(1, 2, figsize=(12, 4))
+                                            
+                                            # 이탈 확률 히스토그램
+                                            axes[0].hist(valid_results['churn_prob'] * 100, bins=20, edgecolor='black', alpha=0.7, color='#ff6b6b')
+                                            axes[0].set_xlabel('이탈 확률 (%)')
+                                            axes[0].set_ylabel('유저 수')
+                                            axes[0].set_title('이탈 확률 분포')
+                                            axes[0].grid(True, alpha=0.3)
+                                            
+                                            # 상위 20명 바 차트
+                                            top_users = valid_results.nlargest(20, 'churn_prob')
+                                            axes[1].barh(range(len(top_users)), top_users['churn_prob'] * 100, color='#ee5a6f')
+                                            axes[1].set_yticks(range(len(top_users)))
+                                            axes[1].set_yticklabels([f"User {uid}" for uid in top_users.get('user_id', range(len(top_users)))], fontsize=8)
+                                            axes[1].set_xlabel('이탈 확률 (%)')
+                                            axes[1].set_title('상위 20명 이탈 확률')
+                                            axes[1].grid(True, alpha=0.3, axis='x')
+                                            
+                                            plt.tight_layout()
                                             st.pyplot(fig)
+                                            
+                                            # 이탈 확률 구간별 분포
+                                            st.subheader("이탈 확률 구간별 분포")
+                                            bins = [0, 0.3, 0.5, 0.7, 1.0]
+                                            labels = ['낮음 (0-30%)', '보통 (30-50%)', '높음 (50-70%)', '매우 높음 (70-100%)']
+                                            valid_results['churn_category'] = pd.cut(valid_results['churn_prob'], bins=bins, labels=labels, include_lowest=True)
+                                            category_counts = valid_results['churn_category'].value_counts().sort_index()
+                                            
+                                            col1, col2 = st.columns([1, 2])
+                                            with col1:
+                                                st.dataframe(category_counts.reset_index().rename(columns={'index': '구간', 'churn_category': '유저 수'}))
+                                            with col2:
+                                                st.bar_chart(category_counts)
                                         
-                                        # 위험도별 평균 이탈 확률
-                                        st.subheader("위험도별 평균 이탈 확률")
-                                        risk_avg = valid_results.groupby('risk_level')['churn_prob'].mean() * 100
-                                        risk_avg_df = risk_avg.reset_index()
-                                        risk_avg_df.columns = ['위험도', '평균 이탈 확률 (%)']
-                                        risk_avg_df['위험도'] = pd.Categorical(risk_avg_df['위험도'], categories=risk_order, ordered=True)
-                                        risk_avg_df = risk_avg_df.sort_values('위험도')
-                                        
-                                        col1, col2 = st.columns([1, 2])
-                                        with col1:
-                                            st.dataframe(risk_avg_df, use_container_width=True)
-                                        with col2:
-                                            st.bar_chart(risk_avg.set_axis(risk_avg.index))
+                                        with tab3:
+                                            st.subheader("위험도 분석")
+                                            
+                                            if 'risk_level' in valid_results.columns:
+                                                # 위험도별 분포
+                                                risk_counts = valid_results['risk_level'].value_counts()
+                                                
+                                                col1, col2 = st.columns(2)
+                                                
+                                                with col1:
+                                                    st.write("위험도별 유저 수")
+                                                    risk_df = risk_counts.reset_index()
+                                                    risk_df.columns = ['위험도', '유저 수']
+                                                    # 위험도 순서 정렬
+                                                    risk_order = ['LOW', 'MEDIUM', 'HIGH']
+                                                    risk_df['위험도'] = pd.Categorical(risk_df['위험도'], categories=risk_order, ordered=True)
+                                                    risk_df = risk_df.sort_values('위험도')
+                                                    st.dataframe(risk_df, use_container_width=True)
+                                                
+                                                with col2:
+                                                    # 파이 차트
+                                                    fig, ax = plt.subplots(figsize=(8, 8))
+                                                    colors = {'LOW': '#51cf66', 'MEDIUM': '#ffd43b', 'HIGH': '#ff6b6b'}
+                                                    risk_colors = [colors.get(risk, '#95a5a6') for risk in risk_counts.index]
+                                                    ax.pie(risk_counts.values, labels=risk_counts.index, autopct='%1.1f%%', 
+                                                          colors=risk_colors, startangle=90)
+                                                    ax.set_title('위험도 분포')
+                                                    st.pyplot(fig)
+                                                
+                                                # 위험도별 평균 이탈 확률
+                                                st.subheader("위험도별 평균 이탈 확률")
+                                                risk_avg = valid_results.groupby('risk_level')['churn_prob'].mean() * 100
+                                                risk_avg_df = risk_avg.reset_index()
+                                                risk_avg_df.columns = ['위험도', '평균 이탈 확률 (%)']
+                                                risk_avg_df['위험도'] = pd.Categorical(risk_avg_df['위험도'], categories=risk_order, ordered=True)
+                                                risk_avg_df = risk_avg_df.sort_values('위험도')
+                                                
+                                                col1, col2 = st.columns([1, 2])
+                                                with col1:
+                                                    st.dataframe(risk_avg_df, use_container_width=True)
+                                                with col2:
+                                                    st.bar_chart(risk_avg.set_axis(risk_avg.index))
+                                            else:
+                                                st.info("위험도 정보가 없습니다.")
                                     else:
-                                        st.info("위험도 정보가 없습니다.")
-                            else:
-                                st.dataframe(results_df, use_container_width=True)
-                                if len(valid_results) == 0:
-                                    st.warning("예측 결과가 없거나 모든 행에서 오류가 발생했습니다.")
+                                        st.dataframe(results_df, use_container_width=True)
+                                        if len(valid_results) == 0:
+                                            st.warning("예측 결과가 없거나 모든 행에서 오류가 발생했습니다.")
                         else:
+                            progress_bar.progress(1.0)
+                            status_text.error(f"❌ 예측 실패: {result.get('error', 'Unknown error')}")
+                            with log_container.container():
+                                st.caption(f"❌ 오류: {result.get('error', '예측 실패')}")
                             st.error(result.get("error", "예측 실패"))
                     else:
-                        error_msg = f"API 오류: {res.status_code}"
-                        try:
-                            error_detail = res.json()
-                            if isinstance(error_detail, dict) and "error" in error_detail:
-                                error_msg += f"\n{error_detail['error']}"
-                            else:
-                                error_msg += f"\n{res.text[:200]}"
-                        except:
-                            error_msg += f"\n{res.text[:200]}"
-                        st.error(error_msg)
+                        progress_bar.progress(1.0)
+                        status_text.error(f"❌ API 오류: HTTP {res.status_code}")
+                        with log_container.container():
+                            st.caption(f"❌ HTTP 오류: {res.status_code}")
+                        st.error(f"API 오류: {res.status_code} {res.text}")
                 except Exception as e:
-                    st.error(f"오류 발생: {str(e)}")
+                        progress_bar.progress(1.0)
+                        status_text.error(f"❌ 예외 발생: {str(e)}")
+                        with log_container.container():
+                            st.caption(f"❌ 예외: {str(e)}")
+                        import traceback
+                        st.error(f"오류 발생: {str(e)}")
+                        st.code(traceback.format_exc())
     else:
         st.info("수동 입력 기능은 추후 구현 예정입니다.")
 
@@ -2334,6 +2417,18 @@ def show_churn_prediction_6feat_page():
     
     if st.button("예측 실행", type="primary"):
         try:
+            # 진행 상황 표시를 위한 상태 초기화
+            progress_bar = st.progress(0)
+            status_text = st.empty()
+            log_container = st.empty()
+            
+            # 시작 로그
+            status_text.info(f"📊 6피처 이탈 예측 시작: User ID {user_id}")
+            progress_bar.progress(0.1)
+            
+            with log_container.container():
+                st.caption("📝 6개 핵심 피처 데이터 준비 중...")
+            
             payload = {
                 "user_id": user_id,
                 "features": {
@@ -2345,10 +2440,26 @@ def show_churn_prediction_6feat_page():
                     "login_frequency_30d": login_frequency_30d
                 }
             }
-            res = requests.post(f"{API_URL}/predict_churn_6feat", json=payload)
+            
+            progress_bar.progress(0.3)
+            with log_container.container():
+                st.caption("🔄 API 호출 중...")
+            
+            res = requests.post(f"{API_URL}/predict_churn_6feat", json=payload, timeout=60)
+            
+            progress_bar.progress(0.7)
+            with log_container.container():
+                st.caption("📊 예측 결과 처리 및 DB 저장 중...")
+            
             if res.status_code == 200:
                 result = res.json()
                 if result.get("success"):
+                    progress_bar.progress(1.0)
+                    status_text.success(f"✅ 예측 완료: User ID {user_id} (결과가 DB에 저장되었습니다)")
+                    
+                    with log_container.container():
+                        st.caption(f"✅ 이탈률: {result.get('churn_rate', 0)}%, 위험도: {result.get('risk_score', 'UNKNOWN')}")
+                    
                     st.success("예측 완료! (결과가 DB에 저장되었습니다)")
                     col1, col2, col3 = st.columns(3)
                     with col1:
@@ -2360,10 +2471,22 @@ def show_churn_prediction_6feat_page():
                     with col3:
                         st.metric("업데이트 날짜", result.get("update_date", "N/A"))
                 else:
+                    progress_bar.progress(1.0)
+                    status_text.error(f"❌ 예측 실패: {result.get('error', 'Unknown error')}")
+                    with log_container.container():
+                        st.caption(f"❌ 오류: {result.get('error', '예측 실패')}")
                     st.error(result.get("error", "예측 실패"))
             else:
+                progress_bar.progress(1.0)
+                status_text.error(f"❌ API 오류: HTTP {res.status_code}")
+                with log_container.container():
+                    st.caption(f"❌ HTTP 오류: {res.status_code}")
                 st.error(f"API 오류: {res.status_code} {res.text}")
         except Exception as e:
+            progress_bar.progress(1.0)
+            status_text.error(f"❌ 예외 발생: {str(e)}")
+            with log_container.container():
+                st.caption(f"❌ 예외: {str(e)}")
             st.error(f"오류 발생: {str(e)}")
 
 def show_prediction_results_page():
