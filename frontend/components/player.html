@@ -138,10 +138,14 @@
     <script>
         const ACCESS_TOKEN = "{{ACCESS_TOKEN}}";
         const INITIAL_TRACK_URI = "{{INITIAL_TRACK_URI}}";
+        const USER_ID = "{{USER_ID}}";
+        const API_URL = "{{API_URL}}";
         
         let player;
         let deviceId;
         let isPlaying = false;
+        let currentTrack = null;
+        let playbackStartTime = null;
 
         window.onSpotifyWebPlaybackSDKReady = () => {
             player = new Spotify.Player({
@@ -169,6 +173,37 @@
                 if (!state) return;
                 
                 const track = state.track_window.current_track;
+                const wasPlaying = isPlaying;
+                isPlaying = !state.paused;
+                
+                // 새로운 트랙이 시작되거나 재생이 시작될 때 로그 기록
+                if (track && track.uri) {
+                    const isNewTrack = !currentTrack || currentTrack.uri !== track.uri;
+                    const isPlaybackStarted = !wasPlaying && isPlaying;
+                    
+                    if (isNewTrack && isPlaying) {
+                        // 새로운 트랙 재생 시작
+                        currentTrack = {
+                            uri: track.uri,
+                            name: track.name,
+                            artist: track.artists.map(a => a.name).join(', '),
+                            genre: null // 장르는 Spotify API에서 별도로 가져와야 함
+                        };
+                        playbackStartTime = Date.now();
+                        logPlayback(currentTrack);
+                    } else if (isPlaybackStarted && currentTrack) {
+                        // 일시정지 후 재개
+                        playbackStartTime = Date.now();
+                    } else if (!isPlaying && wasPlaying && currentTrack && playbackStartTime) {
+                        // 재생 중지 - 재생 시간 계산
+                        const playbackDuration = Math.floor((Date.now() - playbackStartTime) / 1000);
+                        if (playbackDuration > 0) {
+                            updatePlaybackDuration(currentTrack.uri, playbackDuration);
+                        }
+                        playbackStartTime = null;
+                    }
+                }
+                
                 document.getElementById('track-name').textContent = track.name;
                 document.getElementById('track-artist').textContent = track.artists.map(a => a.name).join(', ');
                 
@@ -179,7 +214,6 @@
                     document.getElementById('album-art').style.backgroundImage = `url('${images[0].url}')`;
                 }
                 
-                isPlaying = !state.paused;
                 document.getElementById('play-btn').textContent = isPlaying ? '⏸' : '▶';
             });
 
@@ -203,6 +237,49 @@
                     'Authorization': `Bearer ${ACCESS_TOKEN}`
                 },
             });
+        }
+        
+        function logPlayback(track) {
+            if (!USER_ID || !API_URL) return;
+            
+            fetch(`${API_URL}/music/playback`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    user_id: parseInt(USER_ID),
+                    track_uri: track.uri,
+                    track_name: track.name,
+                    artist_name: track.artist,
+                    genre: track.genre,
+                    playback_duration: 0
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.completed_achievements && data.completed_achievements.length > 0) {
+                    // 도전과제 달성 알림
+                    data.completed_achievements.forEach(achievement => {
+                        console.log(`도전과제 달성: ${achievement.title}`);
+                        // 부모 창에 알림 전송 (Streamlit에서 처리)
+                        if (window.parent) {
+                            window.parent.postMessage({
+                                type: 'ACHIEVEMENT_COMPLETED',
+                                achievement: achievement
+                            }, '*');
+                        }
+                    });
+                }
+            })
+            .catch(error => {
+                console.error('재생 로그 기록 실패:', error);
+            });
+        }
+        
+        function updatePlaybackDuration(trackUri, duration) {
+            // 재생 시간 업데이트는 선택적 (현재는 기록만)
+            console.log(`재생 시간: ${trackUri} - ${duration}초`);
         }
     </script>
 </body>
