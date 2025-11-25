@@ -338,7 +338,7 @@ SKN21-2nd-2Team/
 - **결론**:
   - 현재 구조(유저당 1행 스냅샷 + 단일 시점 피처)에서는 **F1≈0.41, AUC≈0.53이 사실상 상한**
   <p align="center">
-        <img src="image/visualizations/08_performance_ceiling.png" alt="performance_ceiling" width="550">
+        <img src="image/visualizations/08_performance_ceiling.png" alt="performance_ceiling" width="600">
       </p>
  - 모델 변경·튜닝·SMOTE만으로는 성능을 올리기 어렵고, **데이터/피처 자체를 바꾸는 방향이 필요**함
 
