@@ -178,6 +178,39 @@ def get_popular_tracks(access_token, limit=3):
         print(f"[인기 음악 가져오기 오류] {str(e)}")
         return []
 
+def get_recommended_tracks(access_token, genre, limit=3):
+    """
+    사용자의 좋아하는 장르를 기준으로 추천 음악 가져오기
+    """
+    try:
+        if not genre:
+            return []
+        
+        # 장르명을 Spotify 검색 형식에 맞게 변환
+        # K-Pop -> k-pop, Hip Hop -> hip-hop 등
+        genre_lower = genre.lower().replace(" ", "-")
+        
+        headers = {"Authorization": f"Bearer {access_token}"}
+        params = {
+            "q": f'genre:"{genre_lower}"',
+            "type": "track",
+            "limit": 50,
+            "offset": 0
+        }
+        res = requests.get(f"{API_URL}/music/search", headers=headers, params=params, timeout=10)
+        
+        if res.status_code == 200:
+            data = res.json()
+            tracks = data.get("tracks", [])
+            # 인기도 순으로 정렬하고 상위 limit개만 반환
+            tracks_sorted = sorted(tracks, key=lambda x: x.get("popularity", 0), reverse=True)
+            return tracks_sorted[:limit]
+        else:
+            return []
+    except Exception as e:
+        print(f"[추천 음악 가져오기 오류] {str(e)}")
+        return []
+
 # ----------------------------------------------------------
 # 서브 페이지 함수들
 # ----------------------------------------------------------
@@ -212,55 +245,115 @@ def show_user_home_page():
             st.rerun()
         st.stop()
 
-    # Spotify 인기 음악 표시 (가이드 배너와 검색 기능 중간)
-    st.markdown("### 🔥 현재 인기 음악")
+    # 인기 음악과 추천 음악 표시 (가이드 배너와 검색 기능 중간)
+    col_popular, col_recommended = st.columns(2)
     
-    # 인기 음악 가져오기 (캐싱)
-    popular_tracks_key = "popular_tracks_cache"
-    if popular_tracks_key not in st.session_state:
-        with st.spinner("인기 음악을 불러오는 중..."):
-            popular_tracks = get_popular_tracks(st.session_state.access_token, limit=3)
-            st.session_state[popular_tracks_key] = popular_tracks
-    
-    popular_tracks = st.session_state.get(popular_tracks_key, [])
-    
-    if popular_tracks:
-        # 3개를 가로로 정렬
-        cols = st.columns(3)
-        for idx, track in enumerate(popular_tracks[:3]):
-            with cols[idx]:
-                # 앨범 이미지
-                image_url = None
-                if track.get("album") and track["album"].get("images"):
-                    image_url = track["album"]["images"][0]["url"] if track["album"]["images"] else None
-                
-                if image_url:
-                    try:
-                        st.image(image_url, use_container_width=True)
-                    except:
+    with col_popular:
+        st.markdown("### 🔥 현재 인기 음악")
+        
+        # 인기 음악 가져오기 (캐싱)
+        popular_tracks_key = "popular_tracks_cache"
+        if popular_tracks_key not in st.session_state:
+            with st.spinner("인기 음악을 불러오는 중..."):
+                popular_tracks = get_popular_tracks(st.session_state.access_token, limit=3)
+                st.session_state[popular_tracks_key] = popular_tracks
+        
+        popular_tracks = st.session_state.get(popular_tracks_key, [])
+        
+        if popular_tracks:
+            # 3개를 가로로 정렬 (크기 축소)
+            cols = st.columns(3)
+            for idx, track in enumerate(popular_tracks[:3]):
+                with cols[idx]:
+                    # 앨범 이미지 (크기 축소)
+                    image_url = None
+                    if track.get("album") and track["album"].get("images"):
+                        image_url = track["album"]["images"][0]["url"] if track["album"]["images"] else None
+                    
+                    if image_url:
+                        try:
+                            st.image(image_url, width=280)
+                        except:
+                            st.write("🎵")
+                    else:
                         st.write("🎵")
-                else:
-                    st.write("🎵")
-                
-                # 트랙 정보
-                track_name = track.get("name", "알 수 없음")
-                artists = ", ".join([artist["name"] for artist in track.get("artists", [])])
-                track_uri = track.get("uri", "")
-                
-                st.markdown(f"**{track_name[:20]}{'...' if len(track_name) > 20 else ''}**")
-                st.caption(f"👤 {artists[:25]}{'...' if len(artists) > 25 else ''}")
-                
-                # 재생 버튼
-                if st.button("▶ 재생", key=f"popular_play_{idx}", use_container_width=True):
-                    st.session_state.selected_track = {
-                        "uri": track_uri,
-                        "name": track_name,
-                        "artists": artists,
-                        "image_url": image_url
-                    }
-                    st.rerun()
-    else:
-        st.info("인기 음악을 불러올 수 없습니다.")
+                    
+                    # 트랙 정보
+                    track_name = track.get("name", "알 수 없음")
+                    artists = ", ".join([artist["name"] for artist in track.get("artists", [])])
+                    track_uri = track.get("uri", "")
+                    
+                    st.markdown(f"**{track_name[:18]}{'...' if len(track_name) > 18 else ''}**")
+                    st.caption(f"👤 {artists[:22]}{'...' if len(artists) > 22 else ''}")
+                    
+                    # 재생 버튼
+                    if st.button("▶ 재생", key=f"popular_play_{idx}", use_container_width=True):
+                        st.session_state.selected_track = {
+                            "uri": track_uri,
+                            "name": track_name,
+                            "artists": artists,
+                            "image_url": image_url
+                        }
+                        st.rerun()
+        else:
+            st.info("인기 음악을 불러올 수 없습니다.")
+    
+    with col_recommended:
+        # 사용자의 좋아하는 음악 장르 가져오기
+        favorite_music = user.get("favorite_music", "")
+        
+        if favorite_music:
+            st.markdown(f"### 🎯 {favorite_music} 추천 음악")
+            
+            # 추천 음악 가져오기 (캐싱)
+            recommended_tracks_key = f"recommended_tracks_cache_{user_id}_{favorite_music}"
+            if recommended_tracks_key not in st.session_state:
+                with st.spinner("추천 음악을 불러오는 중..."):
+                    recommended_tracks = get_recommended_tracks(st.session_state.access_token, favorite_music, limit=3)
+                    st.session_state[recommended_tracks_key] = recommended_tracks
+            
+            recommended_tracks = st.session_state.get(recommended_tracks_key, [])
+            
+            if recommended_tracks:
+                # 3개를 가로로 정렬
+                cols = st.columns(3)
+                for idx, track in enumerate(recommended_tracks[:3]):
+                    with cols[idx]:
+                        # 앨범 이미지
+                        image_url = None
+                        if track.get("album") and track["album"].get("images"):
+                            image_url = track["album"]["images"][0]["url"] if track["album"]["images"] else None
+                        
+                        if image_url:
+                            try:
+                                st.image(image_url, width=280)
+                            except:
+                                st.write("🎵")
+                        else:
+                            st.write("🎵")
+                        
+                        # 트랙 정보
+                        track_name = track.get("name", "알 수 없음")
+                        artists = ", ".join([artist["name"] for artist in track.get("artists", [])])
+                        track_uri = track.get("uri", "")
+                        
+                        st.markdown(f"**{track_name[:18]}{'...' if len(track_name) > 18 else ''}**")
+                        st.caption(f"👤 {artists[:22]}{'...' if len(artists) > 22 else ''}")
+                        
+                        # 재생 버튼
+                        if st.button("▶ 재생", key=f"recommended_play_{idx}", use_container_width=True):
+                            st.session_state.selected_track = {
+                                "uri": track_uri,
+                                "name": track_name,
+                                "artists": artists,
+                                "image_url": image_url
+                            }
+                            st.rerun()
+            else:
+                st.info(f"{favorite_music} 장르의 추천 음악을 불러올 수 없습니다.")
+        else:
+            st.markdown("### 🎯 추천 음악")
+            st.info("좋아하는 음악 장르를 설정하면 추천 음악을 받아볼 수 있습니다.")
     
     st.markdown("---")
 
@@ -666,101 +759,101 @@ def render_top_guide_banner(page_name="default"):
     guides = {
         "home": """
             <b style="font-size:17px;">🎵 홈 화면 이용 가이드</b><br>
-            • Spotify 음악 검색 및 재생 기능을 사용할 수 있습니다.<br>
-            • 검색어를 입력하고 원하는 트랙을 찾아 재생하세요.<br>
-            • Spotify 인증이 필요합니다. 로그인 화면에서 인증을 완료해주세요.<br>
-            • 재생할 트랙을 선택하면 플레이어가 자동으로 표시됩니다.
+            • 음악 검색창에 원하는 곡명, 아티스트명을 입력하고 검색 버튼을 클릭하세요.<br>
+            • 검색 결과에서 재생하고 싶은 곡을 선택하면 플레이어가 자동으로 표시됩니다.<br>
+            • 상세 필터를 사용하여 발매 연도, 장르, 인기도 등으로 검색 범위를 좁힐 수 있습니다.<br>
+            • 화면 상단의 인기 음악을 클릭하여 바로 재생할 수도 있습니다.<br>
+            • 재생 중인 곡은 오른쪽 플레이어에서 제어할 수 있습니다.
         """,
         "profile": """
-            <b style="font-size:17px;">👤 개인정보 수정 이용 가이드</b><br>
-            • 이름, 좋아하는 음악, 등급을 수정할 수 있습니다.<br>
-            • 등급은 관리자(99)만 수정 가능합니다.<br>
-            • 정보를 수정한 후 '저장' 버튼을 클릭해야 변경사항이 적용됩니다.<br>
-            • 구독해지를 하시면 휴면 유저(등급 00)로 전환됩니다.<br>
-            • 관리자는 구독해지 기능을 사용할 수 없습니다.
+            <b style="font-size:17px;">👤 내 정보 수정 이용 가이드</b><br>
+            • 이름과 좋아하는 음악 장르를 수정할 수 있습니다.<br>
+            • 정보를 변경한 후 반드시 '저장' 버튼을 클릭해야 변경사항이 반영됩니다.<br>
+            • 구독해지 버튼을 클릭하면 구독해지 양식이 표시됩니다.<br>
+            • 구독해지를 완료하면 계정이 휴면 상태로 전환되어 로그인이 불가능해집니다.
         """,
         "logs": """
-            <b style="font-size:17px;">📋 로그 조회 이용 가이드</b><br>
-            • 사용자 활동 로그를 조회할 수 있습니다. (관리자 전용)<br>
-            • User ID로 특정 사용자의 로그만 필터링할 수 있습니다.<br>
-            • 액션 타입(LOGIN, PAGE_VIEW, UNSUBSCRIBE)으로 필터링할 수 있습니다.<br>
-            • 페이지 크기를 조정하여 한 번에 볼 로그 수를 설정할 수 있습니다.<br>
-            • 로그는 최신순으로 정렬되어 표시됩니다.
+            <b style="font-size:17px;">📋 사용자 활동 로그 조회 이용 가이드</b><br>
+            • 사용자들의 로그인, 페이지 접근, 구독해지 등의 활동 내역을 확인할 수 있습니다. (관리자 전용)<br>
+            • 사용자 ID를 입력하면 해당 사용자의 활동만 조회할 수 있습니다.<br>
+            • 활동 유형(로그인, 페이지 조회, 구독해지)으로 필터링하여 원하는 활동만 확인할 수 있습니다.<br>
+            • 한 페이지에 표시할 로그 개수를 조정할 수 있습니다.<br>
+            • 모든 로그는 시간순으로 정렬되어 최신 활동이 먼저 표시됩니다.
         """,
         "churn_single": """
-            <b style="font-size:17px;">📊 단일 유저 이탈 예측 이용 가이드</b><br>
-            • User ID를 입력하고 '유저 데이터 불러오기' 버튼을 클릭하세요.<br>
-            • user_features 테이블에서 해당 유저의 데이터를 자동으로 불러옵니다.<br>
-            • 피처 값을 수정한 후 '예측 실행' 버튼을 클릭하면 이탈 확률과 위험도를 확인할 수 있습니다.<br>
-            • 예측 결과는 자동으로 user_prediction 테이블에 저장됩니다.<br>
-            • 이탈 확률은 0~100%로 표시되며, 위험도는 LOW/MEDIUM/HIGH로 표시됩니다.
+            <b style="font-size:17px;">📊 개별 사용자 이탈 예측 이용 가이드</b><br>
+            • 사용자 ID를 입력하고 '유저 데이터 불러오기' 버튼을 클릭하세요.<br>
+            • 해당 사용자의 이용 데이터가 자동으로 불러와집니다.<br>
+            • 필요시 청취 시간, 로그인 빈도 등의 데이터를 수정할 수 있습니다.<br>
+            • '예측 실행' 버튼을 클릭하면 이탈 가능성과 위험도가 표시됩니다.<br>
+            • 이탈 확률은 0~100%로 표시되며, 위험도는 낮음/보통/높음으로 구분됩니다.
         """,
         "churn_bulk": """
-            <b style="font-size:17px;">📊 배치 이탈 예측 이용 가이드</b><br>
-            • CSV 파일을 업로드하거나 수동으로 데이터를 입력할 수 있습니다.<br>
-            • CSV 파일에는 user_id 컬럼이 포함되어야 하며, user_features 테이블에서 자동으로 조회됩니다.<br>
-            • 여러 유저의 이탈 확률을 한 번에 예측할 수 있습니다.<br>
-            • 예측 결과는 차트로 시각화되어 표시됩니다.<br>
-            • 모든 예측 결과는 자동으로 user_prediction 테이블에 저장됩니다.
+            <b style="font-size:17px;">📊 다수 사용자 이탈 예측 이용 가이드</b><br>
+            • 여러 사용자의 이탈 가능성을 한 번에 예측할 수 있습니다.<br>
+            • CSV 파일을 업로드하거나 화면에서 직접 데이터를 입력할 수 있습니다.<br>
+            • CSV 파일에는 사용자 ID가 포함되어 있어야 하며, 시스템에서 자동으로 해당 사용자의 데이터를 불러옵니다.<br>
+            • 예측 결과는 차트로 시각화되어 위험도별 분포를 한눈에 확인할 수 있습니다.
         """,
         "churn_6feat": """
-            <b style="font-size:17px;">📊 6피처 이탈 예측 이용 가이드</b><br>
-            • 6개의 핵심 피처만 사용하여 이탈 예측을 수행합니다.<br>
-            • 필수 피처: app_crash_count_30d, skip_rate_increase_7d, days_since_last_login,<br>
-            &nbsp;&nbsp;listening_time_trend_7d, freq_of_use_trend_14d, login_frequency_30d<br>
-            • User ID를 입력하면 user_features 테이블에서 자동으로 데이터를 불러옵니다.<br>
-            • 예측 결과는 user_prediction 테이블에 자동으로 저장됩니다.
+            <b style="font-size:17px;">📊 간편 이탈 예측 이용 가이드</b><br>
+            • 6가지 핵심 지표만으로 빠르게 이탈 가능성을 예측할 수 있습니다.<br>
+            • 필수 입력 항목: 앱 오류 횟수, 스킵 증가율, 마지막 로그인 경과일,<br>
+            &nbsp;&nbsp;청취 시간 추이, 이용 빈도 추이, 로그인 빈도<br>
+            • 사용자 ID를 입력하면 해당 사용자의 최근 데이터가 자동으로 불러와집니다.<br>
+            • 데이터를 수정한 후 예측을 실행하면 즉시 결과를 확인할 수 있습니다.
         """,
         "prediction_results": """
-            <b style="font-size:17px;">📈 예측 결과 조회 이용 가이드</b><br>
-            • user_prediction 테이블에 저장된 예측 결과를 조회할 수 있습니다. (관리자 전용)<br>
-            • User ID로 특정 사용자의 예측 결과를 검색할 수 있습니다.<br>
-            • 위험도(LOW/MEDIUM/HIGH)로 필터링할 수 있습니다.<br>
-            • 예측 결과는 테이블 형식으로 표시되며, 통계 정보도 함께 제공됩니다.
+            <b style="font-size:17px;">📈 이탈 예측 결과 조회 이용 가이드</b><br>
+            • 이전에 실행한 모든 이탈 예측 결과를 조회할 수 있습니다. (관리자 전용)<br>
+            • 사용자 ID를 입력하면 특정 사용자의 예측 결과만 검색할 수 있습니다.<br>
+            • 위험도(낮음/보통/높음)로 필터링하여 위험 사용자만 따로 확인할 수 있습니다.<br>
+            • 예측 결과는 표로 정리되어 표시되며, 전체 통계 정보도 함께 제공됩니다.<br>
+            • 각 사용자의 이탈 확률과 위험도를 한눈에 비교할 수 있습니다.
         """,
         "prediction_csv": """
-            <b style="font-size:17px;">📁 예측 결과 CSV 관리 이용 가이드</b><br>
-            • CSV 파일을 업로드하여 일괄 예측을 수행할 수 있습니다. (관리자 전용)<br>
-            • 필수 컬럼: user_id, app_crash_count_30d, skip_rate_increase_7d, days_since_last_login,<br>
-            &nbsp;&nbsp;listening_time_trend_7d, freq_of_use_trend_14d, login_frequency_30d<br>
-            • 예측 결과를 CSV 파일로 다운로드할 수 있습니다.<br>
-            • 예측 결과는 user_prediction 테이블에 자동으로 저장됩니다.
+            <b style="font-size:17px;">📁 대량 예측 및 결과 다운로드 이용 가이드</b><br>
+            • CSV 파일을 업로드하여 많은 사용자의 이탈 예측을 한 번에 수행할 수 있습니다. (관리자 전용)<br>
+            • CSV 파일에는 사용자 ID와 6가지 핵심 지표가 포함되어 있어야 합니다.<br>
+            • 예측이 완료되면 결과를 CSV 파일로 다운로드하여 엑셀 등에서 분석할 수 있습니다.<br>
+            • 다운로드한 파일에는 사용자별 이탈 확률과 위험도가 포함되어 있습니다.
         """,
         "user_admin": """
-            <b style="font-size:17px;">🛠 사용자 데이터 관리 이용 가이드</b><br>
-            • 데이터베이스 테이블을 생성하고 CSV 데이터를 import할 수 있습니다. (관리자 전용)<br>
-            • User Table, User Features Table, User Prediction Table, Log Table을 생성할 수 있습니다.<br>
-            • CSV 파일을 업로드하여 user_features 테이블에 데이터를 삽입할 수 있습니다.<br>
-            • 기본 경로의 CSV 파일(data/enhanced_data_not_clean_FE_delete.csv)을 사용할 수도 있습니다.
+            <b style="font-size:17px;">🛠 시스템 초기 설정 이용 가이드</b><br>
+            • 시스템을 처음 사용할 때 필요한 데이터 저장소를 준비할 수 있습니다. (관리자 전용)<br>
+            • 사용자 정보, 예측 데이터, 활동 로그 등을 저장할 공간을 생성합니다.<br>
+            • CSV 파일을 업로드하여 사용자 데이터를 일괄 등록할 수 있습니다.<br>
+            • 각 저장소는 필요한 시점에 생성하면 되며, 이미 생성된 경우 다시 생성할 필요가 없습니다.
         """,
         "user_search": """
-            <b style="font-size:17px;">🔍 사용자 조회 이용 가이드</b><br>
-            • 이름, User ID, 좋아하는 음악, 등급으로 사용자를 검색할 수 있습니다. (관리자 전용)<br>
-            • 각 사용자의 등급을 수정할 수 있습니다.<br>
-            • 사용자의 위험도(이탈 위험도)를 확인할 수 있습니다.<br>
-            • 페이징 기능을 사용하여 많은 사용자 데이터를 효율적으로 조회할 수 있습니다.
+            <b style="font-size:17px;">🔍 사용자 조회 및 관리 이용 가이드</b><br>
+            • 이름, 사용자 ID, 좋아하는 음악, 등급으로 사용자를 검색할 수 있습니다. (관리자 전용)<br>
+            • 검색 결과에서 각 사용자의 등급을 변경할 수 있습니다.<br>
+            • 각 사용자의 이탈 위험도를 확인하여 위험 사용자를 파악할 수 있습니다.<br>
+            • 많은 사용자가 있을 경우 페이지 번호를 선택하여 효율적으로 조회할 수 있습니다.<br>
+            • 사용자별 상세 정보와 최근 활동 내역을 한 화면에서 확인할 수 있습니다.
         """,
         "achievements": """
             <b style="font-size:17px;">🏆 도전과제 이용 가이드</b><br>
             • 특정 노래나 장르의 노래를 일정 횟수 이상 들으면 도전과제를 달성할 수 있습니다.<br>
-            • 노래를 재생하면 자동으로 재생 로그가 기록되고 도전과제 진행도가 업데이트됩니다.<br>
+            • 노래를 재생하면 자동으로 도전과제 진행도가 업데이트됩니다.<br>
             • 도전과제를 완료하면 보상 포인트를 받을 수 있습니다.<br>
-            • 완료된 도전과제와 진행 중인 도전과제를 확인할 수 있습니다.<br>
-            • 완료된 도전과제를 칭호로 선택하여 사이드바에 표시할 수 있습니다.
+            • 완료된 도전과제와 진행 중인 도전과제를 구분하여 확인할 수 있습니다.<br>
+            • 완료한 도전과제 중 하나를 칭호로 선택하면 프로필에 표시됩니다.
         """,
         "achievements_admin": """
             <b style="font-size:17px;">🏆 도전과제 관리 이용 가이드</b><br>
-            • 도전과제를 생성, 조회, 삭제할 수 있습니다. (관리자 전용)<br>
-            • 도전과제 타입: GENRE_PLAY (장르별 재생), TRACK_PLAY (특정 노래 재생)<br>
-            • 목표 값, 보상 포인트 등을 설정할 수 있습니다.<br>
-            • 생성된 도전과제는 모든 사용자에게 적용됩니다.
+            • 새로운 도전과제를 만들거나 기존 도전과제를 삭제할 수 있습니다. (관리자 전용)<br>
+            • 도전과제 유형: 특정 장르 재생하기, 특정 노래 재생하기<br>
+            • 목표 재생 횟수와 보상 포인트를 설정할 수 있습니다.<br>
+            • 생성한 도전과제는 모든 사용자에게 자동으로 적용됩니다.<br>
+            • 도전과제 통계를 확인하여 사용자들의 참여 현황을 파악할 수 있습니다.
         """,
         "default": """
             <b style="font-size:17px;">📘 이용 가이드</b><br>
-            • 왼쪽 사이드바에서 원하는 기능을 선택하세요.<br>
-            • 권한(grade)에 따라 접근 가능한 메뉴가 달라질 수 있습니다.<br>
-            • 관리자(99)는 추가 관리 기능을 사용할 수 있습니다.<br>
-            • 모든 페이지 상단에 이 안내가 항상 표시됩니다.
+            • 왼쪽 사이드바에서 원하는 메뉴를 선택하세요.<br>
+            • 계정 권한에 따라 사용할 수 있는 메뉴가 다를 수 있습니다.<br>
+            • 관리자 계정은 사용자 관리, 예측 결과 조회 등 추가 기능을 사용할 수 있습니다.
         """
     }
     
