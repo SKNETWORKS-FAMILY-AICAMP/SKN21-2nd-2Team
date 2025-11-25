@@ -1,20 +1,19 @@
 """
-check_rate.py
+churn_prob.py
 Auth: 신지용
+학습에 사용한 CSV 전체에 대해 이탈 확률 분포를 확인하는 오프라인 스크립트.
 
-역할:
-- 학습에 사용한 CSV(`data/processed/enhanced_data_not_clean_FE_delete.csv`)를 전체 로드하고
-- 지정한 모델(`model_name`)로 각 유저의 이탈 확률(`churn_prob`)을 계산한 뒤
-  - 전체 평균 이탈 확률 / threshold 기준 예측 이탈률을 출력하고
-  - 모든 유저에 대해 간단한 표(user_id, is_churned, churn_prob, risk_level)를 콘솔에 출력한다.
-- Flask API 없이, 로컬에서 **모델이 어떤 이탈 확률 분포를 내는지** 확인하는 용도.
+현재 로직은 `data/processed/enhanced_data_not_clean_FE_delete.csv`를 로드해
+`backend.inference.predict_churn`을 호출하여 각 유저의 이탈 확률과
+위험도 레벨을 계산하고, 간단한 통계와 함께 CSV로 저장합니다.
+
+역할 분리:
+- 전처리/파이프라인 저장 → `backend/preprocessing_pipeline.py`
+- 모델 정의/선택        → `backend/models.py`
+- 배치 예측(분포 확인)  → 이 스크립트
 
 사용 방법:
-    python backend/check_rate.py
-
-모델 변경:
-- 아래 for 루프에서 `model_name="hgb"` 부분을
-  - `"rf"`, `"xgb"`, `"lgbm"` 등으로 바꾸면 해당 모델 기준으로 이탈 확률을 다시 계산한다.
+    python backend/churn_prob.py
 """
 
 import os

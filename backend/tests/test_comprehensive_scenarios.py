@@ -1,9 +1,16 @@
 """
-포괄적인 LGBM 앙상블 모델 시나리오 테스트
+test_comprehensive_scenarios.py
+Auth: 신지용
+6피처 LGBM 단조 제약 앙상블 모델에 대해,
+사람이 정의한 다양한 유저 페르소나 시나리오를 종합적으로 테스트하는 스크립트.
 
-사람의 관점에서 생각한 다양한 유저 시나리오를 테스트합니다.
-- 6개 피처: app_crash_count_30d, skip_rate_increase_7d, days_since_last_login,
-             listening_time_trend_7d, freq_of_use_trend_14d, login_frequency_30d
+현재 로직은 `backend.inference_sim_6feat_lgbm.predict_churn_6feat_lgbm`을 호출해
+20개 시나리오에 대한 이탈 확률 및 위험도 분포를 점검합니다.
+
+역할 분리:
+- 모델 학습/저장     → `backend/training/train_simulator_6feat_lgbm_mono.py`
+- 6피처 추론        → `backend.inference_sim_6feat_lgbm`
+- 시나리오 기반 점검 → 이 스크립트
 """
 
 import sys

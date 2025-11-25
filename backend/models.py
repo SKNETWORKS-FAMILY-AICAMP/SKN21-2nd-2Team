@@ -3,16 +3,18 @@ models.py
 Auth: 신지용
 여러 종류의 모델을 이름으로 선택해서 생성하는 팩토리 모듈.
 
+현재 전처리/학습 로직은 `notebooks/pipeline.ipynb`와
+`backend/preprocessing_pipeline.py`에서 정의된 파이프라인 출력을
+입력으로 사용합니다.
+
+역할 분리:
+- 전처리 수정        → `backend/preprocessing_pipeline.py`
+- 모델 종류/파라미터 → 이 모듈의 `MODEL_REGISTRY` 및 `get_model()`
+- 데이터 경로/seed/비율 → `backend/config.py`의 상수들
+
 사용 예시:
-    from models import get_model
+    from backend.models import get_model
     model = get_model(name="rf", random_state=42)
-
-지원 이름(기본):
-- "rf"     : RandomForestClassifier
-- "logit"  : LogisticRegression (baseline 비교용)
-
-새 모델(XGB, LGBM 등)을 추가하고 싶을 때는
-아래 MODEL_REGISTRY에 항목만 추가하면 됩니다.
 """
 
 from __future__ import annotations

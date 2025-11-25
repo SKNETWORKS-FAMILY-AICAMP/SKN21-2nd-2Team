@@ -1,3 +1,18 @@
+"""
+test_scenario_lgbm.py
+Auth: 신지용
+6피처 LGBM 단조 제약 모델에 대해,
+소수의 대표 시나리오를 통해 직관적인 동작 여부를 빠르게 점검하는 스크립트.
+
+현재 로직은 `backend.inference_sim_6feat_lgbm.predict_churn_6feat_lgbm`을 호출해
+10개 전형적인 사용 패턴에 대한 위험도(L/M/H)를 확인합니다.
+
+역할 분리:
+- 모델 학습/저장        → `backend/training/train_simulator_6feat_lgbm_mono.py`
+- 6피처 추론           → `backend.inference_sim_6feat_lgbm`
+- 간단 시나리오 스모크 테스트 → 이 스크립트
+"""
+
 import sys
 import os
 
@@ -5,16 +20,6 @@ import os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 
 from backend.inference_sim_6feat_lgbm import predict_churn_6feat_lgbm
-
-# ==============================================================================
-# 🧪 LGBM(단조 제약) 6피처 시뮬레이터 시나리오 테스트
-#    - app_crash_count_30d
-#    - skip_rate_increase_7d
-#    - days_since_last_login
-#    - listening_time_trend_7d
-#    - freq_of_use_trend_14d
-#    - login_frequency_30d
-# ==============================================================================
 
 # 1. 평범한 유저 (Clean)
 scenario_1_clean = {

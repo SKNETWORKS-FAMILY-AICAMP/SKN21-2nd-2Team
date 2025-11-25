@@ -1,12 +1,20 @@
 """
 inference.py
 Auth: 신지용
+전처리 파이프라인(`backend/preprocessing_pipeline.py`)과
+모델 팩토리(`backend/models.py`)를 조합해, 단일 유저의
+이탈 확률(churn_prob)을 계산하는 추론 모듈.
 
-이 모듈은 학습이 끝난 파이프라인(전처리기 + 분류 모델)을 불러와
-단일 유저의 피처 딕셔너리를 입력받아 **이탈 확률(churn_prob)** 을 계산하는 역할을 합니다.
+현재 로직은 `data/processed`에 저장된 전처리 아티팩트
+(`preprocess_and_split` + `save_processed_data`)를 로드한 뒤,
+요청 시 모델을 학습/캐싱하여 예측에 사용합니다.
 
-간단 사용 예시(백엔드/오프라인 스크립트 내부):
+역할 분리:
+- 전처리/아티팩트 저장 → `backend/preprocessing_pipeline.py`
+- 모델 종류/파라미터   → `backend/models.py`의 `get_model()`
+- 단일/배치 예측 API   → 이 모듈의 `predict_churn` 및 `backend/app.py`의 관련 엔드포인트
 
+간단 사용 예시:
     from backend.inference import predict_churn
 
     result = predict_churn(
@@ -20,14 +28,6 @@ Auth: 신지용
         },
         model_name="hgb",  # 생략 시 backend.config.DEFAULT_MODEL_NAME 사용
     )
-
-    # result 예시:
-    # {
-    #   "success": True,
-    #   "model_name": "hgb",
-    #   "churn_prob": 0.73,
-    #   "risk_level": "HIGH",
-    # }
 """
 
 from __future__ import annotations

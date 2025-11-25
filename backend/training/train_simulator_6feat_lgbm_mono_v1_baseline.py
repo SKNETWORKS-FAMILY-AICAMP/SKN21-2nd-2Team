@@ -1,3 +1,18 @@
+"""
+train_simulator_6feat_lgbm_mono_v1_baseline.py
+Auth: 신지용
+6개 시뮬레이터용 피처에 대해 단조 제약(monotone constraints)이 걸린
+LGBM 기본 모델을 학습하고 저장하는 v1 베이스라인 스크립트.
+
+현재 로직은 `backend.config`에서 정의한 DATA_PATH/TEST_SIZE/RANDOM_STATE와
+6개 시뮬레이터 피처(SIM_FEATURES)를 사용해 단일 LGBM 모델을 학습합니다.
+
+역할 분리:
+- 시뮬레이터 피처 후보 탐색 → `backend/training/find_good_sim_features.py`
+- 6피처 LGBM v1 학습/저장  → 이 스크립트
+- 개선된 앙상블 버전       → `backend/training/train_simulator_6feat_lgbm_mono.py`
+"""
+
 import os
 import sys
 from typing import List

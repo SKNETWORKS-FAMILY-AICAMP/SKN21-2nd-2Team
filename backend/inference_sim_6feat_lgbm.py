@@ -1,10 +1,16 @@
 """
 inference_sim_6feat_lgbm.py
-
+Auth: 신지용
 6개 시뮬레이터용 피처만 사용하는 LGBM(단조 제약) 전용 추론 모듈입니다.
 
-- 학습 스크립트: backend/train_simulator_6feat_lgbm_mono.py
-- 저장 모델   : models/lgbm_sim_6feat_mono.pkl
+현재 로직은 `backend/training/train_simulator_6feat_lgbm_mono.py`에서
+학습/저장한 단조 제약 LGBM 모델을 로드하여,
+관리자 시뮬레이터 화면에서 조정한 6개 피처로 이탈 확률을 계산합니다.
+
+역할 분리:
+- 시뮬레이터 학습/저장 → `backend/training/train_simulator_6feat_lgbm_mono.py`
+- 6피처 추론          → 이 모듈의 `predict_churn_6feat_lgbm`
+- API 연동            → `backend/app.py`의 `/api/predict_churn_6feat`
 """
 
 from __future__ import annotations

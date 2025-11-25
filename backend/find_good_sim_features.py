@@ -1,3 +1,18 @@
+"""
+find_good_sim_features.py
+Auth: 신지용
+6피처 시뮬레이터에 넣기 좋은 후보 피처들을 자동으로 발굴하는 실험 스크립트.
+
+현재 로직은 학습 CSV 전체를 대상으로, 단일 피처 값을 그리드로 변화시키면서
+`backend.inference.predict_churn`의 출력 확률 곡선을 관찰해
+단조성(Spearman 상관)과 효과 크기를 기준으로 스코어를 계산합니다.
+
+역할 분리:
+- 전처리/모델 학습   → `backend/preprocessing_pipeline.py`, `backend/training/train_experiments.py`
+- 단일/배치 추론     → `backend.inference`
+- 시뮬레이션용 피처 탐색 → 이 스크립트
+"""
+
 import os
 import sys
 from typing import Dict, List, Tuple

@@ -17,7 +17,9 @@ sklearn ColumnTransformer 기반 파이프라인을 그대로 옮긴
 import json
 import os
 from datetime import datetime
+import sys
 
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 import numpy as np
 from sklearn.metrics import (
     f1_score,
@@ -199,6 +201,17 @@ def save_metrics(
         "threshold_range": {
             "start": float(THRESH_START),
             "end": float(THRESH_END),
+            "step": float(THRESH_STEP),
+        },
+        "timestamp": datetime.now().isoformat(),
+    }
+
+    # METRICS_PATH 기준으로 JSON 누적 저장
+    metrics_path = METRICS_PATH
+    os.makedirs(os.path.dirname(metrics_path), exist_ok=True)
+
+    try:
+        with open(metrics_path, "r", encoding="utf-8") as f:
             existing = json.load(f)
     except (FileNotFoundError, json.JSONDecodeError):
         existing = []
