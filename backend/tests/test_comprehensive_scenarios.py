@@ -1,5 +1,5 @@
 """
-🧪 포괄적인 LGBM 앙상블 모델 시나리오 테스트
+포괄적인 LGBM 앙상블 모델 시나리오 테스트
 
 사람의 관점에서 생각한 다양한 유저 시나리오를 테스트합니다.
 - 6개 피처: app_crash_count_30d, skip_rate_increase_7d, days_since_last_login,
@@ -9,7 +9,7 @@
 import sys
 import os
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 from backend.inference_sim_6feat_lgbm import predict_churn_6feat_lgbm
 
 

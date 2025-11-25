@@ -3,7 +3,7 @@ check_rate.py
 Auth: 신지용
 
 역할:
-- 학습에 사용한 CSV(`data/enhanced_data_not_clean_FE_delete.csv`)를 전체 로드하고
+- 학습에 사용한 CSV(`data/processed/enhanced_data_not_clean_FE_delete.csv`)를 전체 로드하고
 - 지정한 모델(`model_name`)로 각 유저의 이탈 확률(`churn_prob`)을 계산한 뒤
   - 전체 평균 이탈 확률 / threshold 기준 예측 이탈률을 출력하고
   - 모든 유저에 대해 간단한 표(user_id, is_churned, churn_prob, risk_level)를 콘솔에 출력한다.
@@ -29,7 +29,7 @@ from backend.inference import predict_churn
 
 
 # 1) 학습에 사용했던 CSV 불러오기
-df = pd.read_csv("data/enhanced_data_not_clean_FE_delete.csv")
+df = pd.read_csv("data/processed/enhanced_data_not_clean_FE_delete.csv")
 n_total = len(df)
 print(f"총 {n_total}개 샘플에 대해 이탈 확률 계산 시작...")
 
@@ -73,6 +73,6 @@ preview = df[cols_to_show].sort_values("user_id").reset_index(drop=True)
 print(preview.to_string(index=False))
 
 # 4) churn_prob / risk_level 이 포함된 CSV 저장
-output_path = "data/enhanced_data_with_lgbm_churn_prob.csv"
+output_path = "data/processed/enhanced_data_with_lgbm_churn_prob.csv"
 df.to_csv(output_path, index=False, encoding="utf-8-sig")
 print(f"\n✅ 예측 결과 저장 완료: {output_path}")

@@ -2,7 +2,7 @@ import sys
 import os
 
 # 프로젝트 루트 경로를 Python 경로에 추가
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 
 from backend.inference_sim_6feat_lgbm import predict_churn_6feat_lgbm
 

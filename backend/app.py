@@ -333,7 +333,7 @@ def import_user_features_from_csv():
     두 가지 방식 지원:
     1. 파일 업로드: multipart/form-data로 CSV 파일 전송
     2. JSON 데이터: request.json에 rows 배열로 데이터 전송
-    3. 기본 경로: 파일이 없으면 data/enhanced_data_not_clean_FE_delete.csv 사용
+    3. 기본 경로: 파일이 없으면 data/processed/enhanced_data_not_clean_FE_delete.csv 사용
     """
     try:
         df = None
@@ -352,7 +352,7 @@ def import_user_features_from_csv():
         
         # 3. 기본 경로 사용
         if df is None:
-            csv_path = os.path.join("data", "enhanced_data_not_clean_FE_delete.csv")
+            csv_path = os.path.join("data", "processed", "enhanced_data_not_clean_FE_delete.csv")
             if not os.path.exists(csv_path):
                 return jsonify({"success": False, "error": f"CSV 파일을 찾을 수 없습니다. 파일을 업로드하거나 {csv_path} 파일이 존재해야 합니다."}), 404
             df = pd.read_csv(csv_path)
@@ -1021,7 +1021,7 @@ def get_user_features(user_id):
         
         if not row:
             # 테이블에 없으면 CSV에서 조회 (하위 호환성)
-            csv_path = os.path.join("data", "enhanced_data_not_clean_FE_delete.csv")
+            csv_path = os.path.join("data", "processed", "enhanced_data_not_clean_FE_delete.csv")
             if os.path.exists(csv_path):
                 df = pd.read_csv(csv_path)
                 user_row = df[df["user_id"] == user_id]

@@ -52,7 +52,7 @@ _MODEL_CACHE: Dict[str, Any] = {}
 
 def _load_artifacts_if_needed() -> None:
     """
-    data/*.pkl 에 저장된 전처리 결과를 로드하고,
+    data/processed/*.pkl 에 저장된 전처리 결과를 로드하고,
     ColumnTransformer(preprocessor) 객체를 메모리에 적재합니다.
 
     - X_train_processed, X_test_processed: 사용하지 않고 버립니다(이미 변환된 행렬)
@@ -64,7 +64,7 @@ def _load_artifacts_if_needed() -> None:
         return
 
     # backend/preprocessing_pipeline.save_processed_data() 가 저장한 경로를 그대로 사용
-    _, _, _, _, preprocessor = load_processed_data(save_dir="data")
+    _, _, _, _, preprocessor = load_processed_data(save_dir="data/processed")
 
     _PREPROCESSOR = preprocessor
     _ARTIFACTS_LOADED = True
@@ -73,7 +73,7 @@ def _load_artifacts_if_needed() -> None:
 def _get_or_train_model(model_name: str) -> Any:
     """
     요청된 모델 이름에 해당하는 분류 모델을 메모리에서 가져오거나,
-    없으면 data/X_train_processed.pkl, y_train.pkl 기준으로 1회 학습합니다.
+    없으면 data/processed/X_train_processed.pkl, y_train.pkl 기준으로 1회 학습합니다.
 
     주의:
         - 서비스 환경에서는 별도 model.pkl 로 저장해 두는 것이 이상적이나,
@@ -88,7 +88,7 @@ def _get_or_train_model(model_name: str) -> Any:
     # 전처리 아티팩트 로딩 (여기서는 preprocessor 외에 X_train, y_train도 재사용)
     from backend.preprocessing_pipeline import load_processed_data as _load_processed_data
 
-    X_train, _, y_train, _, _ = _load_processed_data(save_dir="data")
+    X_train, _, y_train, _, _ = _load_processed_data(save_dir="data/processed")
 
     model = get_model(name=key, random_state=RANDOM_STATE)
     model.fit(X_train, y_train)

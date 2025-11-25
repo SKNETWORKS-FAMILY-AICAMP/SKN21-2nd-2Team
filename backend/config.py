@@ -11,7 +11,7 @@ from __future__ import annotations
 # -----------------------------------------------------
 # 데이터 및 전처리 관련 설정
 # -----------------------------------------------------
-DATA_PATH: str = "data/enhanced_data_not_clean_FE_delete.csv"
+DATA_PATH: str = "data/processed/enhanced_data_not_clean_FE_delete.csv"
 TEST_SIZE: float = 0.2
 RANDOM_STATE: int = 42
 

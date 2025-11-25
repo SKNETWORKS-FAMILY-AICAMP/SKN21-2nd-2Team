@@ -127,10 +127,10 @@ MODEL_REGISTRY: Dict[ModelName, ModelSpec] = {
     "lgbm": ModelSpec(
         cls=LGBMClassifier if LGBMClassifier is not None else RandomForestClassifier,
         default_params={
-        "n_estimators": 700,
-        "learning_rate": 0.02,
-        "subsample": 0.85,
-        "colsample_bytree": 0.85,
+            "n_estimators": 700,
+            "learning_rate": 0.02,
+            "subsample": 0.85,
+            "colsample_bytree": 0.85,
         },
         supports_random_state=True,
     ),

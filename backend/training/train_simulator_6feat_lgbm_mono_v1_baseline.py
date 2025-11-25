@@ -9,7 +9,7 @@ from sklearn.model_selection import train_test_split
 import joblib
 
 # 프로젝트 루트 경로 추가
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 
 from backend.config import (
     DATA_PATH,

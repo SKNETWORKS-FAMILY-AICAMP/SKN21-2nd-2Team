@@ -6,12 +6,12 @@ import numpy as np
 import pandas as pd
 
 # 프로젝트 루트 경로를 Python 경로에 추가 (backend 패키지 import 가능하게)
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 
 from backend.inference import predict_churn
 
 
-DATA_PATH = os.path.join("data", "enhanced_data_not_clean_FE_delete.csv")
+DATA_PATH = os.path.join("data", "processed", "enhanced_data_not_clean_FE_delete.csv")
 
 # 시뮬레이터 후보 피처들 (전부 다 쓸 게 아니라, 여기서 상위 몇 개를 골라낼 것)
 CANDIDATE_FEATURES: List[str] = [

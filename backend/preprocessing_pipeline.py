@@ -150,7 +150,7 @@ def build_preprocessor(df: pd.DataFrame) -> ColumnTransformer:
 # 5. 전처리 + Train/Test Split (주요 진입점 함수)
 # =====================================================
 def preprocess_and_split(
-    path: str = "data/enhanced_data_not_clean_FE_delete.csv",
+    path: str = "data/processed/enhanced_data_not_clean_FE_delete.csv",
     test_size: float = 0.2,
     random_state: int = 42,
 ) -> Tuple[np.ndarray, np.ndarray, pd.Series, pd.Series, ColumnTransformer]:
