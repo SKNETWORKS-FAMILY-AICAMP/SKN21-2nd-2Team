@@ -3,10 +3,20 @@ main.py (플랫폼 Main 화면)
 Auth: 박수빈
 Date: 2025-11-18
 Description
-- 홈 화면
+- 홈 화면 (일반 유저/관리자)
+- 음악 검색 및 재생 (Spotify 연동)
+- 인기 음악 표시
 - 내 정보 수정
+- 구독해지 기능
+- 위험도 기반 혜택 배너 표시
 - Admin 사용자 데이터 관리
 - Admin 사용자 조회
+- 이탈 예측 (단일/배치/6피처)
+- 예측 결과 조회
+- 예측 CSV 관리
+- 로그 조회
+- 도전과제 관리
+- 도전과제 조회
 """
 import streamlit as st
 import requests
@@ -33,9 +43,21 @@ def _load_player_html(file_path):
     with open(file_path, "r", encoding="utf-8") as f:
         return f.read()
 
-# selectbox input field 편집 불가 처리
+# Spotify 스타일 전역 CSS
 st.markdown("""
 <style>
+/* Spotify 다크 테마 배경 */
+.stApp {
+    background: linear-gradient(180deg, #121212 0%, #191414 100%);
+    color: #ffffff;
+}
+
+/* 메인 컨테이너 스타일 */
+.main .block-container {
+    background-color: transparent;
+    padding-top: 2rem;
+}
+
 /* Streamlit의 selectbox는 Baseweb 컴포넌트의 input 요소를 사용 */
 /* 해당 input 요소의 편집을 불가능하게 만듦 */
 div[data-baseweb="select"] input {
@@ -45,6 +67,316 @@ div[data-baseweb="select"] input {
 /* 커서를 텍스트 수정 커서가 아닌 기본 화살표로 변경 */
 div[data-baseweb="select"] input {
     caret-color: transparent !important;
+}
+
+/* 사이드바 Spotify 스타일 */
+section[data-testid="stSidebar"] {
+    background: linear-gradient(180deg, #000000 0%, #121212 100%);
+    border-right: 1px solid #2a2a2a;
+}
+
+section[data-testid="stSidebar"] .css-1d391kg {
+    background-color: transparent;
+}
+
+/* 제목 및 헤더 스타일 */
+h1, h2, h3, h4, h5, h6 {
+    color: #ffffff !important;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+}
+
+h2 {
+    border-bottom: 2px solid rgba(29, 185, 84, 0.3);
+    padding-bottom: 0.5rem;
+    margin-bottom: 1.5rem;
+}
+
+h3 {
+    color: #ffffff !important;
+    margin-top: 1.5rem;
+    margin-bottom: 1rem;
+}
+
+/* 서브헤더 스타일 */
+div[data-testid="stHeader"] {
+    background-color: #000000 !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+/* 일반 텍스트 색상 */
+p, div, span, label {
+    color: #b3b3b3 !important;
+}
+
+/* 버튼 Spotify 스타일 */
+button[kind="primary"] {
+    background-color: #1DB954 !important;
+    color: #ffffff !important;
+    border: none !important;
+    border-radius: 25px !important;
+    padding: 0.5rem 2rem !important;
+    font-weight: 600 !important;
+    transition: all 0.3s ease !important;
+}
+
+button[kind="primary"]:hover {
+    background-color: #1ed760 !important;
+    transform: scale(1.05) !important;
+}
+
+button:not([kind="primary"]) {
+    background-color: rgba(255, 255, 255, 0.1) !important;
+    color: #ffffff !important;
+    border: 1px solid rgba(255, 255, 255, 0.2) !important;
+    border-radius: 25px !important;
+    padding: 0.5rem 1.5rem !important;
+    transition: all 0.3s ease !important;
+}
+
+button:not([kind="primary"]):hover {
+    background-color: rgba(255, 255, 255, 0.2) !important;
+    transform: scale(1.05) !important;
+}
+
+/* 입력 필드 Spotify 스타일 */
+div[data-testid="stTextInput"] > div > div > input,
+div[data-testid="stTextArea"] > div > div > textarea,
+div[data-baseweb="select"] {
+    background-color: rgba(255, 255, 255, 0.1) !important;
+    color: #ffffff !important;
+    border: 1px solid rgba(255, 255, 255, 0.2) !important;
+    border-radius: 8px !important;
+}
+
+div[data-testid="stTextInput"] > div > div > input:focus,
+div[data-testid="stTextArea"] > div > div > textarea:focus {
+    border-color: #1DB954 !important;
+    box-shadow: 0 0 0 2px rgba(29, 185, 84, 0.2) !important;
+}
+
+/* 컨테이너 스타일 */
+div[data-testid="stVerticalBlock"] > div[style*="border"] {
+    background-color: rgba(255, 255, 255, 0.05) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    border-radius: 12px !important;
+    padding: 1rem !important;
+}
+
+/* 라디오 버튼 Spotify 스타일 */
+div[data-testid="stRadio"] label {
+    color: #ffffff !important;
+}
+
+/* 메트릭 카드 스타일 */
+div[data-testid="stMetricValue"] {
+    color: #1DB954 !important;
+}
+
+/* 차트 및 그래프 배경 */
+div[data-testid="stPlotlyChart"] {
+    background-color: rgba(255, 255, 255, 0.05) !important;
+    border-radius: 12px !important;
+    padding: 1rem !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+/* Matplotlib 차트 스타일 */
+div[data-testid="stImage"] {
+    border-radius: 8px !important;
+}
+
+/* 스피너 스타일 */
+div[data-testid="stSpinner"] {
+    color: #1DB954 !important;
+}
+
+/* 테이블 스타일 */
+div[data-testid="stDataFrame"] {
+    background-color: rgba(255, 255, 255, 0.05) !important;
+    border-radius: 12px !important;
+}
+
+/* 구분선 스타일 */
+hr {
+    border-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+/* 정보/성공/경고 메시지 스타일 */
+div[data-testid="stAlert"] {
+    border-radius: 8px !important;
+}
+
+/* 스크롤바 스타일 */
+::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+
+::-webkit-scrollbar-track {
+    background: #121212;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #2a2a2a;
+    border-radius: 5px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #3a3a3a;
+}
+
+/* 음악 카드 스타일 */
+div[data-testid="stVerticalBlock"] > div[style*="border"] {
+    background: linear-gradient(135deg, rgba(29, 185, 84, 0.05) 0%, rgba(18, 18, 18, 0.8) 100%) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    border-radius: 12px !important;
+    padding: 1rem !important;
+    transition: all 0.3s ease !important;
+}
+
+div[data-testid="stVerticalBlock"] > div[style*="border"]:hover {
+    background: linear-gradient(135deg, rgba(29, 185, 84, 0.1) 0%, rgba(18, 18, 18, 0.9) 100%) !important;
+    border-color: rgba(29, 185, 84, 0.3) !important;
+    transform: translateY(-2px) !important;
+    box-shadow: 0 4px 15px rgba(29, 185, 84, 0.2) !important;
+}
+
+/* 이미지 스타일 */
+img {
+    border-radius: 8px !important;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3) !important;
+}
+
+/* 확장 가능한 섹션 스타일 */
+div[data-testid="stExpander"] {
+    background-color: rgba(255, 255, 255, 0.05) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    border-radius: 8px !important;
+}
+
+/* 라디오 버튼 컨테이너 */
+section[data-testid="stSidebar"] div[data-testid="stRadio"] {
+    background-color: rgba(255, 255, 255, 0.05) !important;
+    padding: 1rem !important;
+    border-radius: 8px !important;
+    margin: 0.5rem 0 !important;
+}
+
+/* 라디오 버튼 선택된 항목 스타일 */
+section[data-testid="stSidebar"] div[data-testid="stRadio"] > div > label {
+    color: #ffffff !important;
+    font-weight: 500 !important;
+}
+
+section[data-testid="stSidebar"] div[data-testid="stRadio"] > div > label > div[data-testid="stMarkdownContainer"] {
+    color: #ffffff !important;
+}
+
+/* 사이드바 텍스트 스타일 */
+section[data-testid="stSidebar"] p,
+section[data-testid="stSidebar"] div,
+section[data-testid="stSidebar"] span {
+    color: #b3b3b3 !important;
+}
+
+section[data-testid="stSidebar"] h3 {
+    color: #ffffff !important;
+    font-weight: 700 !important;
+}
+
+/* 슬라이더 스타일 */
+div[data-testid="stSlider"] {
+    color: #1DB954 !important;
+}
+
+/* 체크박스 스타일 */
+div[data-testid="stCheckbox"] label {
+    color: #ffffff !important;
+}
+
+/* 멀티셀렉트 스타일 */
+div[data-baseweb="select"] {
+    background-color: rgba(255, 255, 255, 0.1) !important;
+    border-radius: 8px !important;
+}
+
+/* 데이터프레임 스타일 */
+.dataframe {
+    background-color: rgba(255, 255, 255, 0.05) !important;
+    color: #ffffff !important;
+}
+
+/* 캡션 스타일 */
+.caption {
+    color: #b3b3b3 !important;
+}
+
+/* 메트릭 카드 강조 */
+div[data-testid="stMetricContainer"] {
+    background: linear-gradient(135deg, rgba(29, 185, 84, 0.1) 0%, rgba(18, 18, 18, 0.8) 100%) !important;
+    border: 1px solid rgba(29, 185, 84, 0.2) !important;
+    border-radius: 12px !important;
+    padding: 1rem !important;
+}
+
+/* 정보 메시지 스타일 */
+div[data-testid="stAlert"] {
+    background-color: rgba(255, 255, 255, 0.05) !important;
+    border-left: 4px solid #1DB954 !important;
+    border-radius: 8px !important;
+}
+
+/* 경고 메시지 스타일 */
+div[data-testid="stAlert"] div[role="alert"] {
+    color: #ffffff !important;
+}
+
+/* 파일 업로더 스타일 */
+div[data-testid="stFileUploader"] {
+    background-color: rgba(255, 255, 255, 0.05) !important;
+    border: 1px dashed rgba(255, 255, 255, 0.2) !important;
+    border-radius: 8px !important;
+    padding: 1rem !important;
+}
+
+div[data-testid="stFileUploader"]:hover {
+    border-color: rgba(29, 185, 84, 0.5) !important;
+    background-color: rgba(29, 185, 84, 0.05) !important;
+}
+
+/* 탭 스타일 */
+div[data-baseweb="tabs"] {
+    background-color: transparent !important;
+}
+
+div[data-baseweb="tabs"] > div > div {
+    background-color: rgba(255, 255, 255, 0.05) !important;
+    border-radius: 8px !important;
+}
+
+/* 프로그레스 바 스타일 */
+div[data-testid="stProgress"] > div > div {
+    background-color: #1DB954 !important;
+}
+
+/* 구분선 스타일 개선 */
+hr {
+    border: none !important;
+    border-top: 1px solid rgba(255, 255, 255, 0.1) !important;
+    margin: 2rem 0 !important;
+}
+
+/* 선택된 항목 강조 */
+div[data-baseweb="select"] > div[aria-selected="true"] {
+    background-color: #1DB954 !important;
+    color: #ffffff !important;
+}
+
+/* 포커스 상태 스타일 */
+*:focus {
+    outline: 2px solid rgba(29, 185, 84, 0.5) !important;
+    outline-offset: 2px !important;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -106,10 +438,9 @@ def call_api_post(endpoint: str, payload: dict):
     except Exception as e:
         return False, {"error": str(e)}
 
-@st.cache_data(ttl=300, show_spinner=False)  # 5분 캐싱, 검색 결과는 캐싱
 def search_tracks_api_cached(query, limit, offset, access_token):
     """
-    백엔드 API를 호출하여 트랙 검색 (캐싱 적용)
+    백엔드 API를 호출하여 트랙 검색
     """
     try:
         headers = {"Authorization": f"Bearer {access_token}"}
@@ -121,10 +452,16 @@ def search_tracks_api_cached(query, limit, offset, access_token):
         res = requests.get(f"{API_URL}/music/search", headers=headers, params=params, timeout=10)
         
         if res.status_code == 200:
-            return res.json().get("tracks", [])
+            data = res.json()
+            tracks = data.get("tracks", [])
+            # 디버깅: 검색 결과 개수 확인
+            print(f"[검색] 쿼리: {query}, 결과 개수: {len(tracks)}")
+            return tracks
         else:
+            print(f"[검색 오류] 상태 코드: {res.status_code}")
             return []
     except Exception as e:
+        print(f"[검색 예외] {str(e)}")
         return []
 
 def search_tracks_api(query, limit=20, offset=0):
@@ -135,6 +472,66 @@ def search_tracks_api(query, limit=20, offset=0):
         return []
     
     return search_tracks_api_cached(query, limit, offset, st.session_state.access_token)
+
+def get_popular_tracks(access_token, limit=3):
+    """
+    Spotify 인기 음악 가져오기 (인기 트랙 검색)
+    """
+    try:
+        # 인기 있는 트랙 검색 (year:2024로 최신 인기 트랙)
+        headers = {"Authorization": f"Bearer {access_token}"}
+        params = {
+            "q": "year:2024",
+            "type": "track",
+            "limit": 50,
+            "offset": 0
+        }
+        res = requests.get(f"{API_URL}/music/search", headers=headers, params=params, timeout=10)
+        
+        if res.status_code == 200:
+            data = res.json()
+            tracks = data.get("tracks", [])
+            # 인기도 순으로 정렬하고 상위 limit개만 반환
+            tracks_sorted = sorted(tracks, key=lambda x: x.get("popularity", 0), reverse=True)
+            return tracks_sorted[:limit]
+        else:
+            return []
+    except Exception as e:
+        print(f"[인기 음악 가져오기 오류] {str(e)}")
+        return []
+
+def get_recommended_tracks(access_token, genre, limit=3):
+    """
+    사용자의 좋아하는 장르를 기준으로 추천 음악 가져오기
+    """
+    try:
+        if not genre:
+            return []
+        
+        # 장르명을 Spotify 검색 형식에 맞게 변환
+        # K-Pop -> k-pop, Hip Hop -> hip-hop 등
+        genre_lower = genre.lower().replace(" ", "-")
+        
+        headers = {"Authorization": f"Bearer {access_token}"}
+        params = {
+            "q": f'genre:"{genre_lower}"',
+            "type": "track",
+            "limit": 50,
+            "offset": 0
+        }
+        res = requests.get(f"{API_URL}/music/search", headers=headers, params=params, timeout=10)
+        
+        if res.status_code == 200:
+            data = res.json()
+            tracks = data.get("tracks", [])
+            # 인기도 순으로 정렬하고 상위 limit개만 반환
+            tracks_sorted = sorted(tracks, key=lambda x: x.get("popularity", 0), reverse=True)
+            return tracks_sorted[:limit]
+        else:
+            return []
+    except Exception as e:
+        print(f"[추천 음악 가져오기 오류] {str(e)}")
+        return []
 
 # ----------------------------------------------------------
 # 서브 페이지 함수들
@@ -154,6 +551,10 @@ def show_home_page():
 
 def show_user_home_page():
     """일반 유저(01) 홈 화면 - 음악 재생"""
+    user = st.session_state.user_info
+    user_id = user.get("user_id") if user else None
+    
+    
     st.markdown("## 🎵 Music Search & Player")
     
     # Spotify 토큰 확인 (필수)
@@ -165,6 +566,118 @@ def show_user_home_page():
             st.session_state.logged_in = False
             st.rerun()
         st.stop()
+
+    # 인기 음악과 추천 음악 표시 (가이드 배너와 검색 기능 중간)
+    col_popular, col_recommended = st.columns(2)
+    
+    with col_popular:
+        st.markdown("### 🔥 현재 인기 음악")
+        
+        # 인기 음악 가져오기 (캐싱)
+        popular_tracks_key = "popular_tracks_cache"
+        if popular_tracks_key not in st.session_state:
+            with st.spinner("인기 음악을 불러오는 중..."):
+                popular_tracks = get_popular_tracks(st.session_state.access_token, limit=3)
+                st.session_state[popular_tracks_key] = popular_tracks
+        
+        popular_tracks = st.session_state.get(popular_tracks_key, [])
+        
+        if popular_tracks:
+            # 3개를 가로로 정렬 (크기 축소)
+            cols = st.columns(3)
+            for idx, track in enumerate(popular_tracks[:3]):
+                with cols[idx]:
+                    # 앨범 이미지 (크기 축소)
+                    image_url = None
+                    if track.get("album") and track["album"].get("images"):
+                        image_url = track["album"]["images"][0]["url"] if track["album"]["images"] else None
+                    
+                    if image_url:
+                        try:
+                            st.image(image_url, width=280)
+                        except:
+                            st.write("🎵")
+                    else:
+                        st.write("🎵")
+                    
+                    # 트랙 정보
+                    track_name = track.get("name", "알 수 없음")
+                    artists = ", ".join([artist["name"] for artist in track.get("artists", [])])
+                    track_uri = track.get("uri", "")
+                    
+                    st.markdown(f"**{track_name[:18]}{'...' if len(track_name) > 18 else ''}**")
+                    st.caption(f"👤 {artists[:22]}{'...' if len(artists) > 22 else ''}")
+                    
+                    # 재생 버튼
+                    if st.button("▶ 재생", key=f"popular_play_{idx}", use_container_width=True):
+                        st.session_state.selected_track = {
+                            "uri": track_uri,
+                            "name": track_name,
+                            "artists": artists,
+                            "image_url": image_url
+                        }
+                        st.rerun()
+        else:
+            st.info("인기 음악을 불러올 수 없습니다.")
+    
+    with col_recommended:
+        # 사용자의 좋아하는 음악 장르 가져오기
+        favorite_music = user.get("favorite_music", "")
+        
+        if favorite_music:
+            st.markdown(f"### 🎯 {favorite_music} 추천 음악")
+            
+            # 추천 음악 가져오기 (캐싱)
+            recommended_tracks_key = f"recommended_tracks_cache_{user_id}_{favorite_music}"
+            if recommended_tracks_key not in st.session_state:
+                with st.spinner("추천 음악을 불러오는 중..."):
+                    recommended_tracks = get_recommended_tracks(st.session_state.access_token, favorite_music, limit=3)
+                    st.session_state[recommended_tracks_key] = recommended_tracks
+            
+            recommended_tracks = st.session_state.get(recommended_tracks_key, [])
+            
+            if recommended_tracks:
+                # 3개를 가로로 정렬
+                cols = st.columns(3)
+                for idx, track in enumerate(recommended_tracks[:3]):
+                    with cols[idx]:
+                        # 앨범 이미지
+                        image_url = None
+                        if track.get("album") and track["album"].get("images"):
+                            image_url = track["album"]["images"][0]["url"] if track["album"]["images"] else None
+                        
+                        if image_url:
+                            try:
+                                st.image(image_url, width=280)
+                            except:
+                                st.write("🎵")
+                        else:
+                            st.write("🎵")
+                        
+                        # 트랙 정보
+                        track_name = track.get("name", "알 수 없음")
+                        artists = ", ".join([artist["name"] for artist in track.get("artists", [])])
+                        track_uri = track.get("uri", "")
+                        
+                        st.markdown(f"**{track_name[:18]}{'...' if len(track_name) > 18 else ''}**")
+                        st.caption(f"👤 {artists[:22]}{'...' if len(artists) > 22 else ''}")
+                        
+                        # 재생 버튼
+                        if st.button("▶ 재생", key=f"recommended_play_{idx}", use_container_width=True):
+                            st.session_state.selected_track = {
+                                "uri": track_uri,
+                                "name": track_name,
+                                "artists": artists,
+                                "image_url": image_url
+                            }
+                            st.rerun()
+            else:
+                st.info(f"{favorite_music} 장르의 추천 음악을 불러올 수 없습니다.")
+        else:
+            st.markdown("### 🎯 추천 음악")
+            st.info("좋아하는 음악 장르를 설정하면 추천 음악을 받아볼 수 있습니다.")
+    
+    st.markdown("---")
 
     # 메인 컨텐츠 영역 (검색 및 플레이어)
     col1, col2 = st.columns([2, 1])
@@ -238,6 +751,7 @@ def show_user_home_page():
                         new_tracks = [t for t in new_tracks if t.get("popularity", 0) >= min_popularity]
                     
                     st.session_state.search_results = new_tracks
+                    print(f"[검색 결과 저장] {len(new_tracks)}개 트랙 저장됨")
                     
                     if len(new_tracks) < 20:
                         st.session_state.has_more = False
@@ -258,14 +772,18 @@ def show_user_home_page():
                 duration_str = f"{duration_ms // 60000}:{(duration_ms % 60000) // 1000:02d}"
                 
                 images = track.get("album", {}).get("images", [])
-                image_url = images[0].get("url") if images else None
+                image_url = images[0].get("url") if images and len(images) > 0 else None
                 track_uri = track.get("uri", "")
                 
                 with st.container(border=True):
                     cols = st.columns([1, 4, 1])
                     with cols[0]:
                         if image_url:
-                            st.image(image_url, width=60)
+                            try:
+                                st.image(image_url, width=60)
+                            except Exception as e:
+                                # 이미지 로드 실패 시 대체 표시
+                                st.write("🎵")
                         else:
                             st.write("🎵")
                     with cols[1]:
@@ -277,12 +795,14 @@ def show_user_home_page():
                         with col_play:
                             if st.button("▶", key=f"play_{idx}", help="이 곡 재생", use_container_width=True):
                                 st.session_state.selected_track = {
-                                "uri": track_uri,
-                                "name": track_name,
-                                "artists": artists,
-                                "image_url": image_url
-                            }
-                            st.rerun()
+                                    "uri": track_uri,
+                                    "name": track_name,
+                                    "artists": artists,
+                                    "image_url": image_url
+                                }
+                                st.rerun()
+                        with col_add:
+                            pass  # 추가 기능이 필요하면 여기에
             
             if st.session_state.get("has_more", False):
                  if st.button("더 보기 (Load More)", key="load_more_btn", use_container_width=True):
@@ -561,101 +1081,101 @@ def render_top_guide_banner(page_name="default"):
     guides = {
         "home": """
             <b style="font-size:17px;">🎵 홈 화면 이용 가이드</b><br>
-            • Spotify 음악 검색 및 재생 기능을 사용할 수 있습니다.<br>
-            • 검색어를 입력하고 원하는 트랙을 찾아 재생하세요.<br>
-            • Spotify 인증이 필요합니다. 로그인 화면에서 인증을 완료해주세요.<br>
-            • 재생할 트랙을 선택하면 플레이어가 자동으로 표시됩니다.
+            • 음악 검색창에 원하는 곡명, 아티스트명을 입력하고 검색 버튼을 클릭하세요.<br>
+            • 검색 결과에서 재생하고 싶은 곡을 선택하면 플레이어가 자동으로 표시됩니다.<br>
+            • 상세 필터를 사용하여 발매 연도, 장르, 인기도 등으로 검색 범위를 좁힐 수 있습니다.<br>
+            • 화면 상단의 인기 음악을 클릭하여 바로 재생할 수도 있습니다.<br>
+            • 재생 중인 곡은 오른쪽 플레이어에서 제어할 수 있습니다.
         """,
         "profile": """
-            <b style="font-size:17px;">👤 개인정보 수정 이용 가이드</b><br>
-            • 이름, 좋아하는 음악, 등급을 수정할 수 있습니다.<br>
-            • 등급은 관리자(99)만 수정 가능합니다.<br>
-            • 정보를 수정한 후 '저장' 버튼을 클릭해야 변경사항이 적용됩니다.<br>
-            • 구독해지를 하시면 휴면 유저(등급 00)로 전환되고 이탈 위험도가 높음으로 설정됩니다.<br>
-            • 관리자는 구독해지 기능을 사용할 수 없습니다.
+            <b style="font-size:17px;">👤 내 정보 수정 이용 가이드</b><br>
+            • 이름과 좋아하는 음악 장르를 수정할 수 있습니다.<br>
+            • 정보를 변경한 후 반드시 '저장' 버튼을 클릭해야 변경사항이 반영됩니다.<br>
+            • 구독해지 버튼을 클릭하면 구독해지 양식이 표시됩니다.<br>
+            • 구독해지를 완료하면 계정이 휴면 상태로 전환되어 로그인이 불가능해집니다.
         """,
         "logs": """
-            <b style="font-size:17px;">📋 로그 조회 이용 가이드</b><br>
-            • 사용자 활동 로그를 조회할 수 있습니다. (관리자 전용)<br>
-            • User ID로 특정 사용자의 로그만 필터링할 수 있습니다.<br>
-            • 액션 타입(LOGIN, PAGE_VIEW, UNSUBSCRIBE)으로 필터링할 수 있습니다.<br>
-            • 페이지 크기를 조정하여 한 번에 볼 로그 수를 설정할 수 있습니다.<br>
-            • 로그는 최신순으로 정렬되어 표시됩니다.
+            <b style="font-size:17px;">📋 사용자 활동 로그 조회 이용 가이드</b><br>
+            • 사용자들의 로그인, 페이지 접근, 구독해지 등의 활동 내역을 확인할 수 있습니다. (관리자 전용)<br>
+            • 사용자 ID를 입력하면 해당 사용자의 활동만 조회할 수 있습니다.<br>
+            • 활동 유형(로그인, 페이지 조회, 구독해지)으로 필터링하여 원하는 활동만 확인할 수 있습니다.<br>
+            • 한 페이지에 표시할 로그 개수를 조정할 수 있습니다.<br>
+            • 모든 로그는 시간순으로 정렬되어 최신 활동이 먼저 표시됩니다.
         """,
         "churn_single": """
-            <b style="font-size:17px;">📊 단일 유저 이탈 예측 이용 가이드</b><br>
-            • User ID를 입력하고 '유저 데이터 불러오기' 버튼을 클릭하세요.<br>
-            • user_features 테이블에서 해당 유저의 데이터를 자동으로 불러옵니다.<br>
-            • 피처 값을 수정한 후 '예측 실행' 버튼을 클릭하면 이탈 확률과 위험도를 확인할 수 있습니다.<br>
-            • 예측 결과는 자동으로 user_prediction 테이블에 저장됩니다.<br>
-            • 이탈 확률은 0~100%로 표시되며, 위험도는 LOW/MEDIUM/HIGH로 표시됩니다.
+            <b style="font-size:17px;">📊 개별 사용자 이탈 예측 이용 가이드</b><br>
+            • 사용자 ID를 입력하고 '유저 데이터 불러오기' 버튼을 클릭하세요.<br>
+            • 해당 사용자의 이용 데이터가 자동으로 불러와집니다.<br>
+            • 필요시 청취 시간, 로그인 빈도 등의 데이터를 수정할 수 있습니다.<br>
+            • '예측 실행' 버튼을 클릭하면 이탈 가능성과 위험도가 표시됩니다.<br>
+            • 이탈 확률은 0~100%로 표시되며, 위험도는 낮음/보통/높음으로 구분됩니다.
         """,
         "churn_bulk": """
-            <b style="font-size:17px;">📊 배치 이탈 예측 이용 가이드</b><br>
-            • CSV 파일을 업로드하거나 수동으로 데이터를 입력할 수 있습니다.<br>
-            • CSV 파일에는 user_id 컬럼이 포함되어야 하며, user_features 테이블에서 자동으로 조회됩니다.<br>
-            • 여러 유저의 이탈 확률을 한 번에 예측할 수 있습니다.<br>
-            • 예측 결과는 차트로 시각화되어 표시됩니다.<br>
-            • 모든 예측 결과는 자동으로 user_prediction 테이블에 저장됩니다.
+            <b style="font-size:17px;">📊 다수 사용자 이탈 예측 이용 가이드</b><br>
+            • 여러 사용자의 이탈 가능성을 한 번에 예측할 수 있습니다.<br>
+            • CSV 파일을 업로드하거나 화면에서 직접 데이터를 입력할 수 있습니다.<br>
+            • CSV 파일에는 사용자 ID가 포함되어 있어야 하며, 시스템에서 자동으로 해당 사용자의 데이터를 불러옵니다.<br>
+            • 예측 결과는 차트로 시각화되어 위험도별 분포를 한눈에 확인할 수 있습니다.
         """,
         "churn_6feat": """
-            <b style="font-size:17px;">📊 6피처 이탈 예측 이용 가이드</b><br>
-            • 6개의 핵심 피처만 사용하여 이탈 예측을 수행합니다.<br>
-            • 필수 피처: app_crash_count_30d, skip_rate_increase_7d, days_since_last_login,<br>
-            &nbsp;&nbsp;listening_time_trend_7d, freq_of_use_trend_14d, login_frequency_30d<br>
-            • User ID를 입력하면 user_features 테이블에서 자동으로 데이터를 불러옵니다.<br>
-            • 예측 결과는 user_prediction 테이블에 자동으로 저장됩니다.
+            <b style="font-size:17px;">📊 간편 이탈 예측 이용 가이드</b><br>
+            • 6가지 핵심 지표만으로 빠르게 이탈 가능성을 예측할 수 있습니다.<br>
+            • 필수 입력 항목: 앱 오류 횟수, 스킵 증가율, 마지막 로그인 경과일,<br>
+            &nbsp;&nbsp;청취 시간 추이, 이용 빈도 추이, 로그인 빈도<br>
+            • 사용자 ID를 입력하면 해당 사용자의 최근 데이터가 자동으로 불러와집니다.<br>
+            • 데이터를 수정한 후 예측을 실행하면 즉시 결과를 확인할 수 있습니다.
         """,
         "prediction_results": """
-            <b style="font-size:17px;">📈 예측 결과 조회 이용 가이드</b><br>
-            • user_prediction 테이블에 저장된 예측 결과를 조회할 수 있습니다. (관리자 전용)<br>
-            • User ID로 특정 사용자의 예측 결과를 검색할 수 있습니다.<br>
-            • 위험도(LOW/MEDIUM/HIGH)로 필터링할 수 있습니다.<br>
-            • 예측 결과는 테이블 형식으로 표시되며, 통계 정보도 함께 제공됩니다.
+            <b style="font-size:17px;">📈 이탈 예측 결과 조회 이용 가이드</b><br>
+            • 이전에 실행한 모든 이탈 예측 결과를 조회할 수 있습니다. (관리자 전용)<br>
+            • 사용자 ID를 입력하면 특정 사용자의 예측 결과만 검색할 수 있습니다.<br>
+            • 위험도(낮음/보통/높음)로 필터링하여 위험 사용자만 따로 확인할 수 있습니다.<br>
+            • 예측 결과는 표로 정리되어 표시되며, 전체 통계 정보도 함께 제공됩니다.<br>
+            • 각 사용자의 이탈 확률과 위험도를 한눈에 비교할 수 있습니다.
         """,
         "prediction_csv": """
-            <b style="font-size:17px;">📁 예측 결과 CSV 관리 이용 가이드</b><br>
-            • CSV 파일을 업로드하여 일괄 예측을 수행할 수 있습니다. (관리자 전용)<br>
-            • 필수 컬럼: user_id, app_crash_count_30d, skip_rate_increase_7d, days_since_last_login,<br>
-            &nbsp;&nbsp;listening_time_trend_7d, freq_of_use_trend_14d, login_frequency_30d<br>
-            • 예측 결과를 CSV 파일로 다운로드할 수 있습니다.<br>
-            • 예측 결과는 user_prediction 테이블에 자동으로 저장됩니다.
+            <b style="font-size:17px;">📁 대량 예측 및 결과 다운로드 이용 가이드</b><br>
+            • CSV 파일을 업로드하여 많은 사용자의 이탈 예측을 한 번에 수행할 수 있습니다. (관리자 전용)<br>
+            • CSV 파일에는 사용자 ID와 6가지 핵심 지표가 포함되어 있어야 합니다.<br>
+            • 예측이 완료되면 결과를 CSV 파일로 다운로드하여 엑셀 등에서 분석할 수 있습니다.<br>
+            • 다운로드한 파일에는 사용자별 이탈 확률과 위험도가 포함되어 있습니다.
         """,
         "user_admin": """
-            <b style="font-size:17px;">🛠 사용자 데이터 관리 이용 가이드</b><br>
-            • 데이터베이스 테이블을 생성하고 CSV 데이터를 import할 수 있습니다. (관리자 전용)<br>
-            • User Table, User Features Table, User Prediction Table, Log Table을 생성할 수 있습니다.<br>
-            • CSV 파일을 업로드하여 user_features 테이블에 데이터를 삽입할 수 있습니다.<br>
-            • 기본 경로의 CSV 파일(data/enhanced_data_not_clean_FE_delete.csv)을 사용할 수도 있습니다.
+            <b style="font-size:17px;">🛠 시스템 초기 설정 이용 가이드</b><br>
+            • 시스템을 처음 사용할 때 필요한 데이터 저장소를 준비할 수 있습니다. (관리자 전용)<br>
+            • 사용자 정보, 예측 데이터, 활동 로그 등을 저장할 공간을 생성합니다.<br>
+            • CSV 파일을 업로드하여 사용자 데이터를 일괄 등록할 수 있습니다.<br>
+            • 각 저장소는 필요한 시점에 생성하면 되며, 이미 생성된 경우 다시 생성할 필요가 없습니다.
         """,
         "user_search": """
-            <b style="font-size:17px;">🔍 사용자 조회 이용 가이드</b><br>
-            • 이름, User ID, 좋아하는 음악, 등급으로 사용자를 검색할 수 있습니다. (관리자 전용)<br>
-            • 각 사용자의 등급을 수정할 수 있습니다.<br>
-            • 사용자의 위험도(이탈 위험도)를 확인할 수 있습니다.<br>
-            • 페이징 기능을 사용하여 많은 사용자 데이터를 효율적으로 조회할 수 있습니다.
+            <b style="font-size:17px;">🔍 사용자 조회 및 관리 이용 가이드</b><br>
+            • 이름, 사용자 ID, 좋아하는 음악, 등급으로 사용자를 검색할 수 있습니다. (관리자 전용)<br>
+            • 검색 결과에서 각 사용자의 등급을 변경할 수 있습니다.<br>
+            • 각 사용자의 이탈 위험도를 확인하여 위험 사용자를 파악할 수 있습니다.<br>
+            • 많은 사용자가 있을 경우 페이지 번호를 선택하여 효율적으로 조회할 수 있습니다.<br>
+            • 사용자별 상세 정보와 최근 활동 내역을 한 화면에서 확인할 수 있습니다.
         """,
         "achievements": """
             <b style="font-size:17px;">🏆 도전과제 이용 가이드</b><br>
             • 특정 노래나 장르의 노래를 일정 횟수 이상 들으면 도전과제를 달성할 수 있습니다.<br>
-            • 노래를 재생하면 자동으로 재생 로그가 기록되고 도전과제 진행도가 업데이트됩니다.<br>
+            • 노래를 재생하면 자동으로 도전과제 진행도가 업데이트됩니다.<br>
             • 도전과제를 완료하면 보상 포인트를 받을 수 있습니다.<br>
-            • 완료된 도전과제와 진행 중인 도전과제를 확인할 수 있습니다.<br>
-            • 완료된 도전과제를 칭호로 선택하여 사이드바에 표시할 수 있습니다.
+            • 완료된 도전과제와 진행 중인 도전과제를 구분하여 확인할 수 있습니다.<br>
+            • 완료한 도전과제 중 하나를 칭호로 선택하면 프로필에 표시됩니다.
         """,
         "achievements_admin": """
             <b style="font-size:17px;">🏆 도전과제 관리 이용 가이드</b><br>
-            • 도전과제를 생성, 조회, 삭제할 수 있습니다. (관리자 전용)<br>
-            • 도전과제 타입: GENRE_PLAY (장르별 재생), TRACK_PLAY (특정 노래 재생)<br>
-            • 목표 값, 보상 포인트 등을 설정할 수 있습니다.<br>
-            • 생성된 도전과제는 모든 사용자에게 적용됩니다.
+            • 새로운 도전과제를 만들거나 기존 도전과제를 삭제할 수 있습니다. (관리자 전용)<br>
+            • 도전과제 유형: 특정 장르 재생하기, 특정 노래 재생하기<br>
+            • 목표 재생 횟수와 보상 포인트를 설정할 수 있습니다.<br>
+            • 생성한 도전과제는 모든 사용자에게 자동으로 적용됩니다.<br>
+            • 도전과제 통계를 확인하여 사용자들의 참여 현황을 파악할 수 있습니다.
         """,
         "default": """
             <b style="font-size:17px;">📘 이용 가이드</b><br>
-            • 왼쪽 사이드바에서 원하는 기능을 선택하세요.<br>
-            • 권한(grade)에 따라 접근 가능한 메뉴가 달라질 수 있습니다.<br>
-            • 관리자(99)는 추가 관리 기능을 사용할 수 있습니다.<br>
-            • 모든 페이지 상단에 이 안내가 항상 표시됩니다.
+            • 왼쪽 사이드바에서 원하는 메뉴를 선택하세요.<br>
+            • 계정 권한에 따라 사용할 수 있는 메뉴가 다를 수 있습니다.<br>
+            • 관리자 계정은 사용자 관리, 예측 결과 조회 등 추가 기능을 사용할 수 있습니다.
         """
     }
     
@@ -663,13 +1183,15 @@ def render_top_guide_banner(page_name="default"):
     
     # HTML을 제대로 렌더링하기 위해 f-string 대신 직접 결합
     html_content = f"""<div style="
-            background-color: #1f2937;
-            padding: 15px 20px;
-            border-radius: 10px;
+            background: linear-gradient(135deg, rgba(29, 185, 84, 0.15) 0%, rgba(18, 18, 18, 0.9) 100%);
+            padding: 20px 25px;
+            border-radius: 12px;
             margin-bottom: 25px;
-            color: white;
+            color: #ffffff;
             font-size: 16px;
-            border-left: 5px solid #3b82f6;
+            border-left: 4px solid #1DB954;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(10px);
         ">{guide_text.strip()}</div>"""
     
     st.markdown(html_content, unsafe_allow_html=True)
@@ -931,7 +1453,6 @@ def show_profile_page():
     if grade != "99":  # 관리자는 구독해지 불가
         st.markdown("---")
         st.markdown("### 🚪 구독해지")
-        st.warning("⚠️ 구독해지를 하시면 이탈 위험도가 높음으로 설정됩니다.")
         
         # 구독해지 모달 상태 관리
         if f"unsubscribe_modal_{user_id}" not in st.session_state:
@@ -947,7 +1468,7 @@ def show_profile_page():
                 with st.container():
                     st.markdown("---")
                     st.markdown("### 📝 구독해지 양식")
-                    st.info("구독해지를 진행하시겠습니까? 이탈 위험도가 높음으로 설정됩니다.")
+                    st.info("구독해지를 진행하시겠습니까?")
                     
                     reason = st.selectbox(
                         "구독해지 사유",
@@ -1192,8 +1713,8 @@ def search_user():
     # 조회 필드 UI - 한 줄에 나열하여 보기 좋게 정리 (FHD 기준으로 더 넓게)
     st.markdown("### 조회 조건")
     
-    # 필터 필드들을 한 줄에 나열 (FHD 화면에 맞게 비율 조정)
-    filter_col1, filter_col2, filter_col3, filter_col4, filter_col5 = st.columns([2.5, 2.5, 2.5, 2.5, 1.5])
+    # 필터 필드들을 한 줄에 나열 (FHD 화면에 맞게 비율 조정, 위험도 필터 추가)
+    filter_col1, filter_col2, filter_col3, filter_col4, filter_col5, filter_col6 = st.columns([2, 2, 2, 2, 2, 1.5])
     
     with filter_col1:
         search_name = st.text_input("이름 조회", placeholder="이름을 입력하세요")
@@ -1217,6 +1738,14 @@ def search_user():
         else:
             search_grade = selected_grade_filter.split(":")[0].strip()
     with filter_col5:
+        # 위험도 필터 추가
+        risk_filter_options = ["전체", "LOW: 낮음", "MEDIUM: 중간", "HIGH: 높음", "UNKNOWN: 알 수 없음"]
+        selected_risk_filter = st.selectbox("위험도", options=risk_filter_options, key="search_risk_filter")
+        if selected_risk_filter == "전체":
+            search_risk = ""
+        else:
+            search_risk = selected_risk_filter.split(":")[0].strip()
+    with filter_col6:
         page_size = st.selectbox("페이지 크기", [10, 20, 30, 50], index=1)
 
     # 페이지 상태 및 조회 실행 여부 관리
@@ -1246,6 +1775,7 @@ def search_user():
             "user_id": search_user_id,
             "favorite_music": search_music,
             "grade": search_grade,
+            "risk_score": search_risk,
             "page_size": page_size
         }
         st.rerun()
@@ -1261,6 +1791,7 @@ def search_user():
     current_search_user_id = saved_params.get("user_id", "")
     current_search_music = saved_params.get("favorite_music", "")
     current_search_grade = saved_params.get("grade", "")
+    current_search_risk = saved_params.get("risk_score", "")
     current_page_size = saved_params.get("page_size", page_size)
 
     # API 요청 URL 구성
@@ -1270,6 +1801,7 @@ def search_user():
         f"&user_id={current_search_user_id}"
         f"&favorite_music={current_search_music}"
         f"&grade={current_search_grade}"
+        f"&risk_score={current_search_risk}"
     )
 
     ok, res = call_api(api_url)
@@ -2035,18 +2567,6 @@ def show_churn_prediction_page():
     st.write("전체 피처를 사용하여 유저의 이탈 확률을 예측합니다.")
     st.markdown("---")
     
-    # 테이블 생성 안내 및 버튼
-    with st.expander("⚠️ 테이블이 없으면 먼저 생성하세요"):
-        if st.button("📊 User Prediction Table 생성", key="init_pred_table_1"):
-            try:
-                res = requests.get(f"{API_URL}/init_user_prediction_table")
-                if res.status_code == 200:
-                    st.success("테이블 생성 완료!")
-                else:
-                    st.error(f"테이블 생성 실패: {res.status_code}")
-            except Exception as e:
-                st.error(f"오류 발생: {str(e)}")
-    
     # User ID 입력
     user_id = st.number_input("User ID", min_value=1, value=1, step=1)
     
@@ -2079,7 +2599,8 @@ def show_churn_prediction_page():
             app_crash_count_30d = st.number_input("app_crash_count_30d", value=int(features.get("app_crash_count_30d", 0)), step=1)
         
         with col2:
-            subscription_type = st.selectbox("subscription_type", ["Free", "Premium"], index=0 if features.get("subscription_type") == "Free" else 1)
+            subscription_type = st.selectbox("subscription_type", ["Free", "Premium", "Family"], 
+                                             index=0 if features.get("subscription_type") == "Free" else (1 if features.get("subscription_type") == "Premium" else 2))
             customer_support_contact = st.number_input("customer_support_contact", value=int(features.get("customer_support_contact", 0)), step=1)
         
         # 추가 피처들 (필요한 경우)
@@ -2213,21 +2734,36 @@ def show_churn_prediction_bulk_page():
                     
                     # 한 번에 모든 데이터를 배치로 처리 (백엔드에서 효율적으로 처리)
                     status_text.info(f"📊 배치 예측 시작: 총 {total_rows}개 유저 처리 중...")
-                    progress_bar.progress(0.1)
+                    progress_bar.progress(0.05)
                     
                     with log_container.container():
-                        st.caption(f"📝 {total_rows}개 유저 데이터 준비 완료, API 호출 중...")
+                        st.caption(f"📝 1단계: {total_rows}개 유저 데이터 준비 완료")
                     
                     # 한 번에 모든 데이터 전송 (백엔드에서 배치 처리)
                     payload = {"rows": rows}
-                    progress_bar.progress(0.3)
+                    progress_bar.progress(0.1)
                     
                     with log_container.container():
-                        st.caption(f"🔄 백엔드에서 배치 예측 처리 중... (백엔드 콘솔에서 진행 상황 확인 가능)")
+                        st.caption(f"📝 1단계: {total_rows}개 유저 데이터 준비 완료")
+                        st.caption(f"🔄 2단계: API 호출 중...")
+                    
+                    progress_bar.progress(0.2)
+                    
+                    with log_container.container():
+                        st.caption(f"📝 1단계: {total_rows}개 유저 데이터 준비 완료")
+                        st.caption(f"🔄 2단계: API 호출 완료")
+                        st.caption(f"📊 3단계: 백엔드에서 배치 예측 처리 중...")
+                        st.caption(f"   - DB에서 {total_rows}개 유저 피처 조회 중...")
                     
                     res = requests.post(f"{API_URL}/predict_churn_bulk", json=payload, timeout=600)
                     
-                    progress_bar.progress(0.9)
+                    progress_bar.progress(0.8)
+                    
+                    with log_container.container():
+                        st.caption(f"📝 1단계: {total_rows}개 유저 데이터 준비 완료 ✓")
+                        st.caption(f"🔄 2단계: API 호출 완료 ✓")
+                        st.caption(f"📊 3단계: 배치 예측 처리 완료 ✓")
+                        st.caption(f"💾 4단계: 예측 결과 DB 저장 중...")
                     
                     if res.status_code == 200:
                         result = res.json()
@@ -2238,10 +2774,19 @@ def show_churn_prediction_bulk_page():
                                 progress_bar.progress(1.0)
                                 status_text.success(f"✅ 배치 예측 완료: 총 {len(all_results)}개 결과, {saved_count}개 DB 저장됨")
                                 
+                                success_count = len([r for r in all_results if "error" not in r])
+                                error_count = len([r for r in all_results if "error" in r])
+                                
                                 with log_container.container():
-                                    success_count = len([r for r in all_results if "error" not in r])
-                                    error_count = len([r for r in all_results if "error" in r])
-                                    st.caption(f"✅ 성공: {success_count}개, 실패: {error_count}개, 저장: {saved_count}개")
+                                    st.caption(f"📝 1단계: {total_rows}개 유저 데이터 준비 완료 ✓")
+                                    st.caption(f"🔄 2단계: API 호출 완료 ✓")
+                                    st.caption(f"📊 3단계: 배치 예측 처리 완료 ✓")
+                                    st.caption(f"💾 4단계: 예측 결과 DB 저장 완료 ✓")
+                                    st.caption(f"")
+                                    st.caption(f"📈 최종 결과:")
+                                    st.caption(f"   ✅ 성공: {success_count}개")
+                                    st.caption(f"   ❌ 실패: {error_count}개")
+                                    st.caption(f"   💾 DB 저장: {saved_count}개")
                                 
                                 if len(all_results) > 0:
                                     results_df = pd.DataFrame(all_results)
@@ -2388,18 +2933,6 @@ def show_churn_prediction_6feat_page():
     st.write("6개 핵심 피처만 사용하여 이탈 확률을 예측합니다.")
     st.markdown("---")
     
-    # 테이블 생성 안내 및 버튼
-    with st.expander("⚠️ 테이블이 없으면 먼저 생성하세요"):
-        if st.button("📊 User Prediction Table 생성", key="init_pred_table_2"):
-            try:
-                res = requests.get(f"{API_URL}/init_user_prediction_table")
-                if res.status_code == 200:
-                    st.success("테이블 생성 완료!")
-                else:
-                    st.error(f"테이블 생성 실패: {res.status_code}")
-            except Exception as e:
-                st.error(f"오류 발생: {str(e)}")
-    
     user_id = st.number_input("User ID", min_value=1, value=1, step=1)
     
     st.subheader("6개 핵심 피처 입력")
@@ -2495,18 +3028,6 @@ def show_prediction_results_page():
     st.header("📋 예측 결과 조회")
     st.write("저장된 예측 결과를 조회합니다.")
     st.markdown("---")
-    
-    # 테이블 생성 안내 및 버튼
-    with st.expander("⚠️ 테이블이 없으면 먼저 생성하세요"):
-        if st.button("📊 User Prediction Table 생성", key="init_pred_table_3"):
-            try:
-                res = requests.get(f"{API_URL}/init_user_prediction_table")
-                if res.status_code == 200:
-                    st.success("테이블 생성 완료!")
-                else:
-                    st.error(f"테이블 생성 실패: {res.status_code}")
-            except Exception as e:
-                st.error(f"오류 발생: {str(e)}")
     
     tab1, tab2 = st.tabs(["단일 유저 조회", "전체 조회"])
     
@@ -2719,6 +3240,25 @@ def show_user_admin_tools():
     
 
     st.markdown("---")
+    st.subheader("테스트 계정 설정")
+    
+    # 테스트 계정 설정 버튼
+    if st.button("🧪 테스트 계정 설정 (위험도 HIGH)", type="primary"):
+        try:
+            res = requests.post(f"{API_URL}/setup_test_accounts", timeout=30)
+            if res.status_code == 200:
+                result = res.json()
+                if result.get("success"):
+                    st.success("✅ 테스트 계정 설정 완료!")
+                    st.json(result.get("results", []))
+                else:
+                    st.error(result.get("error", "테스트 계정 설정 실패"))
+            else:
+                st.error(f"API 오류: {res.status_code}")
+        except Exception as e:
+            st.error(f"오류 발생: {str(e)}")
+    
+    st.markdown("---")
     st.subheader("CSV 데이터 Import")
     
     # CSV → DB Insert 실행 (users)
@@ -2828,6 +3368,43 @@ def show_main_page():
     user = st.session_state.user_info
     user_id = user.get("user_id")
     grade = user.get("grade")
+    
+    # 위험도 정보를 저장할 변수 (나중에 배너 표시용)
+    risk_banner_data = None
+    if grade != "99" and user_id:
+        try:
+            # 위험도와 구독 유형 조회
+            res_prediction = requests.get(f"{API_URL}/user_prediction/{user_id}", timeout=5)
+            res_features = requests.get(f"{API_URL}/user_features/{user_id}", timeout=5)
+            
+            risk_score = None
+            subscription_type = None
+            
+            if res_prediction.status_code == 200:
+                pred_data = res_prediction.json()
+                if pred_data.get("success"):
+                    risk_score = pred_data.get("data", {}).get("risk_score")
+            elif res_prediction.status_code == 404:
+                # user_prediction에 데이터가 없는 경우 (정상)
+                risk_score = None
+            
+            if res_features.status_code == 200:
+                feat_data = res_features.json()
+                if feat_data.get("success"):
+                    subscription_type = feat_data.get("data", {}).get("subscription_type")
+            elif res_features.status_code == 404:
+                # user_features에 데이터가 없는 경우 (정상)
+                subscription_type = None
+            
+            # 위험도가 HIGH인 경우 배너 데이터 저장
+            if risk_score == "HIGH":
+                risk_banner_data = {
+                    "subscription_type": subscription_type,
+                    "user_id": user_id
+                }
+        except Exception as e:
+            # 오류 발생 시 무시
+            pass
     
     # ---------------------------
     # 사용자 정보 사이드바 출력
@@ -2978,6 +3555,136 @@ def show_main_page():
             show_logs_page()
         else:
             st.error("권한이 없습니다.")
+    
+    # 화면 하단에 위험도 배너 표시 (일반 유저만, 관리자 제외)
+    if risk_banner_data and grade != "99":
+        subscription_type = risk_banner_data.get("subscription_type")
+        banner_user_id = risk_banner_data.get("user_id")
+        banner_key = f"risk_banner_dismissed_{banner_user_id}"
+        
+        # 배너가 닫히지 않은 경우에만 표시
+        if banner_key not in st.session_state:
+            # 임의의 사용 통계 생성 (실제 데이터가 없을 경우)
+            import random
+            days_used = random.randint(15, 180)  # 15일~180일 사이 랜덤
+            songs_played = random.randint(500, 5000)  # 500곡~5000곡 사이 랜덤
+            playlists_created = random.randint(3, 20)  # 3개~20개 사이 랜덤
+            
+            if subscription_type == "Free" or subscription_type is None:
+                # Free 유저: 구독 체험형 배너
+                st.markdown("---")
+                st.markdown("### 🎁 특별 제안")
+                
+                st.info(f"""
+                **🎵 프리미엄 체험을 시작해보세요!**
+                
+                현재 무료 구독으로 **{days_used}일** 동안 이용하셨고, **{songs_played}곡**을 감상하셨습니다.
+                프리미엄으로 업그레이드하면 더 나은 음악 경험을 즐기실 수 있습니다!
+                
+                **✨ 프리미엄 혜택:**
+                - 광고 없는 음악 감상
+                - 오프라인 재생
+                - 고음질 스트리밍 (320kbps)
+                - 무제한 스킵
+                - 플레이리스트 {playlists_created}개에서 무제한으로 확장
+                
+                지금 체험하고 더 나은 음악 경험을 만나보세요!
+                """)
+                
+                col1, col2, col3 = st.columns([2, 1, 1])
+                with col1:
+                    if st.button("✅ 체험 시작하기", type="primary", key=f"banner_trial_start_{banner_user_id}"):
+                        st.success("체험 신청이 완료되었습니다!")
+                        st.session_state[banner_key] = True
+                        st.rerun()
+                with col2:
+                    if st.button("❌ 나중에", key=f"banner_trial_later_{banner_user_id}"):
+                        st.session_state[banner_key] = True
+                        st.rerun()
+                with col3:
+                    if st.button("✕ 닫기", key=f"banner_trial_close_{banner_user_id}"):
+                        st.session_state[banner_key] = True
+                        st.rerun()
+                st.markdown("---")
+                
+            elif subscription_type == "Premium":
+                # Premium 유저: 재구독 유지 혜택 배너
+                st.markdown("---")
+                st.markdown("### 💎 프리미엄 회원님께 특별 혜택")
+                
+                st.info(f"""
+                **🎁 재구독 유지 혜택**
+                
+                프리미엄 회원으로 **{days_used}일** 동안 함께해주셔서 감사합니다!
+                지금까지 **{songs_played}곡**을 감상하시고, **{playlists_created}개의 플레이리스트**를 만드셨네요.
+                
+                **🎉 특별 혜택:**
+                - 다음 결제 시 **20% 할인** 적용
+                - 프리미엄 플러스 기능 **1개월 무료** 제공
+                - 특별 큐레이션 플레이리스트 제공
+                - 우선 고객 지원 서비스
+                - 고음질 스트리밍 무제한 유지
+                
+                지금 유지하시면 더 많은 혜택을 받으실 수 있습니다!
+                """)
+                
+                col1, col2, col3 = st.columns([2, 1, 1])
+                with col1:
+                    if st.button("✅ 혜택 받기", type="primary", key=f"banner_premium_benefit_{banner_user_id}"):
+                        st.success("혜택이 적용되었습니다!")
+                        st.session_state[banner_key] = True
+                        st.rerun()
+                with col2:
+                    if st.button("❌ 나중에", key=f"banner_premium_later_{banner_user_id}"):
+                        st.session_state[banner_key] = True
+                        st.rerun()
+                with col3:
+                    if st.button("✕ 닫기", key=f"banner_premium_close_{banner_user_id}"):
+                        st.session_state[banner_key] = True
+                        st.rerun()
+                st.markdown("---")
+                
+            elif subscription_type == "Family":
+                # Family 유저: 가족 구독 유지 혜택 배너
+                family_members = random.randint(2, 6)  # 가족 구성원 수 (2~6명)
+                total_songs = songs_played * family_members  # 가족 전체 감상 곡 수
+                
+                st.markdown("---")
+                st.markdown("### 👨‍👩‍👧‍👦 패밀리 회원님께 특별 혜택")
+                
+                st.info(f"""
+                **🎁 패밀리 구독 유지 혜택**
+                
+                패밀리 회원으로 **{days_used}일** 동안 함께해주셔서 감사합니다!
+                가족 구성원 **{family_members}명**이 함께 **{total_songs:,}곡**을 감상하시고, 
+                **{playlists_created}개의 플레이리스트**를 만드셨네요.
+                
+                **🎉 특별 혜택:**
+                - 다음 결제 시 **15% 할인** 적용
+                - 패밀리 플러스 기능 **2개월 무료** 제공
+                - 가족 전용 큐레이션 플레이리스트 제공
+                - 우선 고객 지원 서비스
+                - 모든 가족 구성원 고음질 스트리밍 무제한 유지
+                - 가족 공유 플레이리스트 기능 확장
+                
+                가족과 함께 음악을 즐기시는 시간을 더 오래 유지하세요!
+                """)
+                
+                col1, col2, col3 = st.columns([2, 1, 1])
+                with col1:
+                    if st.button("✅ 혜택 받기", type="primary", key=f"banner_family_benefit_{banner_user_id}"):
+                        st.success("혜택이 적용되었습니다!")
+                        st.session_state[banner_key] = True
+                        st.rerun()
+                with col2:
+                    if st.button("❌ 나중에", key=f"banner_family_later_{banner_user_id}"):
+                        st.session_state[banner_key] = True
+                        st.rerun()
+                with col3:
+                    if st.button("✕ 닫기", key=f"banner_family_close_{banner_user_id}"):
+                        st.session_state[banner_key] = True
+                        st.rerun()
+                st.markdown("---")
 
     # -------------------------
     # 로그아웃

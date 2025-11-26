@@ -1,9 +1,11 @@
 """
-run_app.py (Login API 모듈)
+run_app.py (앱 실행 및 라우팅)
 Auth: 박수빈
 Date: 2025-11-18
 Description
-- Login 여부 Check
+- Streamlit 앱 초기 설정
+- 로그인 상태 확인 및 라우팅
+- 로그인/회원가입/메인 페이지 분기 처리
 """
 
 import streamlit as st

@@ -1,10 +1,20 @@
 """
-app.py (Flask API)
+app.py (Flask API 서버)
 Auth: 박수빈
 Date: 2025-11-18
-Description:
-- User Table CRUD
-- CSV 단발성 삽입 지원
+Description
+- 데이터베이스 테이블 초기화 (users, user_prediction, user_features, log, achievements 등)
+- 사용자 CRUD API (생성, 조회, 수정, 삭제)
+- 사용자 로그인 및 인증
+- 구독해지 처리
+- 이탈 예측 API (단일/배치/6피처)
+- 예측 결과 조회 및 관리
+- CSV 데이터 import/export
+- Spotify 음악 검색 API
+- 음악 재생 로그 기록
+- 도전과제 관리 API
+- 사용자 활동 로그 관리
+- 테스트 계정 설정
 """
 
 import sys
@@ -730,6 +740,7 @@ def users_search():
         user_id = request.args.get("user_id", "").strip()
         favorite_music = request.args.get("favorite_music", "").strip()
         grade = request.args.get("grade", "").strip()
+        risk_score = request.args.get("risk_score", "").strip()
 
         # 페이징 파라미터
         page = int(request.args.get("page", 1))
@@ -746,29 +757,38 @@ def users_search():
         params = []
 
         if name:
-            conditions.append("name LIKE %s")
+            conditions.append("u.name LIKE %s")
             params.append(f"%{name}%")
 
         if user_id.isdigit():
-            conditions.append("user_id = %s")
+            conditions.append("u.user_id = %s")
             params.append(int(user_id))
 
         if favorite_music:
-            conditions.append("favorite_music LIKE %s")
+            conditions.append("u.favorite_music LIKE %s")
             params.append(f"%{favorite_music}%")
 
         if grade:
-            conditions.append("grade = %s")
+            conditions.append("u.grade = %s")
             params.append(grade)
+
+        if risk_score:
+            conditions.append("COALESCE(up.risk_score, 'UNKNOWN') = %s")
+            params.append(risk_score)
 
         where_clause = " AND ".join(conditions)
         if where_clause:
             where_clause = "WHERE " + where_clause
 
         # ----------------------------
-        # 전체 개수 조회
+        # 전체 개수 조회 (JOIN 포함)
         # ----------------------------
-        count_sql = f"SELECT COUNT(*) AS cnt FROM users {where_clause}"
+        count_sql = f"""
+            SELECT COUNT(*) AS cnt 
+            FROM users u
+            LEFT JOIN user_prediction up ON u.user_id = up.user_id
+            {where_clause}
+        """
         cursor.execute(count_sql, tuple(params))
         total_rows = cursor.fetchone()["cnt"]
 
@@ -1391,12 +1411,13 @@ def api_predict_churn_bulk():
         total_rows = len(rows)
         print(f"[배치 예측 시작] 총 {total_rows}개 유저 예측 시작")
         
+        # 1단계: user_id가 있는 행들을 수집하고, 한 번에 DB에서 조회 (성능 최적화)
+        user_ids_to_fetch = []
+        row_indices_with_user_id = {}  # {user_id: [index1, index2, ...]}
+        rows_with_features = {}  # {index: features_dict}
+        rows_without_user_id = {}  # {index: row_dict}
+        
         for idx, row in enumerate(rows):
-            # 진행사항 로그 (10% 단위로 출력)
-            if total_rows > 0:
-                progress = ((idx + 1) / total_rows) * 100
-                if (idx + 1) % max(1, total_rows // 10) == 0 or idx == 0 or idx == total_rows - 1:
-                    print(f"[배치 예측 진행] {idx + 1}/{total_rows} ({progress:.1f}%) - user_id: {row.get('user_id', 'N/A')}")
             if not isinstance(row, dict):
                 results.append({
                     "index": idx,
@@ -1404,104 +1425,153 @@ def api_predict_churn_bulk():
                     "error": "행이 dict 형태가 아닙니다."
                 })
                 continue
-
-            user_id = row.get("user_id")
-            cleaned_row = {}
             
-            # user_id가 있으면 user_features 테이블에서 조회
+            user_id = row.get("user_id")
             if user_id is not None:
-                try:
-                    cursor.execute("SELECT * FROM user_features WHERE user_id = %s", (user_id,))
-                    db_features = cursor.fetchone()
-                    if db_features:
-                        cleaned_row = dict(db_features)
-                        cleaned_row.pop('user_id', None)  # 예측 함수에 전달하지 않음
-                    else:
-                        results.append({
-                            "index": idx,
-                            "user_id": user_id,
-                            "error": f"user_features에서 user_id={user_id}를 찾을 수 없습니다."
-                        })
-                        continue
-                except Exception as e:
+                if user_id not in user_ids_to_fetch:
+                    user_ids_to_fetch.append(user_id)
+                if user_id not in row_indices_with_user_id:
+                    row_indices_with_user_id[user_id] = []
+                row_indices_with_user_id[user_id].append(idx)
+            else:
+                # user_id가 없으면 직접 제공된 features 사용
+                rows_without_user_id[idx] = row
+        
+        # 2단계: 모든 user_id를 한 번에 조회 (배치 쿼리)
+        user_features_dict = {}  # {user_id: features_dict}
+        if user_ids_to_fetch:
+            print(f"[배치 예측] {len(user_ids_to_fetch)}개 유저의 피처를 한 번에 조회 중...")
+            placeholders = ','.join(['%s'] * len(user_ids_to_fetch))
+            cursor.execute(f"SELECT * FROM user_features WHERE user_id IN ({placeholders})", user_ids_to_fetch)
+            db_rows = cursor.fetchall()
+            for db_row in db_rows:
+                user_id = db_row['user_id']
+                features = dict(db_row)
+                features.pop('user_id', None)  # 예측 함수에 전달하지 않음
+                user_features_dict[user_id] = features
+        
+        # 3단계: 전처리기와 모델을 한 번만 로드 (성능 최적화)
+        import inference
+        
+        inference._load_artifacts_if_needed()
+        effective_model_name = (model_name or inference.DEFAULT_MODEL_NAME).lower()
+        model = inference._get_or_train_model(effective_model_name)
+        
+        if not hasattr(model, "predict_proba"):
+            cursor.close()
+            conn.close()
+            return jsonify({"success": False, "error": f"모델 '{effective_model_name}' 은 predict_proba를 지원하지 않습니다."}), 500
+        
+        # 4단계: 배치 예측 수행
+        print(f"[배치 예측] 배치 예측 시작...")
+        all_features_list = []
+        all_indices = []
+        all_user_ids = []
+        
+        # user_id가 있는 행들 처리
+        for user_id, indices in row_indices_with_user_id.items():
+            if user_id in user_features_dict:
+                features = user_features_dict[user_id]
+                for idx in indices:
+                    all_features_list.append(features)
+                    all_indices.append(idx)
+                    all_user_ids.append(user_id)
+            else:
+                # DB에서 찾을 수 없는 경우
+                for idx in indices:
                     results.append({
                         "index": idx,
                         "user_id": user_id,
-                        "error": f"user_features 조회 중 오류: {str(e)}"
+                        "error": f"user_features에서 user_id={user_id}를 찾을 수 없습니다."
                     })
-                    continue
-            else:
-                # user_id가 없으면 직접 제공된 features 사용
-                # NaN, inf, -inf 값 정리
-                for key, value in row.items():
-                    if key == "user_id":
-                        continue  # user_id는 제외
-                    
-                    if value is None:
+        
+        # user_id가 없는 행들 처리 (직접 제공된 features)
+        for idx, row in rows_without_user_id.items():
+            cleaned_row = {}
+            # NaN, inf, -inf 값 정리
+            for key, value in row.items():
+                if key == "user_id":
+                    continue  # user_id는 제외
+                
+                if value is None:
+                    cleaned_row[key] = None
+                elif isinstance(value, (int, float)):
+                    if math.isnan(value) or math.isinf(value):
                         cleaned_row[key] = None
-                    elif isinstance(value, (int, float)):
-                        if math.isnan(value) or math.isinf(value):
+                    else:
+                        cleaned_row[key] = value
+                else:
+                    # pandas의 NaN 체크 (안전하게)
+                    try:
+                        if pd.isna(value):
                             cleaned_row[key] = None
                         else:
                             cleaned_row[key] = value
-                    else:
-                        # pandas의 NaN 체크 (안전하게)
-                        try:
-                            if pd.isna(value):
-                                cleaned_row[key] = None
-                            else:
-                                cleaned_row[key] = value
-                        except (TypeError, ValueError):
-                            # pd.isna()가 실패하면 그냥 값 사용
-                            cleaned_row[key] = value
-
-            # 예측 실행
+                    except (TypeError, ValueError):
+                        # pd.isna()가 실패하면 그냥 값 사용
+                        cleaned_row[key] = value
+            
+            all_features_list.append(cleaned_row)
+            all_indices.append(idx)
+            all_user_ids.append(None)
+        
+        # 5단계: 모든 유저를 한 번에 전처리 및 예측 (배치 처리)
+        if all_features_list:
             try:
-                res = _predict_churn(user_features=cleaned_row)
+                # 모든 유저의 DataFrame 생성
+                X_df_list = []
+                for features in all_features_list:
+                    X_df = inference._build_input_dataframe(features)
+                    X_df_list.append(X_df)
+                
+                # DataFrame들을 합치기
+                X_df_batch = pd.concat(X_df_list, ignore_index=True)
+                
+                # 배치 전처리
+                X_transformed = inference._PREPROCESSOR.transform(X_df_batch)
+                
+                # 배치 예측
+                probas = model.predict_proba(X_transformed)[:, 1]
+                
+                # 결과 처리
+                for i, (idx, user_id, proba) in enumerate(zip(all_indices, all_user_ids, probas)):
+                    proba = float(proba)
+                    if math.isnan(proba) or math.isinf(proba):
+                        proba = 0.0
+                    proba = max(0.0, min(1.0, proba))
+                    
+                    risk_level = inference._prob_to_risk_level(proba)
+                    
+                    results.append({
+                        "index": idx,
+                        "user_id": user_id,
+                        "churn_prob": proba,
+                        "risk_level": risk_level
+                    })
+                    
+                    # user_id가 있으면 예측 결과 저장 준비
+                    if user_id is not None:
+                        try:
+                            churn_rate = int(round(proba * 100))
+                            prediction_inserts.append((user_id, churn_rate, risk_level))
+                        except Exception as e:
+                            print(f"예측 결과 저장 준비 중 오류 (user_id={user_id}): {str(e)}")
+            
             except Exception as e:
                 import traceback
-                error_msg = f"예측 실행 중 오류: {str(e)}"
-                print(f"배치 예측 오류 (index={idx}, user_id={user_id}): {error_msg}")
+                error_msg = f"배치 예측 실행 중 오류: {str(e)}"
+                print(f"배치 예측 오류: {error_msg}")
                 print(traceback.format_exc())
-                results.append({
-                    "index": idx,
-                    "user_id": user_id,
-                    "error": error_msg
-                })
-                continue
-
-            if not res.get("success"):
-                results.append({
-                    "index": idx,
-                    "user_id": user_id,
-                    "error": res.get("error")
-                })
-            else:
-                # churn_prob 값 검증 및 정리
-                churn_prob = res.get("churn_prob", 0.0)
-                if isinstance(churn_prob, (int, float)):
-                    if math.isnan(churn_prob) or math.isinf(churn_prob):
-                        churn_prob = 0.0
-                    # 0.0 ~ 1.0 범위로 제한
-                    churn_prob = max(0.0, min(1.0, float(churn_prob)))
-                else:
-                    churn_prob = 0.0
-                
-                results.append({
-                    "index": idx,
-                    "user_id": user_id,
-                    "churn_prob": churn_prob,
-                    "risk_level": res.get("risk_level", "UNKNOWN")
-                })
-                
-                # user_id가 있으면 예측 결과 저장 준비
-                if user_id is not None:
-                    try:
-                        churn_rate = int(round(churn_prob * 100))
-                        risk_score = res.get("risk_level", "UNKNOWN")
-                        prediction_inserts.append((user_id, churn_rate, risk_score))
-                    except Exception as e:
-                        print(f"예측 결과 저장 준비 중 오류 (user_id={user_id}): {str(e)}")
+                # 오류 발생 시 개별 처리로 폴백
+                for idx, user_id in zip(all_indices, all_user_ids):
+                    results.append({
+                        "index": idx,
+                        "user_id": user_id,
+                        "error": error_msg
+                    })
+        
+        # 결과를 index 순서로 정렬
+        results.sort(key=lambda x: x.get("index", 0))
         
         cursor.close()
         
@@ -1870,6 +1940,130 @@ def upload_prediction_csv():
 
 
 # -------------------------------------------------------------
+# -------------------------------------------------------------
+# 테스트용: 위험도 설정 및 임시 계정 추가 API
+# -------------------------------------------------------------
+@app.route("/api/setup_test_accounts", methods=["POST"])
+def setup_test_accounts():
+    """
+    테스트용 계정들의 위험도를 HIGH로 설정하고, 
+    다양한 구독 유형의 임시 계정을 추가합니다.
+    """
+    try:
+        conn = get_connection()
+        cursor = conn.cursor(DictCursor)
+        
+        # test2 계정의 user_id 찾기 (name이 'test2' 또는 'Test User'인 경우)
+        cursor.execute("SELECT user_id, name FROM users WHERE name = 'test2' OR name = 'Test User' LIMIT 1")
+        test2_user = cursor.fetchone()
+        
+        results = []
+        
+        # test2 계정 위험도 HIGH 설정
+        if test2_user:
+            test2_user_id = test2_user['user_id']
+            test2_name = test2_user['name']
+            sql = """
+            INSERT INTO user_prediction (user_id, churn_rate, risk_score, update_date)
+            VALUES (%s, %s, %s, CURDATE())
+            ON DUPLICATE KEY UPDATE
+                churn_rate = VALUES(churn_rate),
+                risk_score = VALUES(risk_score),
+                update_date = CURDATE()
+            """
+            cursor.execute(sql, (test2_user_id, 80, 'HIGH'))
+            results.append(f"test2 ({test2_name}, user_id: {test2_user_id}) 위험도 HIGH 설정 완료")
+        else:
+            # user_id = 1인 계정도 시도 (test2 임시 계정의 기본 user_id)
+            cursor.execute("SELECT user_id, name FROM users WHERE user_id = 1 LIMIT 1")
+            user_1 = cursor.fetchone()
+            if user_1:
+                sql = """
+                INSERT INTO user_prediction (user_id, churn_rate, risk_score, update_date)
+                VALUES (%s, %s, %s, CURDATE())
+                ON DUPLICATE KEY UPDATE
+                    churn_rate = VALUES(churn_rate),
+                    risk_score = VALUES(risk_score),
+                    update_date = CURDATE()
+                """
+                cursor.execute(sql, (1, 80, 'HIGH'))
+                results.append(f"user_id=1 ({user_1['name']}) 위험도 HIGH 설정 완료")
+            else:
+                results.append("test2 계정을 찾을 수 없습니다.")
+        
+        # 임시 계정들 추가 (다양한 구독 유형)
+        test_accounts = [
+            {"name": "test_free_high", "password": "test123", "favorite_music": "Pop", "grade": "01", "subscription_type": "Free"},
+            {"name": "test_premium_high", "password": "test123", "favorite_music": "Rock", "grade": "01", "subscription_type": "Premium"},
+            {"name": "test_free2_high", "password": "test123", "favorite_music": "Jazz", "grade": "01", "subscription_type": "Free"},
+            {"name": "test_premium2_high", "password": "test123", "favorite_music": "Classical", "grade": "01", "subscription_type": "Premium"},
+        ]
+        
+        import bcrypt
+        from datetime import date
+        
+        for account in test_accounts:
+            # 계정이 이미 존재하는지 확인
+            cursor.execute("SELECT user_id FROM users WHERE name = %s", (account["name"],))
+            existing = cursor.fetchone()
+            
+            if existing:
+                user_id = existing['user_id']
+                results.append(f"{account['name']} 계정이 이미 존재합니다. (user_id: {user_id})")
+            else:
+                # 새 계정 생성
+                hashed_password = bcrypt.hashpw(account["password"].encode("utf-8"), bcrypt.gensalt())
+                cursor.execute("""
+                    INSERT INTO users (name, favorite_music, password, join_date, modify_date, grade)
+                    VALUES (%s, %s, %s, %s, %s, %s)
+                """, (
+                    account["name"],
+                    account["favorite_music"],
+                    hashed_password,
+                    date.today(),
+                    date.today(),
+                    account["grade"]
+                ))
+                user_id = cursor.lastrowid
+                results.append(f"{account['name']} 계정 생성 완료 (user_id: {user_id})")
+            
+            # user_features 테이블에 구독 유형 추가
+            cursor.execute("""
+                INSERT INTO user_features (user_id, subscription_type)
+                VALUES (%s, %s)
+                ON DUPLICATE KEY UPDATE subscription_type = VALUES(subscription_type)
+            """, (user_id, account["subscription_type"]))
+            
+            # user_prediction 테이블에 위험도 HIGH 설정
+            cursor.execute("""
+                INSERT INTO user_prediction (user_id, churn_rate, risk_score, update_date)
+                VALUES (%s, %s, %s, CURDATE())
+                ON DUPLICATE KEY UPDATE
+                    churn_rate = VALUES(churn_rate),
+                    risk_score = VALUES(risk_score),
+                    update_date = CURDATE()
+            """, (user_id, 75, 'HIGH'))
+            results.append(f"  - {account['name']} 위험도 HIGH 설정 완료 (구독 유형: {account['subscription_type']})")
+        
+        conn.commit()
+        cursor.close()
+        conn.close()
+        
+        return jsonify({
+            "success": True,
+            "message": "테스트 계정 설정 완료",
+            "results": results
+        }), 200
+        
+    except Exception as e:
+        import traceback
+        return jsonify({
+            "success": False,
+            "error": f"테스트 계정 설정 중 오류: {str(e)}",
+            "traceback": traceback.format_exc()
+        }), 500
+
+
 # CSV 다운로드 API (user_prediction 전체를 CSV로 반환)
 # -------------------------------------------------------------
 @app.route("/api/download_prediction_csv", methods=["GET"])

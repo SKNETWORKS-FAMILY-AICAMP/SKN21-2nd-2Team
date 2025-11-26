@@ -3,8 +3,10 @@ login.py (플랫폼 Login 화면)
 Auth: 박수빈
 Date: 2025-11-18
 Description
-- users 테이블에서 Login Data 조회 후 로그인
-- test 로그인 Data 로직
+- Spotify 인증 연동
+- 사용자 로그인 처리
+- 임시 계정 로그인 지원
+- 로그인 후 메인 페이지 이동
 """
 
 import streamlit as st

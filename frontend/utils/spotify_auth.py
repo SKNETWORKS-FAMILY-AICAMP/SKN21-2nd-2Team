@@ -1,10 +1,13 @@
-# utils/spotify_auth.py
-# ----------------------------------------------------------
-# 파일명: frontend/utils/spotify_auth.py
-# 설명: Spotify 인증 관련 유틸리티. 로그인 URL 생성, 토큰 교환 및 갱신 기능을 제공합니다.
-# 작성일: 2025-11-24
-# 작성자: Antigravity (AI Assistant)
-# ----------------------------------------------------------
+"""
+spotify_auth.py (Spotify 인증 유틸리티)
+Auth: 박수빈
+Date: 2025-11-18
+Description
+- Spotify 로그인 URL 생성
+- Authorization Code를 Access Token으로 교환
+- Refresh Token으로 Access Token 갱신
+- 타임아웃 및 재시도 로직 처리
+"""
 
 import os
 import urllib.parse
@@ -57,14 +60,30 @@ def get_token_from_code(code: str):
         "client_secret": CLIENT_SECRET,
     }
     
-    # 디버깅: redirect_uri 확인 (실제로는 로그에 출력하지 않음)
-    # print(f"토큰 교환 시도 - Redirect URI: {REDIRECT_URI}")
-
-    res = requests.post(url, data=data)
-    if res.status_code != 200:
-        error_detail = res.text
-        raise Exception(f"토큰 발급 실패: {res.status_code} {error_detail}\\n사용된 Redirect URI: {REDIRECT_URI}")
-    return res.json()
+    # 타임아웃 설정 및 재시도 로직
+    max_retries = 3
+    timeout = 30  # 30초 타임아웃
+    
+    for attempt in range(max_retries):
+        try:
+            res = requests.post(url, data=data, timeout=timeout)
+            if res.status_code != 200:
+                error_detail = res.text
+                raise Exception(f"토큰 발급 실패: {res.status_code} {error_detail}\\n사용된 Redirect URI: {REDIRECT_URI}")
+            return res.json()
+        except requests.exceptions.Timeout:
+            if attempt < max_retries - 1:
+                continue  # 재시도
+            else:
+                raise Exception(f"Spotify 토큰 발급 타임아웃: {max_retries}번 시도 후 실패했습니다. 네트워크 연결을 확인해주세요.")
+        except requests.exceptions.RequestException as e:
+            if attempt < max_retries - 1:
+                continue  # 재시도
+            else:
+                raise Exception(f"Spotify 토큰 발급 중 오류 발생: {str(e)}")
+    
+    # 이 코드는 실행되지 않아야 하지만 안전을 위해 추가
+    raise Exception("토큰 발급 실패: 알 수 없는 오류")
 
 
 def refresh_token(refresh_token: str):
@@ -80,7 +99,26 @@ def refresh_token(refresh_token: str):
         "client_secret": CLIENT_SECRET,
     }
 
-    res = requests.post(url, data=data)
-    if res.status_code != 200:
-        raise Exception(f"리프레시 실패: {res.status_code} {res.text}")
-    return res.json()
+    # 타임아웃 설정 및 재시도 로직
+    max_retries = 3
+    timeout = 30  # 30초 타임아웃
+    
+    for attempt in range(max_retries):
+        try:
+            res = requests.post(url, data=data, timeout=timeout)
+            if res.status_code != 200:
+                raise Exception(f"리프레시 실패: {res.status_code} {res.text}")
+            return res.json()
+        except requests.exceptions.Timeout:
+            if attempt < max_retries - 1:
+                continue  # 재시도
+            else:
+                raise Exception(f"Spotify 토큰 갱신 타임아웃: {max_retries}번 시도 후 실패했습니다. 네트워크 연결을 확인해주세요.")
+        except requests.exceptions.RequestException as e:
+            if attempt < max_retries - 1:
+                continue  # 재시도
+            else:
+                raise Exception(f"Spotify 토큰 갱신 중 오류 발생: {str(e)}")
+    
+    # 이 코드는 실행되지 않아야 하지만 안전을 위해 추가
+    raise Exception("토큰 갱신 실패: 알 수 없는 오류")
