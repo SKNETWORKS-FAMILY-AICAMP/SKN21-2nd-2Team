@@ -256,6 +256,8 @@ SKN21-2nd-2Team/
       | `offline_listening`     | INT (0/1) | 오프라인 재생 기능 여부    |
       | **`is_churned`**            | INT(0/1)  | 이탈 여부            |
 
+
+#### 🔗 출처 [Spotify Analysis Dataset]([https://www.kaggle.com/datasets/gauravtopre/bank-customer-churn-dataset/data](https://www.kaggle.com/datasets/nabihazahid/spotify-dataset-for-churn-analysis?resource=download))
 <br>
 
 - **초기 베이스라인** (`preprocessing_validation.ipynb`, `FE_validation.ipynb`):
@@ -596,5 +598,5 @@ SKN21-2nd-2Team/
 | **박수빈** | Frontend / PM / Integrator | 나는 짱쎄다 |
 | **신지용** | Feature Engineer / QA | 울랄라 |
 | **윤경은** | Data Lead / Pipeline | |
-| **정세연** | ML Engineer / Modeling |  |
+| **정세연** | ML Engineer / Modeling | 바보!!!!!!!!!1 |
 | **박민정** | Backend / Data Pipeline | |
