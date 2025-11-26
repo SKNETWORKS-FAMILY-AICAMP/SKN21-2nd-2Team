@@ -400,7 +400,7 @@ SKN21-2nd-2Team/
   
   ### 🔹`Enhanced Correlation` – 확장 피처 상관관계 분석
  <p align="center">
-        <img src="image/visualizations/enhanced_rich_corr_heatmap.png" alt="enhanced_rich_corr_heatmap" width="500">
+        <img src="image/visualizations/enhanced_rich_corr_heatmap.png" alt="enhanced_rich_corr_heatmap" width="450">
       </p>
    
    - 추가한 시계열 피처들이 churn과 **더 강한 상관성**을 보임
