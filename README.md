@@ -489,13 +489,17 @@ SKN21-2nd-2Team/
 - LGBM ≈ 0.641
 - XGB ≈ 0.620
 - RF ≈ 0.622
-  
+
+<br> 
+
 ➡️ 전체 모델 중 가장 높은 F1 스코어
 
 ### (2) Precision · Recall 균형성 (`hgb_test.md` 기준)
 - HGB → Precision 0.638, Recall 0.647 → 균형형 모델
 - XGB → Precision 낮음(0.603), Recall 높음(0.638)
 - LGBM → Precision 높음(0.650), Recall 낮음(0.633)
+
+<br> 
 
 ➡️ HGB는 FP/FN이 과도하게 증가하지 않는 안정적인 구조 <br>
 ➡️ 서비스 운영에 적합한 "균형적 예측력" 제공
@@ -504,6 +508,8 @@ SKN21-2nd-2Team/
 - LGBM → AUC 0.816 / PR-AUC 0.700 (절대 수치 가장 높음)
 - XGB → AUC 0.811 / PR-AUC 0.693
 - HGB → AUC 0.809 / PR-AUC 0.691 (상위권, 큰 차이 없음)
+
+<br> 
 
 ➡️ AUC도 충분히 상위권 + F1까지 고려하면 종합 점수 최상
 
@@ -596,7 +602,7 @@ SKN21-2nd-2Team/
       </p>
       
 > **이름** 과 **좋아하는 장르** 수정 가능 <br>
-> **구독해지버튼** - 클릭 시 구독 해지 양식 표시
+> **`구독해지`** 버튼 - 클릭 시 구독 해지 양식 표시
 <br>
 
 ### 🏆 도전 과제
@@ -605,6 +611,7 @@ SKN21-2nd-2Team/
       </p>
       
 > 완료된 도전과제와 진행 중인 도전과제 나열로 **진행도**와 **🎵 목표 장르**, **보상**(포인트지급) 등을 표시
+
 <br><br>
 
 
@@ -636,7 +643,7 @@ SKN21-2nd-2Team/
         <img src="image/gif/05_.gif" alt="feature_importance" width="700">
       </p>
 
-> **사용자 조회** - 이름, 사용자 ID, 좋아하는 음악, 등급으로 사용자 검색 <br>
+> **`사용자 조회`** - 이름, 사용자 ID, 좋아하는 음악, 등급으로 사용자 검색 <br>
 > 각 사용자의 등급 변경 가능 <br>
 > 각 사용자의 이탈 위험도를 확인 -> 위험 사용자 파악
 
@@ -647,7 +654,7 @@ SKN21-2nd-2Team/
         <img src="image/gif/06_.gif" alt="feature_importance" width="700">
       </p>
 
-> **예측 실행 버튼** - 이탈 가능성과 위험도가 표시 <br>
+> **`예측 실행`** 버튼 - 이탈 가능성과 위험도가 표시 <br>
 > 이탈 확률은 0-100%로 표시되며, 위험도는 낮음/보통/높음으로 구분
 
 <br>
@@ -656,6 +663,9 @@ SKN21-2nd-2Team/
 <p align="center">
         <img src="image/gif/07_.gif" alt="feature_importance" width="700">
       </p>
+      
+> csv 파일을 업로드하거나 화면에서 수동으로 입력 가능 <br>
+> 예측 결과는 차트로 시각화되어 위험도별 분포를 확인 가능
 
 <br>
 
@@ -663,24 +673,41 @@ SKN21-2nd-2Team/
 <p align="center">
         <img src="image/gif/08_.gif" alt="feature_importance" width="700">
       </p>
+
+> **6가지 핵심 지표**로 빠르게 이탈 가능성을 예측 <br>
+> `앱 오류 횟수` `스킵 증가율` `마지막 로그인 경과일` `청취시간 추이` `이용 빈도 추이` `로그인 빈도`
+
 <br>
 
 ### 🔍 예측 결과 조회
 <p align="center">
         <img src="image/gif/결과_.gif" alt="feature_importance" width="700">
       </p>
+
+> 이전에 실행한 모든 이탈 예측 결과를 조회 <br>
+> 위험도(낮음/보통/높음)로 필터링 --> 위험 사용자만 확인 가능 <br>
+> 각 사용자의 **이탈 확률**과 **위험도** 한눈에 비교 가능
+
 <br>
 
 ### 💾 예측 csv 관리
 <p align="center">
         <img src="image/gif/12_csv.gif" alt="feature_importance" width="700">
       </p>
+
+> csv 파일을 업로드하여 많은 사용자의 이탈 예측을 수행 <br>
+> **`download`** - 다운로드한 파일에 사용자별 이탈 확률과 위험도가 포함
+
 <br>
 
 ### 📖 로그 조회
 <p align="center">
         <img src="image/gif/09_.gif" alt="feature_importance" width="700">
       </p>
+
+> **사용자**들의 로그인, 페이지 접근, 구독 해지 등의 활동 내역 확인 가능 <br>
+> `사용자ID` 입력 -> 해당 사용자의 활동 조회 가능 <br>
+> **필터링**(로그인, 페이지조회, 구독해지) 기능 -- 모든 로그는 시간순으로 정렬(**최신순**)
       
 <br><br><br>
 
