@@ -121,7 +121,9 @@
 </tr>
 </table>
 
-
+<p align="center">
+        <img src="image/역할분담.png" alt="역할분담" width="700">
+      </p>
 
 </div>
 
@@ -525,74 +527,112 @@ SKN21-2nd-2Team/
 
 <br>
 
-## 🎧 Streamlit 구현 기능 (Streamlit Application Features)
+# 🎧 Streamlit 구현 기능 (Streamlit Application Features)
 
 본 애플리케이션은 Spotify 사용자 행동 기반 이탈(Churn) 예측 모델을
 Streamlit UI로 제공하는 실시간 예측·시각화 서비스입니다.
+<br><br><br>
+
+## 👩‍💻 관리자
+본 프로젝트는 사용자 서비스뿐 아니라,
+관리자를 위한 **운영·유지보수 페이지(Admin Dashboard)** 를 포함하고 있습니다.
+관리자는 Streamlit 기반의 관리자 페이지를 통해
+사용자 정보, 예측 결과, 도전과제, 위험 고객 등을 통합적으로 관리할 수 있습니다.
+
+## 🙋‍♂️ 사용자
+사용자 페이지는 Spotify 사용자들이 직접
+음악을 검색하고 재생하며,
+**도전과제를 수행**하고,
+개인 정보를 관리할 수 있는 인터랙티브 서비스 페이지입니다.
+<br><br>
+<br>
+
+아래는 각 화면별로 제공되는 주요 기능입니다.
 
 <br>
 
-## 👩‍💻 관리자
+## 👩‍💻 관리자 / 🙋‍♂️ 사용자
 
 ### 🔐 로그인 페이지
-- 관리자와 사용자 구분
-<p align="center">
-        <img src="image/gif/00_.gif" alt="feature_importance" width="800">
-      </p>
-
+- 관리자와 사용자 계정 구분
+<div style="display: flex; justify-content: center; gap: 20px;">
+  <img src="image/gif/00_.gif" width="48%" />
+  <img src="image/gif/11_.gif" width="48%" />
+</div>
 <br>
 
 ### 🏠 HOME
-- 유저 위험도 및 이탈률 통계
+- 각각 화면이 다르게 구현
+<div style="display: flex; justify-content: center; gap: 20px;">
+  <img src="image/gif/01_.gif" width="48%" />
+  <img src="image/gif/22_.gif" width="48%" />
+</div>
+
+<br><br>
+
+
+## 🙋‍♂️ 사용자
+
+### 📁 내 정보
 <p align="center">
-        <img src="image/gif/01_.gif" alt="feature_importance" width="800">
+        <img src="image/gif/33_.gif" alt="feature_importance" width="700">
       </p>
-
-
-<br>
-
-### 📁
 <p align="center">
-        <img src="image/gif/02_.gif" alt="feature_importance" width="800">
-      </p>
-<br>
-
-### 🤖
-<p align="center">
-        <img src="image/gif/03_.gif" alt="feature_importance" width="800">
-      </p>
-
-<br>
-
-### 🗄️
-<p align="center">
-        <img src="image/gif/04_.gif" alt="feature_importance" width="800">
+        <img src="image/gif/44_.gif" alt="feature_importance" width="700">
       </p>
 <br>
 
-### 🖥️ 
+### 🏆 도전 과제
 <p align="center">
-        <img src="image/gif/05_.gif" alt="feature_importance" width="800">
+        <img src="image/gif/66_.gif" alt="feature_importance" width="700">
+      </p>
+
+<br><br>
+
+
+## 👩‍💻 관리자
+
+
+### 🏆 도전 과제 관리·생성
+<p align="center">
+        <img src="image/gif/03_.gif" alt="feature_importance" width="700">
       </p>
 <br>
 
-### 🔧
+### 👥 사용자 데이터 관리 
 <p align="center">
-        <img src="image/gif/06_.gif" alt="feature_importance" width="800">
+        <img src="image/gif/04_.gif" alt="feature_importance" width="700">
+      </p>
+<br>
+
+### 👤 사용자 조회
+<p align="center">
+        <img src="image/gif/05_.gif" alt="feature_importance" width="700">
       </p>
 
+### 🎯 이탈 예측(딘일)
 <p align="center">
-        <img src="image/gif/07_.gif" alt="feature_importance" width="800">
+        <img src="image/gif/06_.gif" alt="feature_importance" width="700">
       </p>
-
+      
+### 📊 이탈 예측(배치)
 <p align="center">
-        <img src="image/gif/08_.gif" alt="feature_importance" width="800">
+        <img src="image/gif/07_.gif" alt="feature_importance" width="700">
       </p>
-
+      
+### 🧠 이탈 예측(6피처)
 <p align="center">
-        <img src="image/gif/09_.gif" alt="feature_importance" width="800">
+        <img src="image/gif/08_.gif" alt="feature_importance" width="700">
       </p>
+      
+### 🔍 예측 결과 조회
+      
+### 💾 예측 csv 관리
 
+### 📖 로그 조회
+<p align="center">
+        <img src="image/gif/09_.gif" alt="feature_importance" width="700">
+      </p>
 <br><br><br>
 
 ## 📝 팀원 소감 (Team Retrospective)
