@@ -364,6 +364,11 @@ SKN21-2nd-2Team/
       | `payment_failure_count` | int | 결제 실패 횟수 | 높음 |
       | `promotional_email_click` | bool | 프로모션 이메일 클릭 여부 | 낮음 |
       | `app_crash_count_30d` | int | 최근 30일 앱 크래시 횟수 | 중간 |
+
+#### 📖 출처 [Customer Churn Prediction in anOnline Streaming Service]([[https://www.kaggle.com/datasets/gauravtopre/bank-customer-churn-dataset/data](https://www.kaggle.com/datasets/nabihazahid/spotify-dataset-for-churn-analysis?resource=download)](https://lup.lub.lu.se/luur/download?fileOId=8971757&func=downloadFile&recordOId=8971756&utm_source=chatgpt.com))
+#### 📖 출처 [Analysis of Customer Churn in Subscription Based Streaming Services]([[[https://www.kaggle.com/datasets/gauravtopre/bank-customer-churn-dataset/data](https://www.kaggle.com/datasets/nabihazahid/spotify-dataset-for-churn-analysis?resource=download)](https://lup.lub.lu.se/luur/download?fileOId=8971757&func=downloadFile&recordOId=8971756&utm_source=chatgpt.com)](https://ijrpr.com/uploads/V5ISSUE5/IJRPR28938.pdf?utm_source=chatgpt.com))
+#### 📖 출처 [A comprehensive survey on customer churn analysis studies]([[[https://www.kaggle.com/datasets/gauravtopre/bank-customer-churn-dataset/data]([https://www.kaggle.com/datasets/nabihazahid/spotify-dataset-for-churn-analysis?resource=download)](https://lup.lub.lu.se/luur/download?fileOId=8971757&func=downloadFile&recordOId=8971756&utm_source=chatgpt.com)](https://ijrpr.com/uploads/V5ISSUE5/IJRPR28938.pdf?utm_source=chatgpt.com)](https://www.tandfonline.com/doi/full/10.1080/24751839.2025.2528440?utm_source=chatgpt.com))
+
   - 실제 로그 수집이 어려운 환경을 가정해, 위 피처들을 **현실적인 분포를 가진 합성 특성**으로 먼저 실험
 
 <br>
