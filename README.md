@@ -64,7 +64,7 @@
 
 <h2>👥 팀 구성 및 역할 분담</h2>
 <p><strong>Team 역전파</strong></p>
-
+      
 <table>
 <tr>
 
@@ -121,7 +121,12 @@
 </tr>
 </table>
 
+<br><br>
 
+<h2>👤❓ WBS</h2>
+<p align="center">
+        <img src="image/역할분담.png" alt="역할분담" width="850">
+      </p>
 
 </div>
 
@@ -249,7 +254,7 @@ SKN21-2nd-2Team/
       | **`is_churned`**            | INT(0/1)  | 이탈 여부            |
 
 
-#### 🔗 출처 [Spotify Analysis Dataset]([https://www.kaggle.com/datasets/gauravtopre/bank-customer-churn-dataset/data](https://www.kaggle.com/datasets/nabihazahid/spotify-dataset-for-churn-analysis?resource=download))
+#### 🔗 출처 [Spotify Analysis Dataset](https://www.kaggle.com/datasets/nabihazahid/spotify-dataset-for-churn-analysis?resource=download)
 <br>
 
 - **초기 베이스라인** (`preprocessing_validation.ipynb`, `FE_validation.ipynb`):
@@ -361,6 +366,10 @@ SKN21-2nd-2Team/
       | `payment_failure_count` | int | 결제 실패 횟수 | 높음 |
       | `promotional_email_click` | bool | 프로모션 이메일 클릭 여부 | 낮음 |
       | `app_crash_count_30d` | int | 최근 30일 앱 크래시 횟수 | 중간 |
+
+> #### 📖 [Customer Churn Prediction in anOnline Streaming Service](https://lup.lub.lu.se/luur/download?fileOId=8971757&func=downloadFile&recordOId=8971756) 📖[A comprehensive survey on customer churn analysis studies](https://www.tandfonline.com/doi/full/10.1080/24751839.2025.2528440) <br>
+> "이탈 전 로그인 감소, 이용시간 감소, 스킵률 증가, 결제문제 증가” 같은 ‘패턴 방향성’을 참고
+
   - 실제 로그 수집이 어려운 환경을 가정해, 위 피처들을 **현실적인 분포를 가진 합성 특성**으로 먼저 실험
 
 <br>
@@ -425,7 +434,7 @@ SKN21-2nd-2Team/
 - **시계열 + 고객 접점 피처를 추가**한 `enhanced_data.csv` 실험에서는, 동일한 모델(RF)로도 **F1≈0.62, AUC≈0.79까지 성능이 크게 상승**하는 것을 확인함.
 - 이를 통해 **“모델을 바꾸는 것보다, 이탈 직전 행동 변화와 고객 접점을 담는 피처를 설계·수집하는 것이 핵심”** 이라는 결론에 도달했고,
 <p align="center">
-        <img src="image/visualizations/final_summary_performance.png" alt="final_summary_performance" width="500">
+        <img src="image/visualizations/final_summary_performance.png" alt="final_summary_performance" width="480">
       </p> 
       
   실제 서비스 환경에서는 로그·고객센터·결제/에러 데이터를 결합한 피처 설계를 가장 우선순위로 두어야 한다는 인사이트를 얻음.
@@ -480,13 +489,17 @@ SKN21-2nd-2Team/
 - LGBM ≈ 0.641
 - XGB ≈ 0.620
 - RF ≈ 0.622
-  
+
+<br> 
+
 ➡️ 전체 모델 중 가장 높은 F1 스코어
 
 ### (2) Precision · Recall 균형성 (`hgb_test.md` 기준)
 - HGB → Precision 0.638, Recall 0.647 → 균형형 모델
 - XGB → Precision 낮음(0.603), Recall 높음(0.638)
 - LGBM → Precision 높음(0.650), Recall 낮음(0.633)
+
+<br> 
 
 ➡️ HGB는 FP/FN이 과도하게 증가하지 않는 안정적인 구조 <br>
 ➡️ 서비스 운영에 적합한 "균형적 예측력" 제공
@@ -495,6 +508,8 @@ SKN21-2nd-2Team/
 - LGBM → AUC 0.816 / PR-AUC 0.700 (절대 수치 가장 높음)
 - XGB → AUC 0.811 / PR-AUC 0.693
 - HGB → AUC 0.809 / PR-AUC 0.691 (상위권, 큰 차이 없음)
+
+<br> 
 
 ➡️ AUC도 충분히 상위권 + F1까지 고려하면 종합 점수 최상
 
@@ -525,74 +540,175 @@ SKN21-2nd-2Team/
 
 <br>
 
-## 🎧 Streamlit 구현 기능 (Streamlit Application Features)
+# 🎧 Streamlit 구현 기능 (Streamlit Application Features)
 
-본 애플리케이션은 Spotify 사용자 행동 기반 이탈(Churn) 예측 모델을
-Streamlit UI로 제공하는 실시간 예측·시각화 서비스입니다.
+## 👩‍💻 관리자
+본 프로젝트는 사용자 서비스뿐 아니라,
+관리자를 위한 **운영·유지보수 페이지(Admin Dashboard)** 를 포함하고 있습니다.
+관리자는 Streamlit 기반의 관리자 페이지를 통해
+사용자 정보, 예측 결과, 도전과제, 위험 고객 등을 통합적으로 관리할 수 있습니다.
+
+## 🙋‍♂️ 사용자
+사용자 페이지는 Spotify 사용자들이 직접
+음악을 검색하고 재생하며,
+**도전과제를 수행**하고,
+개인 정보를 관리할 수 있는 인터랙티브 서비스 페이지입니다.
+<br><br>
+<br>
+
+아래는 각 화면별로 제공되는 주요 기능입니다.
 
 <br>
 
-## 👩‍💻 관리자
+## 👩‍💻 관리자 / 🙋‍♂️ 사용자
 
 ### 🔐 로그인 페이지
-- 관리자와 사용자 구분
-<p align="center">
-        <img src="image/gif/00_.gif" alt="feature_importance" width="800">
-      </p>
-
+#### 관리자와 사용자 계정 구분
+<div style="display: flex; justify-content: center; gap: 20px;">
+  <img src="image/gif/00_.gif" width="48%" />
+  <img src="image/gif/11_.gif" width="48%" />
+</div>
 <br>
 
 ### 🏠 HOME
-- 유저 위험도 및 이탈률 통계
+#### 각각 화면이 다르게 구현
+<div style="display: flex; justify-content: center; gap: 20px;">
+  <img src="image/gif/01_.gif" width="48%" />
+  <img src="image/gif/22_.gif" width="48%" />
+</div>
+
+> #### 관리자
+> - **운영 데이터 모니터링** - 이탈률·위험도·전체 사용자 통계 확인
+>
+<br>
+
+> #### 사용자 
+> - **음악 검색/재생** - Spotify API 기반 음악 검색 및 스트리밍
+> - **상세 검색** - 발매 연도, 장르 인기도 등으로 검색 범위를 좁힐 수 있음
+> - **실시간 플레이어**
+> - **추천 음악**
+
+<br><br>
+
+
+## 🙋‍♂️ 사용자
+
+### 📁 내 정보
 <p align="center">
-        <img src="image/gif/01_.gif" alt="feature_importance" width="800">
+        <img src="image/gif/33_.gif" alt="feature_importance" width="700">
+      </p>
+<p align="center">
+        <img src="image/gif/44_.gif" alt="feature_importance" width="700">
+      </p>
+      
+> **이름** 과 **좋아하는 장르** 수정 가능 <br>
+> **`구독해지`** 버튼 - 클릭 시 구독 해지 양식 표시
+<br>
+
+### 🏆 도전 과제
+<p align="center">
+        <img src="image/gif/66_.gif" alt="feature_importance" width="700">
+      </p>
+      
+> 완료된 도전과제와 진행 중인 도전과제 나열로 **진행도**와 **🎵 목표 장르**, **보상**(포인트지급) 등을 표시
+
+<br><br>
+
+
+## 👩‍💻 관리자
+
+
+### 🏆 도전과제 관리·생성
+<p align="center">
+        <img src="image/gif/03_.gif" alt="feature_importance" width="700">
       </p>
 
+> 새로운 도전과제를 만들거나 기존 도전과제를 삭제 - 목표 재생 횟수와 보상 포인트 설정 <br>
+> **도전과제 통계를 통해 사용자들의 참여 현황 확인 가능**
 
 <br>
 
-### 📁
+### 👥 사용자 데이터 관리 
 <p align="center">
-        <img src="image/gif/02_.gif" alt="feature_importance" width="800">
+        <img src="image/gif/04_.gif" alt="feature_importance" width="700">
       </p>
+      
+> 시스템 사용시 필요한 저장소 준비 <br>
+> 사용자 정보, 예측 데이터, 활동 로그 등 저장할 공간 생성
+    
 <br>
 
-### 🤖
+### 👤 사용자 조회
 <p align="center">
-        <img src="image/gif/03_.gif" alt="feature_importance" width="800">
+        <img src="image/gif/05_.gif" alt="feature_importance" width="700">
       </p>
+
+> **`사용자 조회`** - 이름, 사용자 ID, 좋아하는 음악, 등급으로 사용자 검색 <br>
+> 각 사용자의 등급 변경 가능 <br>
+> 각 사용자의 이탈 위험도를 확인 -> 위험 사용자 파악
 
 <br>
 
-### 🗄️
+### 🎯 이탈 예측(단일)
 <p align="center">
-        <img src="image/gif/04_.gif" alt="feature_importance" width="800">
+        <img src="image/gif/06_.gif" alt="feature_importance" width="700">
       </p>
+
+> **`예측 실행`** 버튼 - 이탈 가능성과 위험도가 표시 <br>
+> 이탈 확률은 0-100%로 표시되며, 위험도는 낮음/보통/높음으로 구분
+
+<br>
+      
+### 📊 이탈 예측(배치)
+<p align="center">
+        <img src="image/gif/07_.gif" alt="feature_importance" width="700">
+      </p>
+      
+> csv 파일을 업로드하거나 화면에서 수동으로 입력 가능 <br>
+> 예측 결과는 차트로 시각화되어 위험도별 분포를 확인 가능
+
 <br>
 
-### 🖥️ 
+### 🧠 이탈 예측(6피처)
 <p align="center">
-        <img src="image/gif/05_.gif" alt="feature_importance" width="800">
+        <img src="image/gif/08_.gif" alt="feature_importance" width="700">
       </p>
+
+> **6가지 핵심 지표**로 빠르게 이탈 가능성을 예측 <br>
+> `앱 오류 횟수` `스킵 증가율` `마지막 로그인 경과일` `청취시간 추이` `이용 빈도 추이` `로그인 빈도`
+
 <br>
 
-### 🔧
+### 🔍 예측 결과 조회
 <p align="center">
-        <img src="image/gif/06_.gif" alt="feature_importance" width="800">
+        <img src="image/gif/결과_.gif" alt="feature_importance" width="700">
       </p>
 
+> 이전에 실행한 모든 이탈 예측 결과를 조회 <br>
+> 위험도(낮음/보통/높음)로 필터링 --> 위험 사용자만 확인 가능 <br>
+> 각 사용자의 **이탈 확률**과 **위험도** 한눈에 비교 가능
+
+<br>
+
+### 💾 예측 csv 관리
 <p align="center">
-        <img src="image/gif/07_.gif" alt="feature_importance" width="800">
+        <img src="image/gif/12_csv.gif" alt="feature_importance" width="700">
       </p>
 
+> csv 파일을 업로드하여 많은 사용자의 이탈 예측을 수행 <br>
+> **`download`** - 다운로드한 파일에 사용자별 이탈 확률과 위험도가 포함
+
+<br>
+
+### 📖 로그 조회
 <p align="center">
-        <img src="image/gif/08_.gif" alt="feature_importance" width="800">
+        <img src="image/gif/09_.gif" alt="feature_importance" width="700">
       </p>
 
-<p align="center">
-        <img src="image/gif/09_.gif" alt="feature_importance" width="800">
-      </p>
-
+> **사용자**들의 로그인, 페이지 접근, 구독 해지 등의 활동 내역 확인 가능 <br>
+> `사용자ID` 입력 -> 해당 사용자의 활동 조회 가능 <br>
+> **필터링**(로그인, 페이지조회, 구독해지) 기능 -- 모든 로그는 시간순으로 정렬(**최신순**)
+      
 <br><br><br>
 
 ## 📝 팀원 소감 (Team Retrospective)
