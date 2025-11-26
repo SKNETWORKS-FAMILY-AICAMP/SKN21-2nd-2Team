@@ -122,7 +122,7 @@
 </table>
 
 
-<h2>👥 팀 구성 및 역할 분담</h2>
+<h2>WBS</h2>
 <p align="center">
         <img src="image/역할분담.png" alt="역할분담" width="950">
       </p>
@@ -366,7 +366,7 @@ SKN21-2nd-2Team/
       | `promotional_email_click` | bool | 프로모션 이메일 클릭 여부 | 낮음 |
       | `app_crash_count_30d` | int | 최근 30일 앱 크래시 횟수 | 중간 |
 
-### 📖 [Customer Churn Prediction in anOnline Streaming Service](https://lup.lub.lu.se/luur/download?fileOId=8971757&func=downloadFile&recordOId=8971756) 📖 [A comprehensive survey on customer churn analysis studies](https://www.tandfonline.com/doi/full/10.1080/24751839.2025.2528440) <br>
+### 📖 논문1 [Customer Churn Prediction in anOnline Streaming Service](https://lup.lub.lu.se/luur/download?fileOId=8971757&func=downloadFile&recordOId=8971756) 📖 논문2[A comprehensive survey on customer churn analysis studies](https://www.tandfonline.com/doi/full/10.1080/24751839.2025.2528440) <br>
 -- "이탈 전 로그인 감소, 이용시간 감소, 스킵률 증가, 결제문제 증가” 같은 ‘패턴 방향성’을 참고
 
   - 실제 로그 수집이 어려운 환경을 가정해, 위 피처들을 **현실적인 분포를 가진 합성 특성**으로 먼저 실험
