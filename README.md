@@ -67,66 +67,60 @@
 
 <table>
 <tr>
-<td align="center" width="200" style="vertical-align: top; height: 300px;">
-  <img src="image/강하다.jpg" width="210" height="210" style="border-radius: 50%; object-fit: cover;" alt="박수빈"/>
-  <br />
+
+<!-- 박수빈 -->
+<td align="center" width="200" style="vertical-align: top; padding: 15px;">
+  <img src="image/강하다.jpg" width="180" height="180" style="border-radius: 50%; object-fit: cover;" alt="박수빈"/>
   <h3 style="margin: 10px 0 5px 0;">박수빈</h3>
   <p style="margin: 5px 0;">총괄 | Streamlit + Integrator</p>
-  <div style="margin-top: 10px;">
-    <a href="https://github.com/sbpark2930-ui">
-      <img src="https://img.shields.io/badge/GitHub-181717?style=flat-square&logo=GitHub&logoColor=white"/>
-    </a>
-  </div>
+  <a href="https://github.com/sbpark2930-ui">
+    <img src="https://img.shields.io/badge/GitHub-181717?style=flat-square&logo=GitHub&logoColor=white"/>
+  </a>
 </td>
 
-<td align="center" width="200" style="vertical-align: top; height: 300px;">
-<img src="image/피카츄.jpg" width="160" height="160" style="border-radius: 50%; object-fit: cover;" alt="신지용"/>
-  <br />
-<br />
-<h3 style="margin: 10px 0 5px 0;">신지용</h3>
-<p style="margin: 5px 0;">백앤드 + 전처리 검증 + Feature튜닝 + 모델링</p>
-<div style="margin-top: 10px;">
-<a href="https://github.com/sjy361872">
-<img src="https://img.shields.io/badge/GitHub-181717?style=flat-square&logo=GitHub&logoColor=white"/>
-</a>
-</div>
+<!-- 신지용 -->
+<td align="center" width="200" style="vertical-align: top; padding: 15px;">
+  <img src="image/피카츄.jpg" width="180" height="180" style="border-radius: 50%; object-fit: cover;" alt="신지용"/>
+  <h3 style="margin: 10px 0 5px 0;">신지용</h3>
+  <p style="margin: 5px 0;">백앤드 + 전처리 검증 + Feature튜닝 + 모델링</p>
+  <a href="https://github.com/sjy361872">
+    <img src="https://img.shields.io/badge/GitHub-181717?style=flat-square&logo=GitHub&logoColor=white"/>
+  </a>
 </td>
-<td align="center" width="200" style="vertical-align: top; height: 300px;">
-<img src="image/초롱이.jpg" width="170" height="170" style="border-radius: 50%; object-fit: cover;" alt="윤경은"/>
-  <br />
-<br />
-<h3 style="margin: 10px 0 5px 0;">윤경은</h3>
-<p style="margin: 5px 0;">데이터분석 + 파이프라인 설계</p>
-<div style="margin-top: 10px;">
-<a href="https://github.com/ykgstar37-lab">
-<img src="https://img.shields.io/badge/GitHub-181717?style=flat-square&logo=GitHub&logoColor=white"/>
-</a>
-</div>
+
+<!-- 윤경은 -->
+<td align="center" width="200" style="vertical-align: top; padding: 15px;">
+  <img src="image/초롱이.jpg" width="180" height="180" style="border-radius: 50%; object-fit: cover;" alt="윤경은"/>
+  <h3 style="margin: 10px 0 5px 0;">윤경은</h3>
+  <p style="margin: 5px 0;">데이터분석 + 파이프라인 설계</p>
+  <a href="https://github.com/ykgstar37-lab">
+    <img src="https://img.shields.io/badge/GitHub-181717?style=flat-square&logo=GitHub&logoColor=white"/>
+  </a>
 </td>
-<td align="center" width="200" style="vertical-align: top; height: 300px;">
-<img src="image/짱쎈고양이.jpg" width="180" height="180" style="border-radius: 50%; object-fit: cover;" alt="정세연"/>
-<br />
-<h3 style="margin: 10px 0 5px 0;">정세연</h3>
-<p style="margin: 5px 0;">모델 템플릿제작 + Baseline 학습</p>
-<div style="margin-top: 10px;">
-<a href="https://github.com/wjdtpdus25">
-<img src="https://img.shields.io/badge/GitHub-181717?style=flat-square&logo=GitHub&logoColor=white"/>
-</a>
-</div>
+
+<!-- 정세연 -->
+<td align="center" width="200" style="vertical-align: top; padding: 15px;">
+  <img src="image/짱쎈고양이.jpg" width="180" height="180" style="border-radius: 50%; object-fit: cover;" alt="정세연"/>
+  <h3 style="margin: 10px 0 5px 0;">정세연</h3>
+  <p style="margin: 5px 0;">모델 템플릿제작 + Baseline 학습</p>
+  <a href="https://github.com/wjdtpdus25">
+    <img src="https://img.shields.io/badge/GitHub-181717?style=flat-square&logo=GitHub&logoColor=white"/>
+  </a>
 </td>
-<td align="center" width="200" style="vertical-align: top; height: 300px;">
-<img src="image/코카인.jpg" width="150" height="150" style="border-radius: 50%; object-fit: cover;" alt="박민정"/>
-<br />
-<h3 style="margin: 10px 0 5px 0;">박민정</h3>
-<p style="margin: 5px 0;">pipeline 구현 담당</p>
-<div style="margin-top: 10px;">
-<a href="https://github.com/silentkit12">
-<img src="https://img.shields.io/badge/GitHub-181717?style=flat-square&logo=GitHub&logoColor=white"/>
-</a>
-</div>
+
+<!-- 박민정 -->
+<td align="center" width="200" style="vertical-align: top; padding: 15px;">
+  <img src="image/코카인.jpg" width="180" height="180" style="border-radius: 50%; object-fit: cover;" alt="박민정"/>
+  <h3 style="margin: 10px 0 5px 0;">박민정</h3>
+  <p style="margin: 5px 0;">Pipeline 구현 담당</p>
+  <a href="https://github.com/silentkit12">
+    <img src="https://img.shields.io/badge/GitHub-181717?style=flat-square&logo=GitHub&logoColor=white"/>
+  </a>
 </td>
+
 </tr>
 </table>
+
 
 
 </div>
