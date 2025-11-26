@@ -64,7 +64,7 @@
 
 <h2>👥 팀 구성 및 역할 분담</h2>
 <p><strong>Team 역전파</strong></p>
-
+      
 <table>
 <tr>
 
@@ -121,8 +121,9 @@
 </tr>
 </table>
 
+
 <p align="center">
-        <img src="image/역할분담.png" alt="역할분담" width="700">
+        <img src="image/역할분담.png" alt="역할분담" width="950">
       </p>
 
 </div>
@@ -427,7 +428,7 @@ SKN21-2nd-2Team/
 - **시계열 + 고객 접점 피처를 추가**한 `enhanced_data.csv` 실험에서는, 동일한 모델(RF)로도 **F1≈0.62, AUC≈0.79까지 성능이 크게 상승**하는 것을 확인함.
 - 이를 통해 **“모델을 바꾸는 것보다, 이탈 직전 행동 변화와 고객 접점을 담는 피처를 설계·수집하는 것이 핵심”** 이라는 결론에 도달했고,
 <p align="center">
-        <img src="image/visualizations/final_summary_performance.png" alt="final_summary_performance" width="500">
+        <img src="image/visualizations/final_summary_performance.png" alt="final_summary_performance" width="480">
       </p> 
       
   실제 서비스 환경에서는 로그·고객센터·결제/에러 데이터를 결합한 피처 설계를 가장 우선순위로 두어야 한다는 인사이트를 얻음.
@@ -531,7 +532,7 @@ SKN21-2nd-2Team/
 
 본 애플리케이션은 Spotify 사용자 행동 기반 이탈(Churn) 예측 모델을
 Streamlit UI로 제공하는 실시간 예측·시각화 서비스입니다.
-<br><br><br>
+<br><br>
 
 ## 👩‍💻 관리자
 본 프로젝트는 사용자 서비스뿐 아니라,
