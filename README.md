@@ -523,62 +523,75 @@ SKN21-2nd-2Team/
 
 ---
 
-## 💡 주요 기능 (Key Features)
+<br>
 
-본 프로젝트는 Spotify 사용자 행동 데이터를 기반으로  
-**이탈 확률을 예측**하고, 이를 Streamlit UI를 통해 시각화하고 제공합니다.
+## 🎧 Streamlit 구현 기능 (Streamlit Application Features)
+
+본 애플리케이션은 Spotify 사용자 행동 기반 이탈(Churn) 예측 모델을
+Streamlit UI로 제공하는 실시간 예측·시각화 서비스입니다.
 
 <br>
 
-### ⭐ 1. 사용자 입력 기반 이탈 예측
-- 사용자가 직접 **listening_time, skip_rate, engagement_score, ads_pressure** 값을 입력
-- Flask API 서버가 모델을 통해 **이탈 확률(Churn Probability)**을 계산
-- "잔존 / 이탈" 여부를 즉시 제공
+## 👩‍💻 관리자
+
+### 🔐 로그인 페이지
+- 관리자와 사용자 구분
+<p align="center">
+        <img src="image/gif/00_.gif" alt="feature_importance" width="800">
+      </p>
 
 <br>
 
-### 📊 2. 시각화 기반 데이터 확인
-- 입력된 값에 따라 간단한 시각화를 제공
-- 사용자 행동 변수들의 해석을 지원
-- Feature 간 상관관계 및 churn 영향 확인 가능
+### 🏠 HOME
+- 유저 위험도 및 이탈률 통계
+<p align="center">
+        <img src="image/gif/01_.gif" alt="feature_importance" width="800">
+      </p>
+
 
 <br>
 
-### 📁 3. 전처리 파이프라인 자동 적용
-- Train/Test 데이터와 동일한 전처리 흐름을 API에서 자동 적용
-- 인코딩, 스케일링, Feature 변환이 일관되게 진행됨  
-- 모델 입력 오류 방지
+### 📁
+<p align="center">
+        <img src="image/gif/02_.gif" alt="feature_importance" width="800">
+      </p>
+<br>
+
+### 🤖
+<p align="center">
+        <img src="image/gif/03_.gif" alt="feature_importance" width="800">
+      </p>
 
 <br>
 
-### 🤖 4. Baseline ML 모델 기반 예측
-- Logistic Regression Baseline 모델 적용
-- 전처리 + 학습 + 평가 흐름 자동화
-- `.pkl`로 저장된 모델을 API에서 로드하여 실시간 예측
-
+### 🗄️
+<p align="center">
+        <img src="image/gif/04_.gif" alt="feature_importance" width="800">
+      </p>
 <br>
 
-### 🗄️ 5. MySQL 사용자 관리 & 예측 이력 저장
-- 회원가입 / 로그인 기능 지원
-- bcrypt 기반 안전한 비밀번호 해싱
-- 예측 요청 시 DB에 자동 저장:
-  - 입력값 (listening_time, skip_rate 등)
-  - 예측 결과(churn probability)
-  - 요청 시간
-
+### 🖥️ 
+<p align="center">
+        <img src="image/gif/05_.gif" alt="feature_importance" width="800">
+      </p>
 <br>
 
-### 🖥️ 6. Streamlit 기반 단일 페이지 UI
-- 직관적이고 심플한 UI 구성
-- 버튼 클릭만으로 예측 수행
-- 온라인 서비스 형태와 유사한 구조
+### 🔧
+<p align="center">
+        <img src="image/gif/06_.gif" alt="feature_importance" width="800">
+      </p>
 
-<br>
+<p align="center">
+        <img src="image/gif/07_.gif" alt="feature_importance" width="800">
+      </p>
 
-### 🔧 7. 팀 기반 구조화된 파이프라인
-- 파트별 책임(데이터 분석 / 전처리 / 모델링 / UI / 통합)이 명확
-- 실제 서비스 개발 과정과 유사한 협업 프로세스 구성
+<p align="center">
+        <img src="image/gif/08_.gif" alt="feature_importance" width="800">
+      </p>
 
+<p align="center">
+        <img src="image/gif/09_.gif" alt="feature_importance" width="800">
+      </p>
 
 <br><br><br>
 
