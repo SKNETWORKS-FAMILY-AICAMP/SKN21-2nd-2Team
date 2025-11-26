@@ -637,36 +637,51 @@ SKN21-2nd-2Team/
       </p>
 
 > **사용자 조회** - 이름, 사용자 ID, 좋아하는 음악, 등급으로 사용자 검색 <br>
-> 
+> 각 사용자의 등급 변경 가능 <br>
+> 각 사용자의 이탈 위험도를 확인 -> 위험 사용자 파악
+
+<br>
+
 ### 🎯 이탈 예측(단일)
 <p align="center">
         <img src="image/gif/06_.gif" alt="feature_importance" width="700">
       </p>
+
+> **예측 실행 버튼** - 이탈 가능성과 위험도가 표시 <br>
+> 이탈 확률은 0-100%로 표시되며, 위험도는 낮음/보통/높음으로 구분
+
+<br>
       
 ### 📊 이탈 예측(배치)
 <p align="center">
         <img src="image/gif/07_.gif" alt="feature_importance" width="700">
       </p>
-      
+
+<br>
+
 ### 🧠 이탈 예측(6피처)
 <p align="center">
         <img src="image/gif/08_.gif" alt="feature_importance" width="700">
       </p>
-      
+<br>
+
 ### 🔍 예측 결과 조회
 <p align="center">
-        <img src="image/gif/결과.gif" alt="feature_importance" width="700">
+        <img src="image/gif/결과_.gif" alt="feature_importance" width="700">
       </p>
-      
+<br>
+
 ### 💾 예측 csv 관리
 <p align="center">
         <img src="image/gif/12_csv.gif" alt="feature_importance" width="700">
       </p>
+<br>
 
 ### 📖 로그 조회
 <p align="center">
         <img src="image/gif/09_.gif" alt="feature_importance" width="700">
       </p>
+      
 <br><br><br>
 
 ## 📝 팀원 소감 (Team Retrospective)
