@@ -4,16 +4,9 @@
       
 ![header](https://capsule-render.vercel.app/api?type=waving&color=0db954&height=180&text=Spotify%20Churn%20Prediction%20App&fontSize=50&fontColor=ffffff)
 
+<br>
+   
 ## SKN21-2nd-2Team
-# Spotipy 이탈 예측 어플리케이션 (Spotify Churn Prediction App)
-
-
-
-
-
-<br><br><br>
-    
-
 ## 📌 프로젝트 개요
 
    <p align="center">
