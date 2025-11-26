@@ -1,6 +1,6 @@
 <p align="left" style="display: flex; align-items: center;">
   <img src="image/스포티파이.svg" width="150" />
-  <img src="image/team.png" width="200" />
+  <img src="image/team.png" width="200" style="margin-left: 15px;" />
 </p>
       
 ![header](https://capsule-render.vercel.app/api?type=waving&color=0db954&height=180&text=Spotify%20Churn%20Prediction%20App&fontSize=50&fontColor=ffffff)
