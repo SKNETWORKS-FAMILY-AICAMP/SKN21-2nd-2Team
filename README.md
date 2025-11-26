@@ -1,12 +1,16 @@
- <p align="">
-        <img src="image/스포티파이.svg" alt="프로젝트 로고" width="150">
-      </p>
+<p align="left">
+  <img src="image/스포티파이.svg"" width="150" />
+  <span style="font-size: 32px; font-weight: 700; margin-left: 10px;">
+    SKN21-2nd-2Team
+  </span>
+</p>
       
 ![header](https://capsule-render.vercel.app/api?type=waving&color=0db954&height=180&text=Spotify%20Churn%20Prediction%20App&fontSize=50&fontColor=ffffff)
 
 <br>
+
+
    
-## SKN21-2nd-2Team
 ## 📌 프로젝트 개요
 
    <p align="center">
