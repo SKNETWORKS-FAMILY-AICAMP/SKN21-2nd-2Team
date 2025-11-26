@@ -2939,14 +2939,14 @@ def show_churn_prediction_6feat_page():
     col1, col2 = st.columns(2)
     
     with col1:
-        app_crash_count_30d = st.number_input("앱 크래시 횟수 (30일)", min_value=0, value=0, step=1, key="crash")
-        skip_rate_increase_7d = st.number_input("스킵률 증가 (7일, %)", min_value=0.0, value=0.0, step=0.1, key="skip")
-        days_since_last_login = st.number_input("마지막 로그인 경과일", min_value=0, value=0, step=1, key="login_days")
+        app_crash_count_30d = st.number_input("app_crash_count_30d(최근 30일 동안의 앱 크래시 횟수, 범위: 0 ~ 4)", min_value=0, max_value=4, value=0, step=1, key="crash")
+        skip_rate_increase_7d = st.number_input("skip_rate_increase_7d(최근 7일 스킵률 증가율, 범위: -15% ~ +35%)", min_value=-15.0, max_value=35.0, value=0.0, step=0.1, key="skip")
+        days_since_last_login = st.number_input("days_since_last_login(마지막 로그인 이후 경과 일수, 범위: 0 ~ 30)", min_value=0, max_value=30, value=0, step=1, key="login_days")
     
     with col2:
-        listening_time_trend_7d = st.number_input("청취 시간 추세 (7일, %)", value=0.0, step=0.1, key="listening")
-        freq_of_use_trend_14d = st.number_input("사용 빈도 추세 (14일, %)", value=0.0, step=0.1, key="freq")
-        login_frequency_30d = st.number_input("로그인 빈도 (30일)", min_value=0, value=0, step=1, key="login_freq")
+        listening_time_trend_7d = st.number_input("listening_time_trend_7d(최근 7일 청취 시간 변화율, 범위: -20% ~ +20%)", min_value=-20.0, max_value=20.0, value=0.0, step=0.1, key="listening")
+        freq_of_use_trend_14d = st.number_input("freq_of_use_trend_14d(최근 14일 사용 빈도(trips) 변화율, 범위: -16% ~ +16%)", min_value=-16.0, max_value=16.0, value=0.0, step=0.1, key="freq")
+        login_frequency_30d = st.number_input("login_frequency_30d(최근 30일 로그인 횟수, 범위: 0 ~ 30)", min_value=0, max_value=30, value=0, step=1, key="login_freq")
     
     if st.button("예측 실행", type="primary"):
         try:
