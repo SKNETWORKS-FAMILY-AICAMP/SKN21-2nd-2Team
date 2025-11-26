@@ -193,26 +193,29 @@
 ```plaintext
 SKN21-2nd-2Team/
 ├── backend/                             # Flask API + ML 백엔드
-│   ├── app.py                           # 전체 API (유저/로그/예측/CSV 등)
-│   ├── inference.py                     # 전체 피처 이탈 예측
-│   ├── inference_sim_6feat_lgbm.py      # 6피처 LGBM 시뮬레이터
-│   ├── preprocessing_pipeline.py        # 전처리 파이프라인
-│   ├── models.py                        # get_model() 팩토리
-│   ├── config.py                        # 공통 설정 (DATA_PATH, 모델 이름 등)
-│   ├── training/                        # 학습 스크립트
-│   └── tests/                           # 시나리오 기반 모델 동작 점검
+│   ├── app.py                           # 전체 API (유저/로그/예측/CSV/Spotify 등)
+│   ├── inference.py                     # 전처리 pkl + 최종 HGB 모델 pkl 기반 전체 피처 이탈 예측
+│   ├── inference_sim_6feat_lgbm.py      # 6피처 LGBM(단조 제약) 시뮬레이터 추론
+│   ├── preprocessing_pipeline.py        # 전처리 파이프라인 정의 및 pkl 저장/로드 유틸
+│   ├── models.py                        # get_model() 팩토리 + MODEL_REGISTRY
+│   ├── config.py                        # 공통 설정 (DATA_PATH, THRESH 범위, MODEL_PKL_PATH 등)
+│   ├── training/                        # 학습/실험 스크립트 (train_experiments.py 등)
+│   └── tests/                           # 시나리오 기반 API·모델 동작 점검
 │
 ├── frontend/                            # Streamlit UI + Spotify 연동
-│   ├── runapp.py                        # 메인 UI 실행
+│   ├── run_app.py                       # 메인 UI 실행 진입점
+│   ├── main.py                          # 백엔드 API 연동 Streamlit 화면
 │   └── utils/                           # Spotify 인증, API 래퍼, 상태 관리
 │
 ├── data/                                # 원본/가공 데이터 및 전처리 결과
 │   ├── raw/                             # 원본 CSV
-│   ├── processed/                       # 전처리·합성 결과(pkl, enhanced.csv)
+│   ├── processed/                       # 전처리·합성 결과(pkl, enhanced_*.csv)
 │   └── user_data.csv                    # DB 적재용 유저 CSV
 │
 ├── models/                              # 학습된 모델 및 메트릭
-│   ├──.pkl                              # 학습된 모델 파일들
+│   ├── model_lk.pkl                     # 최종 선정된 HGB 모델 (inference.py 에서 사용)
+│   ├── hgb_sim_6feat.pkl                # 6피처 시뮬레이터용 HGB 모델
+│   ├── lgbm_sim_6feat_mono*.pkl         # 6피처 LGBM(단조 제약) 모델들
 │   └── metrics.json                     # 실험 결과 누적 메트릭
 │
 ├── docs/                                # 실험 기록, 설계/성능 정리 문서
@@ -367,12 +370,23 @@ SKN21-2nd-2Team/
 
 <br>
 
+- **행동 기반 합성 피처 생성방법**:
+  - **1) 확률적 랜덤 분포 기반 생성**: 이탈자·비이탈자 각각에 대해 현실적인 범위 안에서 랜덤 분포로 값을 생성하되, 두 그룹의 분포가 크게 겹치도록 설계해 비현실적인 과적합을 피했습니다.
+  - **2) 약한 방향성만 반영**: 활동 감소, 로그인 감소, 스킵률 증가 등 실제 이탈 패턴은 평균값의 미세한 차이 정도로만 반영해, 절대값이 아니라 **경향성(behavioral signal)** 위주로만 학습되도록 했습니다.
+  - **3) 15~20% 노이즈 삽입**: 각 피처의 15~20%에는 반대 패턴/완전 랜덤 값을 섞어 규칙을 일부러 깨, 모델이 패턴을 암기하지 않고도 일반화 가능성을 확인할 수 있도록 했습니다.
+
+
+
 - **합성 피처 생성 및 검증** (`feature_engineering_advanced.ipynb`):
   - 원본 베이스라인(수치형 6 + FE 5, 총 11개) 대비, **시계열 5개 + 고객 접점 4개**를 추가한 `enhanced_data.csv` 생성
   - RandomForest 기반 실험 결과:
     - Baseline: F1≈0.42, AUC≈0.54
     - +시계열 피처: F1≈0.49, AUC≈0.73
     - +시계열+고객접점(최종): **F1≈0.62, AUC≈0.79** (ΔF1 +0.20 이상, ΔAUC +0.25 이상)
+  - 이렇게 설계한 합성 피처를 적용한 `enhanced_data.csv` 기준 RandomForest 실험에서,
+    - Baseline: F1≈0.42, AUC≈0.54 →
+    - 최종(시계열+고객접점): **F1≈0.62, AUC≈0.79** (ΔF1 +0.20 이상, ΔAUC +0.25 이상)까지 성능이 향상되었습니다.      
+  
   <p align="center">
         <img src="image/visualizations/advanced_fe_performance.png" alt="advanced_fe_performance" width="500">
       </p>      
