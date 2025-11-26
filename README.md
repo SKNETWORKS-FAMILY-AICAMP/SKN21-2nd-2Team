@@ -1,11 +1,12 @@
-## <span style="color:green">SKN21-2nd-2Team</span>
+ <p align="">
+        <img src="image/스포티파이.svg" alt="프로젝트 로고" width="150">
+      </p>
+
+## <span>SKN21-2nd-2Team</span>
+
 # Spotipy 이탈 예측 어플리케이션 (Spotify Churn Prediction App)
 
-<br>
-
- <p align="center">
-        <img src="image/스포티파이.svg" alt="프로젝트 로고" width="500">
-      </p>
+![header](https://capsule-render.vercel.app/api?type=transparent&text=Spotify%20Churn%20Prediction%20App&fontSize=55&fontColor=0db954)
 
 <br><br><br>
     
