@@ -2,7 +2,6 @@
 
 ## 테이블 목록
 
-현재 사용 중인 테이블은 모두 7개입니다:
 1. **users** - 사용자 기본 정보
 2. **user_prediction** - 이탈 예측 결과
 3. **user_features** - 사용자 피처 데이터 (ML 학습용)
@@ -10,8 +9,6 @@
 5. **achievements** - 도전과제 정의
 6. **user_achievements** - 사용자별 도전과제 진행 상황
 7. **music_playback_log** - 음악 재생 로그
-
-모든 테이블이 현재 사용 중이며, 미사용 테이블은 없습니다.
 
 ---
 
@@ -307,10 +304,3 @@ music_playback_log → 도전과제 체크 → user_achievements 업데이트
 ```
 
 ---
-
-## 작성일
-2025-11-18
-
-## 작성자
-박수빈
-
