@@ -123,9 +123,9 @@
 
 <br><br>
 
-<h2>🟪 WBS</h2>
+<h2>👤❓ WBS</h2>
 <p align="center">
-        <img src="image/역할분담.png" alt="역할분담" width="950">
+        <img src="image/역할분담.png" alt="역할분담" width="850">
       </p>
 
 </div>
@@ -536,10 +536,6 @@ SKN21-2nd-2Team/
 
 # 🎧 Streamlit 구현 기능 (Streamlit Application Features)
 
-본 애플리케이션은 Spotify 사용자 행동 기반 이탈(Churn) 예측 모델을
-Streamlit UI로 제공하는 실시간 예측·시각화 서비스입니다.
-<br><br>
-
 ## 👩‍💻 관리자
 본 프로젝트는 사용자 서비스뿐 아니라,
 관리자를 위한 **운영·유지보수 페이지(Admin Dashboard)** 를 포함하고 있습니다.
@@ -561,7 +557,7 @@ Streamlit UI로 제공하는 실시간 예측·시각화 서비스입니다.
 ## 👩‍💻 관리자 / 🙋‍♂️ 사용자
 
 ### 🔐 로그인 페이지
-- 관리자와 사용자 계정 구분
+#### 관리자와 사용자 계정 구분
 <div style="display: flex; justify-content: center; gap: 20px;">
   <img src="image/gif/00_.gif" width="48%" />
   <img src="image/gif/11_.gif" width="48%" />
@@ -569,11 +565,22 @@ Streamlit UI로 제공하는 실시간 예측·시각화 서비스입니다.
 <br>
 
 ### 🏠 HOME
-- 각각 화면이 다르게 구현
+#### 각각 화면이 다르게 구현
 <div style="display: flex; justify-content: center; gap: 20px;">
   <img src="image/gif/01_.gif" width="48%" />
   <img src="image/gif/22_.gif" width="48%" />
 </div>
+
+> #### 관리자
+> - **운영 데이터 모니터링** - 이탈률·위험도·전체 사용자 통계 확인
+>
+<br>
+
+> #### 사용자 
+> - **음악 검색/재생** - Spotify API 기반 음악 검색 및 스트리밍
+> - **상세 검색** - 발매 연도, 장르 인기도 등으로 검색 범위를 좁힐 수 있음
+> - **실시간 플레이어**
+> - **추천 음악**
 
 <br><br>
 
@@ -587,29 +594,41 @@ Streamlit UI로 제공하는 실시간 예측·시각화 서비스입니다.
 <p align="center">
         <img src="image/gif/44_.gif" alt="feature_importance" width="700">
       </p>
+      
+> **이름** 과 **좋아하는 장르** 수정 가능 <br>
+> **구독해지버튼** - 클릭 시 구독 해지 양식 표시
 <br>
 
 ### 🏆 도전 과제
 <p align="center">
         <img src="image/gif/66_.gif" alt="feature_importance" width="700">
       </p>
-
+      
+> 완료된 도전과제와 진행 중인 도전과제 나열로 **진행도**와 **🎵 목표 장르**, **보상**(포인트지급) 등을 표시
 <br><br>
 
 
 ## 👩‍💻 관리자
 
 
-### 🏆 도전 과제 관리·생성
+### 🏆 도전과제 관리·생성
 <p align="center">
         <img src="image/gif/03_.gif" alt="feature_importance" width="700">
       </p>
+
+> 새로운 도전과제를 만들거나 기존 도전과제를 삭제 - 목표 재생 횟수와 보상 포인트 설정 <br>
+> **도전과제 통계를 통해 사용자들의 참여 현황 확인 가능**
+
 <br>
 
 ### 👥 사용자 데이터 관리 
 <p align="center">
         <img src="image/gif/04_.gif" alt="feature_importance" width="700">
       </p>
+      
+> 시스템 사용시 필요한 저장소 준비 <br>
+> 사용자 정보, 예측 데이터, 활동 로그 등 저장할 공간 생성
+    
 <br>
 
 ### 👤 사용자 조회
@@ -617,7 +636,9 @@ Streamlit UI로 제공하는 실시간 예측·시각화 서비스입니다.
         <img src="image/gif/05_.gif" alt="feature_importance" width="700">
       </p>
 
-### 🎯 이탈 예측(딘일)
+> **사용자 조회** - 이름, 사용자 ID, 좋아하는 음악, 등급으로 사용자 검색 <br>
+> 
+### 🎯 이탈 예측(단일)
 <p align="center">
         <img src="image/gif/06_.gif" alt="feature_importance" width="700">
       </p>
@@ -633,8 +654,14 @@ Streamlit UI로 제공하는 실시간 예측·시각화 서비스입니다.
       </p>
       
 ### 🔍 예측 결과 조회
+<p align="center">
+        <img src="image/gif/결과.gif" alt="feature_importance" width="700">
+      </p>
       
 ### 💾 예측 csv 관리
+<p align="center">
+        <img src="image/gif/12_csv.gif" alt="feature_importance" width="700">
+      </p>
 
 ### 📖 로그 조회
 <p align="center">
